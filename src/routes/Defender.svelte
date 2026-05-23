@@ -8,11 +8,7 @@
     Lock,
     Plus,
     X as XIcon,
-    Folder,
-    Cpu,
-    FileType2,
     AlertTriangle,
-    Info,
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -330,49 +326,38 @@
     Querying Defender…
   </div>
 {:else if status}
-  <!-- Status banner -->
-  <div
-    class={cn(
-      "mb-6 rounded-xl border p-4 flex items-start gap-3",
-      status.serviceRunning
-        ? "border-success/30 bg-success/[0.06]"
-        : "border-destructive/40 bg-destructive/[0.06]",
-    )}
-  >
+  <!-- Service status line -->
+  <div class="mb-6 flex flex-wrap items-center gap-2 text-xs">
     {#if status.serviceRunning}
-      <ShieldCheck class="size-5 text-success shrink-0 mt-0.5" />
+      <Badge variant="success">
+        <ShieldCheck class="size-2.5" />
+        Service running
+      </Badge>
     {:else}
-      <ShieldOff class="size-5 text-destructive shrink-0 mt-0.5" />
+      <Badge variant="destructive">
+        <ShieldOff class="size-2.5" />
+        Service stopped
+      </Badge>
     {/if}
-    <div class="flex-1">
-      <div class="text-sm font-semibold">
-        {status.serviceRunning ? "Defender service is running" : "Defender service is stopped"}
-      </div>
-      <div class="text-xs text-muted-foreground mt-1">
-        {#if status.tamperProtection}
-          <span class="inline-flex items-center gap-1 mr-3">
-            <Lock class="size-3" />
-            Tamper Protection on — some changes may be silently rejected
-          </span>
-        {/if}
-        {#if status.managedByPolicy}
-          <span class="inline-flex items-center gap-1">
-            <AlertTriangle class="size-3 text-amber-500" />
-            Managed by Group Policy
-          </span>
-        {/if}
-        {#if !status.tamperProtection && !status.managedByPolicy}
-          All toggles are user-controllable.
-        {/if}
-      </div>
-    </div>
-    <Badge variant={status.tamperProtection ? "success" : "outline"}>
-      Tamper: {status.tamperProtection ? "On" : "Off"}
-    </Badge>
+    {#if status.tamperProtection}
+      <Badge variant="warning">
+        <Lock class="size-2.5" />
+        Tamper Protection on
+      </Badge>
+    {/if}
+    {#if status.managedByPolicy}
+      <Badge variant="warning">
+        <AlertTriangle class="size-2.5" />
+        Managed by Group Policy
+      </Badge>
+    {/if}
+    {#if status.tamperProtection || status.managedByPolicy}
+      <span class="text-muted-foreground">— some changes may be silently rejected.</span>
+    {/if}
   </div>
 
   <!-- Real-time & protection -->
-  <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 mt-2">
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
     Real-time &amp; protection
   </h2>
   <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
@@ -381,10 +366,17 @@
       {@const isBusy = busy.has(def.key)}
       <div
         class={cn(
-          "flex items-start gap-3 py-3 px-5 border-b last:border-b-0 transition-colors",
-          on ? "bg-primary/[0.04]" : "",
+          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
+          on ? "bg-primary/[0.03]" : "",
         )}
       >
+        <span
+          class={cn(
+            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
+            on ? "bg-primary/60 opacity-100" : "opacity-0",
+          )}
+          aria-hidden="true"
+        ></span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{def.label}</span>
@@ -412,7 +404,7 @@
   </Card>
 
   <!-- SmartScreen -->
-  <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
     SmartScreen
   </h2>
   <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
@@ -421,10 +413,17 @@
       {@const isBusy = busy.has(def.key)}
       <div
         class={cn(
-          "flex items-start gap-3 py-3 px-5 border-b last:border-b-0 transition-colors",
-          on ? "bg-primary/[0.04]" : "",
+          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
+          on ? "bg-primary/[0.03]" : "",
         )}
       >
+        <span
+          class={cn(
+            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
+            on ? "bg-primary/60 opacity-100" : "opacity-0",
+          )}
+          aria-hidden="true"
+        ></span>
         <div class="flex-1 min-w-0">
           <span class="text-sm font-medium">{def.label}</span>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{def.description}</p>
@@ -444,23 +443,17 @@
   </Card>
 
   <!-- Exclusions -->
-  <h2 class="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-    Exclusions
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
+    Scan exclusions
   </h2>
-  <div
-    class="mb-3 rounded-lg border border-blue-500/30 bg-blue-500/[0.06] p-3 flex items-start gap-2 text-xs"
-  >
-    <Info class="size-4 text-blue-500 shrink-0 mt-0.5" />
-    <span class="text-foreground/80 leading-relaxed">
-      Files, folders, processes, and extensions added here are skipped by Defender scans.
-      Use sparingly — every exclusion is a potential blind spot.
-    </span>
-  </div>
+  <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
+    Files, folders, processes, and extensions added here are skipped by Defender scans. Use sparingly —
+    every exclusion is a potential blind spot.
+  </p>
 
-  <!-- Paths (files + folders) -->
+  <!-- Files & folders -->
   <Card class="card-inset mb-4">
-    <div class="px-5 py-4 flex items-center gap-2 border-b border-foreground/8">
-      <Folder class="size-4 text-muted-foreground" />
+    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
       <span class="text-sm font-medium">Files &amp; folders</span>
       <Badge variant="outline" class="ml-auto">{exclusions.paths.length}</Badge>
     </div>
@@ -469,12 +462,12 @@
         type="text"
         bind:value={pathInput}
         placeholder="C:\path\to\file or folder"
-        class="flex-1 min-w-0 h-9 px-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
         onkeydown={(e) => e.key === "Enter" && addExclusion("path")}
       />
-      <Button variant="outline" size="sm" onclick={pickFolder}>Pick folder</Button>
-      <Button variant="outline" size="sm" onclick={pickFile}>Pick file</Button>
-      <Button size="sm" onclick={() => addExclusion("path")} disabled={addBusy === "path"}>
+      <Button variant="outline" onclick={pickFolder}>Pick folder</Button>
+      <Button variant="outline" onclick={pickFile}>Pick file</Button>
+      <Button onclick={() => addExclusion("path")} disabled={addBusy === "path"}>
         {#if addBusy === "path"}
           <Loader2 class="animate-spin" />
         {:else}
@@ -484,38 +477,33 @@
       </Button>
     </div>
     {#if exclusions.paths.length === 0}
-      <div class="px-5 py-8 text-center text-sm text-muted-foreground">
-        No path exclusions.
-      </div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No path exclusions.</div>
     {:else}
-      <div>
-        {#each exclusions.paths as p (p)}
-          {@const isBusy = busy.has(`rm:path:${p}`)}
-          <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
-            <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onclick={() => removeExclusion("path", p)}
-              disabled={isBusy}
-            >
-              {#if isBusy}
-                <Loader2 class="animate-spin" />
-              {:else}
-                <XIcon />
-              {/if}
-              Remove
-            </Button>
-          </div>
-        {/each}
-      </div>
+      {#each exclusions.paths as p (p)}
+        {@const isBusy = busy.has(`rm:path:${p}`)}
+        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+          <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onclick={() => removeExclusion("path", p)}
+            disabled={isBusy}
+          >
+            {#if isBusy}
+              <Loader2 class="animate-spin" />
+            {:else}
+              <XIcon />
+            {/if}
+            Remove
+          </Button>
+        </div>
+      {/each}
     {/if}
   </Card>
 
   <!-- Processes -->
   <Card class="card-inset mb-4">
-    <div class="px-5 py-4 flex items-center gap-2 border-b border-foreground/8">
-      <Cpu class="size-4 text-muted-foreground" />
+    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
       <span class="text-sm font-medium">Processes</span>
       <Badge variant="outline" class="ml-auto">{exclusions.processes.length}</Badge>
     </div>
@@ -524,14 +512,10 @@
         type="text"
         bind:value={processInput}
         placeholder="myapp.exe"
-        class="flex-1 min-w-0 h-9 px-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
         onkeydown={(e) => e.key === "Enter" && addExclusion("process")}
       />
-      <Button
-        size="sm"
-        onclick={() => addExclusion("process")}
-        disabled={addBusy === "process"}
-      >
+      <Button onclick={() => addExclusion("process")} disabled={addBusy === "process"}>
         {#if addBusy === "process"}
           <Loader2 class="animate-spin" />
         {:else}
@@ -541,38 +525,33 @@
       </Button>
     </div>
     {#if exclusions.processes.length === 0}
-      <div class="px-5 py-8 text-center text-sm text-muted-foreground">
-        No process exclusions.
-      </div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No process exclusions.</div>
     {:else}
-      <div>
-        {#each exclusions.processes as p (p)}
-          {@const isBusy = busy.has(`rm:process:${p}`)}
-          <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
-            <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onclick={() => removeExclusion("process", p)}
-              disabled={isBusy}
-            >
-              {#if isBusy}
-                <Loader2 class="animate-spin" />
-              {:else}
-                <XIcon />
-              {/if}
-              Remove
-            </Button>
-          </div>
-        {/each}
-      </div>
+      {#each exclusions.processes as p (p)}
+        {@const isBusy = busy.has(`rm:process:${p}`)}
+        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+          <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onclick={() => removeExclusion("process", p)}
+            disabled={isBusy}
+          >
+            {#if isBusy}
+              <Loader2 class="animate-spin" />
+            {:else}
+              <XIcon />
+            {/if}
+            Remove
+          </Button>
+        </div>
+      {/each}
     {/if}
   </Card>
 
   <!-- Extensions -->
   <Card class="card-inset mb-4">
-    <div class="px-5 py-4 flex items-center gap-2 border-b border-foreground/8">
-      <FileType2 class="size-4 text-muted-foreground" />
+    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
       <span class="text-sm font-medium">File extensions</span>
       <Badge variant="outline" class="ml-auto">{exclusions.extensions.length}</Badge>
     </div>
@@ -581,14 +560,10 @@
         type="text"
         bind:value={extensionInput}
         placeholder="log (with or without leading dot)"
-        class="flex-1 min-w-0 h-9 px-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
         onkeydown={(e) => e.key === "Enter" && addExclusion("extension")}
       />
-      <Button
-        size="sm"
-        onclick={() => addExclusion("extension")}
-        disabled={addBusy === "extension"}
-      >
+      <Button onclick={() => addExclusion("extension")} disabled={addBusy === "extension"}>
         {#if addBusy === "extension"}
           <Loader2 class="animate-spin" />
         {:else}
@@ -598,31 +573,27 @@
       </Button>
     </div>
     {#if exclusions.extensions.length === 0}
-      <div class="px-5 py-8 text-center text-sm text-muted-foreground">
-        No extension exclusions.
-      </div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No extension exclusions.</div>
     {:else}
-      <div>
-        {#each exclusions.extensions as p (p)}
-          {@const isBusy = busy.has(`rm:extension:${p}`)}
-          <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
-            <span class="text-sm font-mono truncate flex-1" title={p}>.{p}</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onclick={() => removeExclusion("extension", p)}
-              disabled={isBusy}
-            >
-              {#if isBusy}
-                <Loader2 class="animate-spin" />
-              {:else}
-                <XIcon />
-              {/if}
-              Remove
-            </Button>
-          </div>
-        {/each}
-      </div>
+      {#each exclusions.extensions as p (p)}
+        {@const isBusy = busy.has(`rm:extension:${p}`)}
+        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+          <span class="text-sm font-mono truncate flex-1" title={p}>.{p}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onclick={() => removeExclusion("extension", p)}
+            disabled={isBusy}
+          >
+            {#if isBusy}
+              <Loader2 class="animate-spin" />
+            {:else}
+              <XIcon />
+            {/if}
+            Remove
+          </Button>
+        </div>
+      {/each}
     {/if}
   </Card>
 {/if}

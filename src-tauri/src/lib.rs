@@ -1,6 +1,5 @@
 mod app_info;
 mod context_menu;
-mod defaults;
 mod defender;
 mod driver_packages;
 mod driver_search;
@@ -11,7 +10,6 @@ mod icons;
 mod maintenance;
 mod network;
 mod onedrive;
-mod personalization;
 mod recall;
 mod schtasks;
 pub mod sysinfo;
@@ -116,12 +114,6 @@ pub fn run() {
             firewall::firewall_list_blocks,
             firewall::firewall_apply_block,
             firewall::firewall_remove_block,
-            defaults::get_default_apps,
-            defaults::open_default_apps,
-            personalization::personalization_status,
-            personalization::set_wallpaper,
-            personalization::set_lockscreen,
-            personalization::clear_lockscreen,
             driver_packages::list_driver_packages,
             driver_packages::delete_driver_package,
         ])

@@ -3,9 +3,7 @@
   import {
     Loader2,
     RefreshCw,
-    Brain,
     Trash2,
-    Image as ImageIcon,
     ShieldOff,
     CheckCircle2,
   } from "@lucide/svelte";
@@ -92,97 +90,93 @@
     declinedToast="Recall wipe needs admin — the toggles below still work."
   />
 {:else if canFetch}
-  <!-- Recall data wipe card -->
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
+    Recall snapshot store
+  </h2>
   <Card class="card-inset mb-6">
-    <div class="px-5 py-4 flex items-center gap-3 border-b border-foreground/8">
-      <div class="grid place-items-center size-9 rounded-md bg-primary/15">
-        <Brain class="size-4 text-primary" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <h2 class="text-base font-semibold">Recall snapshot store</h2>
-        <p class="text-xs text-muted-foreground mt-0.5">
-          Scrubs every snapshot Recall has captured on this device. Independent of disabling the feature.
-        </p>
-      </div>
-      {#if loading}
-        <Loader2 class="size-4 animate-spin text-muted-foreground" />
-      {/if}
-    </div>
+    <div class="px-5 py-4 space-y-4">
+      <p class="text-xs text-muted-foreground leading-relaxed">
+        Scrubs every snapshot Recall has captured on this device. Independent of disabling the feature
+        — use this if Recall was previously enabled and you want the on-disk store gone.
+      </p>
 
-    {#if status}
-      <div class="px-5 py-4 grid grid-cols-2 md:grid-cols-4 gap-4 border-b border-foreground/8">
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Status
+      {#if status}
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              Status
+            </div>
+            <div class="mt-1">
+              {#if status.dataPresent}
+                <Badge variant="warning">Snapshots present</Badge>
+              {:else}
+                <Badge variant="success">
+                  <CheckCircle2 class="size-2.5" />
+                  Empty
+                </Badge>
+              {/if}
+            </div>
           </div>
-          <div class="text-sm font-medium mt-1 flex items-center gap-1.5">
-            {#if status.dataPresent}
-              <Badge variant="warning">Snapshots present</Badge>
-            {:else}
-              <Badge variant="success">
-                <CheckCircle2 class="size-2.5" />
-                Empty
-              </Badge>
-            {/if}
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              Disk use
+            </div>
+            <div class="text-sm font-mono mt-1 tabular-nums">{fmtSize(status.sizeBytes)}</div>
           </div>
-        </div>
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Disk use
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              Snapshots
+            </div>
+            <div class="text-sm font-mono mt-1 tabular-nums">{status.snapshotCount}</div>
           </div>
-          <div class="text-sm font-mono mt-1">{fmtSize(status.sizeBytes)}</div>
-        </div>
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Snapshots
-          </div>
-          <div class="text-sm font-mono mt-1 flex items-center gap-1">
-            <ImageIcon class="size-3 text-muted-foreground" />
-            {status.snapshotCount}
-          </div>
-        </div>
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-            Policy
-          </div>
-          <div class="text-sm font-medium mt-1">
-            {#if status.policyDisabled}
-              <Badge variant="success">Disabled</Badge>
-            {:else}
-              <Badge variant="outline">Allowed</Badge>
-            {/if}
+          <div>
+            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+              Policy
+            </div>
+            <div class="mt-1">
+              {#if status.policyDisabled}
+                <Badge variant="success">Disabled</Badge>
+              {:else}
+                <Badge variant="outline">Allowed</Badge>
+              {/if}
+            </div>
           </div>
         </div>
-      </div>
-      {#if status.dataPath}
-        <div class="px-5 py-3 text-[10px] font-mono text-muted-foreground/70 border-b border-foreground/8 truncate">
-          {status.dataPath}
-        </div>
+        {#if status.dataPath}
+          <p class="text-[11px] font-mono text-muted-foreground/70 break-all">{status.dataPath}</p>
+        {/if}
       {/if}
-    {/if}
 
-    <div class="px-5 py-4 flex flex-col gap-3">
-      <label class="flex items-start gap-2.5 text-sm cursor-pointer select-none">
-        <Checkbox bind:checked={alsoSetPolicy} class="mt-0.5" />
-        <span class="flex-1">
-          <span class="font-medium">Block Recall via policy after wipe</span>
-          <span class="block text-xs text-muted-foreground mt-0.5">
+      <label
+        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
+      >
+        <div class="pt-0.5">
+          <Checkbox bind:checked={alsoSetPolicy} disabled={wipeBusy} />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="text-sm font-medium">Block Recall via policy after wipe</span>
+          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
             Writes <code class="font-mono text-[11px]">DisableAIDataAnalysis = 1</code> so Recall cannot
             silently come back via a feature update.
-          </span>
-        </span>
+          </p>
+        </div>
       </label>
-      <label class="flex items-start gap-2.5 text-sm cursor-pointer select-none">
-        <Checkbox bind:checked={alsoRemoveAppx} class="mt-0.5" />
-        <span class="flex-1">
-          <span class="font-medium">Also remove the Recall AppX package</span>
-          <span class="block text-xs text-muted-foreground mt-0.5">
-            Uninstalls <code class="font-mono text-[11px]">MicrosoftWindows.Client.AIX</code>. Aggressive —
-            Windows may reinstall it on the next feature update.
-          </span>
-        </span>
+      <label
+        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
+      >
+        <div class="pt-0.5">
+          <Checkbox bind:checked={alsoRemoveAppx} disabled={wipeBusy} />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="text-sm font-medium">Also remove the Recall AppX package</span>
+          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Uninstalls <code class="font-mono text-[11px]">MicrosoftWindows.Client.AIX</code>.
+            Aggressive — Windows may reinstall it on the next feature update.
+          </p>
+        </div>
       </label>
-      <div class="flex justify-end gap-2 pt-1">
+
+      <div class="flex justify-end">
         <Button
           variant="destructive"
           onclick={() => (confirmOpen = true)}

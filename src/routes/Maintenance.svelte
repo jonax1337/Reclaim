@@ -13,7 +13,6 @@
     Zap,
     Sparkles,
     AlertTriangle,
-    FileCheck2,
     FolderOpen,
     File as FileIcon,
     Trash2,
@@ -30,6 +29,7 @@
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import { open as openDialog } from "@tauri-apps/plugin-dialog";
+  import { Checkbox } from "$lib/ui";
   import {
     isTauri,
     setPowerPlan,
@@ -605,56 +605,49 @@
     Files
   </h2>
   <Card class="card-inset mb-6">
-    <div class="px-5 py-4 flex items-start gap-3 border-b border-foreground/8">
-      <div class="grid place-items-center size-9 rounded-md bg-primary/15 text-primary shrink-0">
-        <FileCheck2 class="size-4" />
-      </div>
-      <div class="flex-1 min-w-0">
-        <h3 class="text-base font-semibold">Mass file unblock</h3>
-        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Strips the <code class="font-mono text-[11px]">Zone.Identifier</code> alternate-data-stream
-          (Mark-of-the-Web) from a folder or single file. Useful for big downloads where every file
-          would otherwise trigger a SmartScreen prompt.
-        </p>
-      </div>
-      {#if unblockRunning}
-        <Badge variant="success">Running</Badge>
-      {/if}
-    </div>
-    <div class="px-5 py-4 flex flex-col gap-3">
+    <div class="px-5 py-4 space-y-3">
+      <p class="text-xs text-muted-foreground leading-relaxed">
+        Strips <code class="font-mono text-[11px]">Zone.Identifier</code> (Mark-of-the-Web) from a folder
+        or single file via <code class="font-mono text-[11px]">Unblock-File</code>. Useful for big downloads
+        where every extracted file would otherwise trigger a SmartScreen prompt.
+      </p>
       <div class="flex flex-wrap gap-2">
         <input
           type="text"
           bind:value={unblockTarget}
           placeholder="C:\Users\You\Downloads\extracted-archive"
-          class="flex-1 min-w-0 h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+          class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
           disabled={unblockRunning}
         />
-        <Button variant="outline" size="sm" onclick={pickUnblockFolder} disabled={unblockRunning}>
+        <Button variant="outline" onclick={pickUnblockFolder} disabled={unblockRunning}>
           <FolderOpen />
           Folder
         </Button>
-        <Button variant="outline" size="sm" onclick={pickUnblockFile} disabled={unblockRunning}>
+        <Button variant="outline" onclick={pickUnblockFile} disabled={unblockRunning}>
           <FileIcon />
           File
         </Button>
       </div>
-      <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
-        <input
-          type="checkbox"
-          bind:checked={unblockRecursive}
-          disabled={unblockRunning}
-          class="size-4 rounded border-input"
-        />
-        <span>Recurse into subfolders (folder targets only)</span>
+      <label
+        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
+      >
+        <div class="pt-0.5">
+          <Checkbox bind:checked={unblockRecursive} disabled={unblockRunning} />
+        </div>
+        <div class="flex-1 min-w-0">
+          <span class="text-sm font-medium">Recurse into subfolders</span>
+          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Only applies when the target is a folder. Single-file targets are unblocked directly.
+          </p>
+        </div>
       </label>
       <div class="flex justify-end">
         {#if unblockRunning}
-          <Button size="sm" variant="outline" onclick={() => (tasks.panelOpen = true)}>
+          <Button variant="outline" onclick={() => (tasks.panelOpen = true)}>
             Show output
           </Button>
         {:else}
-          <Button size="sm" onclick={runUnblock}>
+          <Button onclick={runUnblock}>
             <Play />
             Unblock
           </Button>

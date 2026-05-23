@@ -4,7 +4,6 @@
     Loader2,
     RefreshCw,
     Flame,
-    AlertTriangle,
     CheckCircle2,
     XCircle,
     ShieldOff,
@@ -21,6 +20,7 @@
   import { FIREWALL_BUILTINS, type FirewallBuiltin } from "$lib/network/firewall";
   import { firewallBlocksResource } from "$lib/route-cache.svelte";
   import { invalidate } from "$lib/cache.svelte";
+  import { cn } from "$lib/utils";
 
   const canFetch = $derived(isTauri() && admin.checked && admin.elevated);
   const blocksRes = $derived(canFetch ? firewallBlocksResource() : null);
@@ -125,24 +125,28 @@
     Loading firewall blocks…
   </div>
 {:else}
-  <div class="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 flex items-start gap-2 text-xs">
-    <AlertTriangle class="size-4 text-amber-500 shrink-0 mt-0.5" />
-    <span class="text-foreground/80 leading-relaxed">
-      Rules are created under the <code class="font-mono">Reclaim:</code> group so they're easy to audit and remove.
-      IP-based rules can become stale — re-apply periodically to refresh.
-    </span>
-  </div>
+  <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
+    Rules are created under the <code class="font-mono text-[11px]">Reclaim:</code> group so they're easy to
+    audit and remove. IP-based rules can become stale — re-apply periodically to refresh.
+  </p>
 
   <Card class="overflow-hidden gap-0 py-0 card-inset">
     {#each FIREWALL_BUILTINS as b (b.id)}
       {@const isBusy = busy.has(b.id)}
       {@const a = active(b)}
       <div
-        class="flex items-start gap-3 py-4 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors"
+        class={cn(
+          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
+          a ? "bg-primary/[0.03]" : "hover:bg-accent/40",
+        )}
       >
-        <div class="grid place-items-center size-9 rounded-md bg-primary/15 text-primary shrink-0">
-          <Flame class="size-4" />
-        </div>
+        <span
+          class={cn(
+            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
+            a ? "bg-primary/60 opacity-100" : "opacity-0",
+          )}
+          aria-hidden="true"
+        ></span>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{b.name}</span>

@@ -17,8 +17,6 @@
     AlertTriangle,
     Wand2,
     Trash2,
-    Package,
-    Filter,
   } from "@lucide/svelte";
   import {
     isTauri,
@@ -703,21 +701,12 @@
       declinedToast="Driver rollback requires admin."
     />
   {:else}
-    <Card class="card-inset">
-      <div class="px-5 py-4 flex items-center gap-3 border-b border-foreground/8">
-        <div class="grid place-items-center size-9 rounded-md bg-primary/15 text-primary shrink-0">
-          <Package class="size-4" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <h3 class="text-base font-semibold">Installed driver packages</h3>
-          <p class="text-xs text-muted-foreground mt-0.5">
-            Lists OEM-installed driver packages via <code class="font-mono text-[11px]">pnputil /enum-drivers</code>.
-            Removing a package rolls back to the next-best signed driver (or the OS default).
-          </p>
-        </div>
-      </div>
+    <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
+      Lists OEM-installed driver packages via <code class="font-mono text-[11px]">pnputil /enum-drivers</code>.
+      Removing a package rolls back to the next-best signed driver (or the OS default).
+    </p>
+    <Card class="overflow-hidden gap-0 py-0 card-inset">
       <div class="px-5 py-3 border-b border-foreground/8 flex flex-wrap items-center gap-2">
-        <Filter class="size-3.5 text-muted-foreground" />
         <span class="text-xs text-muted-foreground">Class:</span>
         {#each ["Display", "Net", "Sound, video and game controllers", "all"] as cls (cls)}
           <Button

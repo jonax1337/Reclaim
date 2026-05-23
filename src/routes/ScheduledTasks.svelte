@@ -5,7 +5,6 @@
     RefreshCw,
     Search,
     AlertTriangle,
-    Clock,
     Play,
     Trash2,
     Power,
@@ -351,18 +350,6 @@
                   note ? "bg-amber-500/[0.04]" : "",
                 )}
               >
-                <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-                  <Clock
-                    class={cn(
-                      "size-3.5",
-                      t.state === "Running"
-                        ? "text-success"
-                        : t.state === "Disabled"
-                          ? "text-muted-foreground/50"
-                          : "text-muted-foreground",
-                    )}
-                  />
-                </div>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium truncate">{t.name}</span>
