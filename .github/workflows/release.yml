@@ -15,8 +15,12 @@ jobs:
   build:
     name: Build Windows installer
     runs-on: windows-latest
+    environment: release
     permissions:
       contents: write
+      id-token: write
+    env:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
@@ -48,9 +52,6 @@ jobs:
 
       - name: Build Tauri bundle
         env:
-          # Updater signing — only signs when both secrets are configured.
-          # Without them, the build still produces an NSIS installer, but the
-          # updater plugin won't accept the resulting latest.json.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: pnpm tauri build
@@ -64,15 +65,65 @@ jobs:
           "tag=$tag"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Stage installer artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          Get-ChildItem src-tauri/target/release/bundle/nsis -Filter "*.exe" | Copy-Item -Destination staging
+          Get-ChildItem src-tauri/target/release/bundle/msi  -Filter "*.msi" | Copy-Item -Destination staging
+          Get-ChildItem staging
+
+      - name: Upload unsigned bundle for signing
+        if: env.SIGNPATH_API_TOKEN != ''
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: reclaim-unsigned
+          path: staging/*
+
+      - name: SignPath signing request
+        if: env.SIGNPATH_API_TOKEN != ''
+        uses: signpath/github-action-submit-signing-request@v1.2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ secrets.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Replace staging with signed artifacts
+        if: env.SIGNPATH_API_TOKEN != ''
+        shell: pwsh
+        run: |
+          Remove-Item staging/* -Force
+          Copy-Item signed/* staging/ -Force
+          Get-ChildItem staging
+
+      - name: Regenerate Tauri updater signatures on signed binaries
+        if: env.SIGNPATH_API_TOKEN != ''
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        shell: pwsh
+        run: |
+          $keyFile = Join-Path $env:RUNNER_TEMP "tauri-updater.key"
+          Set-Content -Path $keyFile -Value $env:TAURI_SIGNING_PRIVATE_KEY -NoNewline
+          try {
+            Get-ChildItem staging -Include "*.exe","*.msi" -File | ForEach-Object {
+              pnpm exec tauri signer sign --private-key $keyFile --password $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD $_.FullName
+              if ($LASTEXITCODE -ne 0) { throw "tauri signer sign failed for $($_.Name)" }
+            }
+          } finally {
+            Remove-Item $keyFile -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: reclaim-windows-installer
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/nsis/*.exe.sig
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/msi/*.msi.sig
+          path: staging/*
 
       - name: Generate updater manifest
         if: env.TAURI_SIGNING_PRIVATE_KEY != ''
@@ -82,10 +133,10 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $tag     = "${{ steps.version.outputs.tag }}"
-          $nsis    = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter "*.exe" | Select-Object -First 1
-          $sigFile = Get-ChildItem -Path src-tauri/target/release/bundle/nsis -Filter "*.exe.sig" | Select-Object -First 1
+          $nsis    = Get-ChildItem -Path staging -Filter "*.exe" | Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
+          $sigFile = Get-ChildItem -Path staging -Filter "*.exe.sig" | Select-Object -First 1
           if (-not $nsis -or -not $sigFile) {
-            Write-Error "Could not locate signed NSIS artifacts"
+            Write-Error "Could not locate NSIS installer + updater signature"
             exit 1
           }
           $signature = Get-Content -Path $sigFile.FullName -Raw
@@ -110,8 +161,8 @@ jobs:
           draft: true
           generate_release_notes: true
           files: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/nsis/*.exe.sig
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/msi/*.msi.sig
+            staging/*.exe
+            staging/*.exe.sig
+            staging/*.msi
+            staging/*.msi.sig
             latest.json
