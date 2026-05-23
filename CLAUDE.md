@@ -4,15 +4,15 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.10.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth) and Phase 8 (Customize & drivers) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.11.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), and Phase 9 (Licensing launcher) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Headline numbers:
 - **136 reversible tweaks** across 9 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser)
 - **63 bloatware patterns** across 7 groups
 - **46 winget apps** across 8 groups (16 recommended)
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **30 routes** in a 9-group sidebar
-- **89 Tauri commands** across 19 Rust modules
+- **31 routes** in a 10-group sidebar
+- **91 Tauri commands** across 20 Rust modules
 
 Headline features built since v0.1.0:
 - Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
@@ -24,8 +24,9 @@ Headline features built since v0.1.0:
 - OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
 - Defender combined route, Scheduled tasks browser, Recall data wipe, Mass file unblock, Telemetry firewall (v0.9.0).
 - Browser (Edge) tweaks + dedicated route, Driver rollback via pnputil, AMD/Intel smart vendor-page auto-find (v0.10.0).
+- Windows activation launcher: read-only license state + one-click elevated PowerShell window running the external MAS script (v0.11.0).
 
-**Still open for v1.0.0**: i18n (DE + EN), code-signing the installer (EV cert or SignPath).
+**Still open for v1.0.0**: i18n (DE + EN). Code-signing is no longer planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 
 ## Stack
 
@@ -80,7 +81,7 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 
 ### `src/lib/components/`
 
-- **`Layout.svelte`** — Titlebar (with elevate-button) + 9-group sidebar (top / Clean up / Install / Customize / Network / Updates & drivers / System info / App) + main scroll area. Sidebar uses `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` for the Win11 chrome look.
+- **`Layout.svelte`** — Titlebar (with elevate-button) + 10-group sidebar (top / Clean up / Install / Customize / Network / Updates & drivers / System info / Licensing / App) + main scroll area. Sidebar uses `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` for the Win11 chrome look.
 - **`ProfileCard.svelte`** — gradient-topped card with name, tagline, description, tweak-count, "Preview" button → confirm dialog → batch apply.
 - **`ProfileIcon.svelte`** — small gradient avatar used in the sidebar / profile lists.
 - **`TweakSection.svelte`** — header bar (active count + select-all + apply-recommended + revert-all) + Card list + BulkActionBar. Filters out admin-requiring tweaks in lite mode, shows banner.
@@ -89,7 +90,7 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 - **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
 - **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 
-### `src/routes/` — 30 routes
+### `src/routes/` — 31 routes
 
 Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
@@ -100,14 +101,15 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*, Firewall (`/firewall`)\*
 - **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
 - **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*
+- **Licensing:** Activation (`/activation`)
 - **App:** Activity log (`/logs`), Settings (`/settings`)
 - Plus `/profile-builder` (entered from `/profiles`) and `NotFound` (`*`).
 
 \* admin required — hidden / locked in restricted mode, click-to-elevate buttons everywhere.
 
-### `src-tauri/src/` — 19 modules, 89 commands
+### `src-tauri/src/` — 20 modules, 91 commands
 
-- **`lib.rs`** — plugin init + `invoke_handler!` registry (89 commands).
+- **`lib.rs`** — plugin init + `invoke_handler!` registry (91 commands).
 - **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode detected via `portable.txt` or `data/` sibling.
 - **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current).
 - **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary + `StartupFolderPackagedAppX` for UWP), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
@@ -127,6 +129,7 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **`recall.rs`** — `recall_status` detects the Copilot+ snapshot store under `%LOCALAPPDATA%\CoreAIPlatform.00` (presence, size, snapshot count, AppX state, policy state). `recall_wipe(also_remove_appx, also_set_policy)` uses `takeown` + `icacls` + recursive `Remove-Item` because the data dir is normally locked, then optionally writes `DisableAIDataAnalysis = 1` and removes the `MicrosoftWindows.Client.AIX` AppX.
 - **`firewall.rs`** — Sentinel-grouped (`Reclaim:` prefix) outbound Windows Firewall block manager. `firewall_list_blocks` returns active reclaim groups with rule + enabled counts. `firewall_apply_block(name, programs, remote_addresses)` wipes the group then re-creates one program rule per exe path + one combined `-RemoteAddress @(...)` rule per group. `firewall_remove_block(name)` deletes the group. All name/path/address inputs strictly validated before interpolation.
 - **`driver_packages.rs`** — `list_driver_packages(class_filter?)` enumerates OEM driver packages via `pnputil /enum-drivers`, parses the locale-agnostic key-value block format into typed `DriverPackage` records. `delete_driver_package(published_name, uninstall)` calls `pnputil /delete-driver oem<N>.inf /uninstall /force` after strict `oem<digits>.inf` validation.
+- **`activation.rs`** — `get_activation_status` runs a static PowerShell snippet that queries WMI `SoftwareLicensingProduct` (filtered to Windows products with a `PartialProductKey`), parses the JSON output into a typed `ActivationStatus` (edition name, license status code + text, channel, partial key, grace minutes). `launch_activation_script` spawns a new elevated PowerShell window via `Start-Process -Verb RunAs` that runs the **static** MAS one-liner `irm https://get.activated.win | iex` — the URL is a Rust `const`, never built from frontend input. Reclaim does not bundle, modify, or contain the activation script itself; the launched window lives outside Reclaim's PTY infrastructure on purpose (interactive TUI menu).
 
 ## Critical conventions
 

@@ -32,7 +32,8 @@ export type LogAction =
   | "schtasks.run"
   | "schtasks.delete"
   | "recall.wipe"
-  | "driver.rollback";
+  | "driver.rollback"
+  | "activation.launch";
 
 export type LogEntry = {
   id: number;
@@ -147,4 +148,5 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "schtasks.delete": "Scheduled task deleted",
   "recall.wipe": "Recall data wiped",
   "driver.rollback": "Driver rolled back",
+  "activation.launch": "Activation script launched",
 };

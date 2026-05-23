@@ -1,3 +1,4 @@
+mod activation;
 mod app_info;
 mod context_menu;
 mod defender;
@@ -116,6 +117,8 @@ pub fn run() {
             firewall::firewall_remove_block,
             driver_packages::list_driver_packages,
             driver_packages::delete_driver_package,
+            activation::get_activation_status,
+            activation::launch_activation_script,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

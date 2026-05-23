@@ -1,6 +1,6 @@
 # Reclaim — Roadmap
 
-Reclaim's path to v1.0.0 was organized as 6 self-contained phases. **Phases 1-5 are shipped.** Phase 6 (polish for the 1.0 release) is partially shipped — what's left is listed at the end.
+Reclaim's path to v1.0.0 was organized as 6 self-contained phases. **Phases 1-5, 7, 8 and 9 are shipped.** Phase 6 (polish for the 1.0 release) is partially shipped — what's left is listed at the end.
 
 For a per-version diff of what shipped, see [`../CHANGELOG.md`](../CHANGELOG.md).
 
@@ -77,7 +77,7 @@ Goal of this phase: everything needed before a 1.0 release.
 ### Still open for v1.0.0
 
 - **i18n** — DE + EN locales, custom ~50-line `t()` store, refactor every `.svelte` hardcoded string.
-- **Code-signing the installer** — EV certificate or [SignPath](https://signpath.org/) to make the NSIS/MSI installer trusted (no SmartScreen warning for users).
+- ~~**Code-signing the installer**~~ — Dropped from v1.0.0 scope. The v0.11.0 activation launcher embeds the `get.activated.win` URL in the binary, which likely closes both the winget-pkgs reviewer path and the SignPath Foundation eligibility path. Distribution will be GitHub Releases only, unsigned, with the SmartScreen first-run warning that comes with that.
 
 ---
 
@@ -102,6 +102,19 @@ Shipped:
 - **Browser** (`/browser`) — New `browser` tweak category + dedicated route with 13 curated Edge policies (skip first-run, kill Bing in address bar + background mode + shopping + wallet + Discover + Rewards + the install-as-app wizard, clean up the New Tab page, make sign-in optional, send DNT, disable personalization reporting + Collections + diagnostic data).
 - **Driver rollback** (in `/drivers`) — `pnputil /enum-drivers` rollback for any installed OEM driver package (Display / Net / Audio / All). New `driver_packages.rs` module with strict `oem<digits>.inf` validation.
 - **AMD / Intel auto-find** — The existing per-vendor `open_driver_search` flow (NVIDIA had it since v0.8.0) is now wired up for AMD and Intel too, replacing the basic browser-search fallback.
+
+---
+
+## ✅ Phase 9 — Licensing launcher (v0.11.0)
+
+User-requested addition outside the original roadmap.
+
+Shipped:
+- **Activation** (`/activation`) — New top-level "Licensing" sidebar group with a single route. Reads live license state via WMI `SoftwareLicensingProduct` (edition, license-status code + text, channel, partial product key, grace period). Offers a one-click launcher that opens a new **elevated PowerShell window** running the external [MAS](https://massgrave.dev/) one-liner `irm https://get.activated.win | iex`.
+- **Boundary by design**: Reclaim does not bundle, modify, or contain the activation script itself. The launch command is a Rust `const` — never built from frontend input. The launched window runs outside of Reclaim's PTY infrastructure (MAS has an interactive TUI menu). Disclaimer banner on top of the route makes the boundary explicit.
+- **Methods reference card** — HWID (Win 10/11, permanent) · KMS38 (until 2038) · Ohook (Office, permanent) · TSforge (build 19041+) · Online KMS (180-day renewable).
+- New Rust module `activation.rs` with two commands (`get_activation_status`, `launch_activation_script`).
+- **Distribution trade-off accepted**: the literal `get.activated.win` string in the binary will trigger Defender / SmartScreen heuristics and likely closes both winget-pkgs and SignPath Foundation submission paths. v1.0.0 now targets GitHub Releases only, unsigned. See [`../CHANGELOG.md`](../CHANGELOG.md) v0.11.0 for the full implications.
 
 ---
 

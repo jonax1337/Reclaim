@@ -932,6 +932,44 @@ export async function recallWipe(
   });
 }
 
+export type ActivationStatus = {
+  name: string;
+  description: string;
+  licenseStatus: number;
+  licenseStatusText: string;
+  channel: string;
+  partialKey: string;
+  gracePeriodMinutes: number;
+  detected: boolean;
+};
+
+export async function getActivationStatus(): Promise<ActivationStatus> {
+  const raw = await invoke<{
+    name: string;
+    description: string;
+    license_status: number;
+    license_status_text: string;
+    channel: string;
+    partial_key: string;
+    grace_period_minutes: number;
+    detected: boolean;
+  }>("get_activation_status");
+  return {
+    name: raw.name,
+    description: raw.description,
+    licenseStatus: raw.license_status,
+    licenseStatusText: raw.license_status_text,
+    channel: raw.channel,
+    partialKey: raw.partial_key,
+    gracePeriodMinutes: raw.grace_period_minutes,
+    detected: raw.detected,
+  };
+}
+
+export async function launchActivationScript(): Promise<void> {
+  await invoke("launch_activation_script");
+}
+
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
   const r = await invoke<{
     ok: boolean;

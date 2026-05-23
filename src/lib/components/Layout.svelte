@@ -29,6 +29,7 @@
     Clock,
     Flame,
     Globe,
+    KeyRound,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
@@ -171,6 +172,10 @@
         { href: "/scheduled-tasks", label: "Scheduled tasks", icon: Clock, adminOnly: true },
         { href: "/maintenance", label: "Maintenance", icon: Wrench, adminOnly: true },
       ],
+    },
+    {
+      label: "Licensing",
+      items: [{ href: "/activation", label: "Activation", icon: KeyRound }],
     },
     {
       label: "App",

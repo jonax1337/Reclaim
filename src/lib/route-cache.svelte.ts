@@ -35,6 +35,7 @@ import {
   wingetListUpgradable,
   searchWindowsUpdates,
   lookupNvidiaDriver,
+  getActivationStatus,
   regReadMany,
   type RegLocator,
   type AppxPackage,
@@ -54,6 +55,7 @@ import {
   type WingetVersion,
   type WuUpdate,
   type NvidiaDriverInfo,
+  type ActivationStatus,
 } from "./tweaks/bridge";
 import { BLOATWARE } from "./tweaks/bloatware";
 import { ALL_TWEAKS, type RegOp } from "./tweaks/catalog";
@@ -393,6 +395,15 @@ export function wuUpdatesResource(): Resource<WuUpdate[]> {
     () => searchWindowsUpdates(false),
     { ttl: VERY_LONG },
   );
+}
+
+// ─── Activation ──────────────────────────────────────────────────────────────
+
+export const K_ACTIVATION_STATUS = "activation.status";
+export function activationStatusResource(): Resource<ActivationStatus> {
+  return cachedResource<ActivationStatus>(K_ACTIVATION_STATUS, getActivationStatus, {
+    ttl: MEDIUM,
+  });
 }
 
 // ─── GPU drivers (NVIDIA) ────────────────────────────────────────────────────

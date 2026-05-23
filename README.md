@@ -6,7 +6,7 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 
 ## What it does
 
-**123 reversible tweaks** across 8 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
+**136 reversible tweaks** across 9 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
 | Category | Count | Highlights |
 | --- | ---: | --- |
@@ -59,6 +59,8 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 **Services** — Curated "notable services" list (DiagTrack, WSearch, SysMain, Xbox, …) with plain-English explanations, or the full list of every Win32 service. Disable + stop in one click with a confirmation dialog.
 
 **Activity log** — Every tweak applied/reverted, every app removed/installed, every restore point — persistent in localStorage **and** mirrored crash-safe to `activity.log` as JSON-lines in the app data dir. Filterable by severity, expand for stderr.
+
+**Windows activation launcher** — Live license-state card (edition, status code, channel, partial product key) read from WMI `SoftwareLicensingProduct`, plus a one-click launcher that opens a new **elevated PowerShell window** running the external [MAS](https://massgrave.dev/) one-liner (`irm https://get.activated.win | iex`). Reclaim does not bundle, modify, or contain the activation script itself — only the launch command is fired off. Includes a methods reference card (HWID / KMS38 / Ohook / TSforge / Online KMS) and an explicit disclaimer. Use only on systems you own a license for; Microsoft Defender may flag the script — that is expected.
 
 ## Other things that make Reclaim different
 
@@ -125,10 +127,10 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
     route-cache.svelte.ts        per-route component memoization
     scroll-restore.svelte.ts     per-route scroll position
     startup-preload.svelte.ts    boot-time resource preloads
-  routes/              26 routes (see below)
+  routes/              31 routes (see below)
 
 src-tauri/src/
-  lib.rs               Plugin init + 47-command invoke_handler registry
+  lib.rs               Plugin init + 91-command invoke_handler registry
   app_info.rs          Portable mode, app data dir, activity.log mirror
   sysinfo.rs           Windows version + elevation + relaunch_elevated + accent color
   sysquery.rs          Hardware (WMI) / Startup (Run + AppX AUMID) / Services
@@ -143,19 +145,26 @@ src-tauri/src/
   context_menu.rs      Shell-extension CLSID enumeration & Blocked toggle
   icons.rs             EXE icon + AppX icon extraction, command resolver
   files.rs             Text file I/O for user-picked paths
+  defender.rs          Defender toggles + exclusions via Get/Set/Add/Remove-MpPreference
+  schtasks.rs          Scheduled-task browser (path-grouped, Enable/Run/Delete)
+  recall.rs            Copilot+ Recall snapshot store wipe
+  firewall.rs          Sentinel-grouped (`Reclaim:`) outbound firewall blocks
+  driver_packages.rs   pnputil enum/rollback for OEM driver packages
+  activation.rs        Live license state (WMI) + external MAS launcher
 ```
 
-### Routes (26 total)
+### Routes (31 total)
 
-Grouped in the sidebar as: Top · Clean up · Install · Customize · Network · Updates & drivers · System info · App.
+Grouped in the sidebar as: Top · Clean up · Install · Customize · Network · Updates & drivers · System info · Licensing · App.
 
 - **Top:** Dashboard, Profiles
 - **Clean up:** Bloatware, OneDrive, AI & Copilot
 - **Install:** Apps (winget)
-- **Customize:** Privacy, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
-- **Network:** Hosts & blocklists*, DNS & DoH*
+- **Customize:** Privacy, Defender*, Browser (Edge)*, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
+- **Network:** Hosts & blocklists*, DNS & DoH*, Firewall*
 - **Updates & drivers:** Windows Update, Drivers, Update settings
-- **System info:** Specs, Startup apps, Services*, Maintenance*
+- **System info:** Specs, Startup apps, Services*, Scheduled tasks*, Maintenance*
+- **Licensing:** Activation
 - **App:** Activity log, Settings
 
 \* admin required. Hidden in restricted mode, click-to-elevate everywhere.
@@ -179,7 +188,7 @@ Grouped in the sidebar as: Top · Clean up · Install · Customize · Network ·
 
 ## Roadmap
 
-Phases 1-5 are shipped. Phase 6 (i18n + signed release pipeline) is partially complete — see [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0.
+Phases 1-5, 7 (System depth), 8 (Customize & drivers) and 9 (Licensing launcher) are shipped. Phase 6 polish is partially complete — see [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
 
 ## Inspirations
 

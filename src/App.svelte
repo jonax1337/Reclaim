@@ -30,6 +30,7 @@
   import Startup from "./routes/Startup.svelte";
   import Services from "./routes/Services.svelte";
   import ScheduledTasks from "./routes/ScheduledTasks.svelte";
+  import Activation from "./routes/Activation.svelte";
   import Logs from "./routes/Logs.svelte";
   import Settings from "./routes/Settings.svelte";
   import NotFound from "./routes/NotFound.svelte";
@@ -72,6 +73,7 @@
     ["/startup", Startup],
     ["/services", Services],
     ["/scheduled-tasks", ScheduledTasks],
+    ["/activation", Activation],
     ["/logs", Logs],
     ["/settings", Settings],
   ];

@@ -2,6 +2,26 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.11.0
+
+### Added
+
+- **Windows activation** (`/activation`) — New "Licensing" sidebar group with a single route that displays the current Windows license state (edition, license-status code, channel, partial product key, grace period) read live from WMI `SoftwareLicensingProduct`, and offers a one-click launcher for the open-source MAS (Microsoft Activation Scripts) project. Launch button opens a new **elevated PowerShell window** via `Start-Process -Verb RunAs` that runs `irm https://get.activated.win | iex`. Reclaim never bundles, modifies, or contains the activation script itself — the URL is hardcoded in a Rust constant, the command runs in a separate console window outside of Reclaim, and a prominent disclaimer banner makes the boundary explicit. The page also includes a "Methods at a glance" reference card (HWID / KMS38 / Ohook / TSforge / Online KMS) and a "Documentation" link to [massgrave.dev](https://massgrave.dev/). New Rust module `activation.rs` with two commands: `get_activation_status` (no admin required, parses `Get-CimInstance SoftwareLicensingProduct` JSON output) and `launch_activation_script` (spawns the elevated PowerShell with a static command — no string interpolation from frontend).
+
+### Internal
+
+- New route: `/activation`. Sidebar grew from 30 to 31 entries; a new top-level group "Licensing" sits between "System info" and "App".
+- New `LogAction` variant: `activation.launch`.
+- New Rust module `activation.rs`. Modules: 19 → 20. Commands: 89 → 91.
+- New `ActivationStatus` resource in the route cache (TTL 60s).
+
+### Distribution implications
+
+- The literal string `https://get.activated.win` in the compiled binary will trigger AV / SmartScreen heuristics for activation-tool detection — independent of bundling. Expect Microsoft Defender flagging.
+- This likely closes the **winget-pkgs submission** path (reviewer policy rejects activation tools and launchers).
+- This likely closes the **SignPath Foundation** path (Foundation excludes activation-related tooling).
+- Azure Trusted Signing was already off the table for unrelated reasons. v0.11.0 ships **unsigned via GitHub Releases only**.
+
 ## v0.10.0
 
 ### Added
