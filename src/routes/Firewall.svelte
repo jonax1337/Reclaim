@@ -147,6 +147,9 @@
           )}
           aria-hidden="true"
         ></span>
+        <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
+          <Flame class={cn("size-4", a ? "text-primary" : "text-muted-foreground")} />
+        </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{b.name}</span>
