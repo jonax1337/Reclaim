@@ -16,6 +16,7 @@
     Loader2,
     Gauge,
     Globe,
+    Lock,
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import {
@@ -34,6 +35,7 @@
     PERFORMANCE_TWEAKS,
     NOTIFICATION_TWEAKS,
     BROWSER_TWEAKS,
+    SECURITY_TWEAKS,
   } from "$lib/tweaks/catalog";
   import { BLOATWARE } from "$lib/tweaks/bloatware";
   import { getTweakState, applyTweak, type TweakState } from "$lib/tweaks/executor";
@@ -183,6 +185,13 @@
       label: "Updates",
       desc: "Defer, no auto-restart",
       count: UPDATE_TWEAKS.length,
+    },
+    {
+      href: "/security",
+      icon: Lock,
+      label: "Security hardening",
+      desc: "LSA, ASR rules, CFA",
+      count: SECURITY_TWEAKS.length,
     },
   ];
 

@@ -61,7 +61,7 @@ Goal of this phase: everything needed before a 1.0 release.
 
 ### Shipped (v0.7.0)
 
-- **Portable mode** — drop `portable.txt` or a `data/` folder next to the exe; `app_data_dir()` then resolves there instead of `%APPDATA%/Reclaim`. Settings page shows the mode + a clickable path.
+- **Portable mode** — initial drop-a-marker approach. Superseded in v0.12.0 by a dedicated portable build (single-exe, stateless on disk).
 - **Crash-safe log mirror** — `log_append(entry)` writes one JSON line per log entry to `<app_data_dir>/activity.log` alongside the localStorage write.
 - **Auto-updater wired** — `tauri-plugin-updater` plugin loaded; Settings has a "Check for updates" button. Without the signing secrets, falls back to opening the GitHub releases page.
 - **`.reclaim` profile file extension** — exports use `.reclaim`; imports accept `.reclaim` or `.json`.
@@ -115,6 +115,15 @@ Shipped:
 - **Methods reference card** — HWID (Win 10/11, permanent) · KMS38 (until 2038) · Ohook (Office, permanent) · TSforge (build 19041+) · Online KMS (180-day renewable).
 - New Rust module `activation.rs` with two commands (`get_activation_status`, `launch_activation_script`).
 - **Distribution trade-off accepted**: the literal `get.activated.win` string in the binary will trigger Defender / SmartScreen heuristics and likely closes both winget-pkgs and SignPath Foundation submission paths. v1.0.0 now targets GitHub Releases only, unsigned. See [`../CHANGELOG.md`](../CHANGELOG.md) v0.11.0 for the full implications.
+
+---
+
+## ✅ Phase 10 — Security hardening + real portable build (v0.12.0)
+
+Shipped:
+- **Security hardening** (`/security`) — New `security` tweak category and dedicated route under the Customize group. Three high-impact toggles: LSA Protection (RunAsPPL — blocks credential-dump tooling from reading lsass), Controlled Folder Access (Defender ransomware shield over Documents / Pictures / etc.), Defender Attack Surface Reduction rules (Office macro / child-process / WMI-persistence / LSASS-credential blocks via `Add-MpPreference -AttackSurfaceReductionRules_Ids/-Actions`).
+- **+12 privacy tweaks** — Limit diagnostic log collection, limit crash dump collection, plus 10 more closing the gap with the Win11Debloat catalog.
+- **Real portable build** — Dedicated single-exe variant via the `portable` Cargo feature. `is_portable()` is now a compile-time `cfg!(feature = "portable")` constant — no `portable.txt` marker, no `data/` directory sibling check. In a portable build every `app_data_dir`-backed disk write (prefs.json, activity.log mirror) no-ops; state lives only in localStorage inside the Webview2 user-data folder. Release pipeline produces `Reclaim-Portable-vX.Y.Z.exe` alongside the NSIS / MSI installers. Auto-updater is gated off in portable mode (Settings opens the releases page instead).
 
 ---
 

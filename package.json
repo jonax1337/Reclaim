@@ -1,6 +1,6 @@
 {
   "name": "reclaim",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Reclaim Your Windows — Win11 debloat & privacy tool",
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "tauri:build:portable": "tauri build --no-bundle --features portable"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",

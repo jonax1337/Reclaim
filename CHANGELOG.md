@@ -2,6 +2,36 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.12.0
+
+### Added
+
+- **Security hardening** (`/security`) — New `security` tweak category and dedicated route under the **Customize** sidebar group, between Defender and Browser. Three high-impact toggles aimed at hardening rather than debloat:
+  - **LSA Protection** (`RunAsPPL = 1` in `HKLM\System\CurrentControlSet\Control\Lsa`) — runs lsass as a Protected Process Light so credential-dumping tooling (Mimikatz et al.) can't read it.
+  - **Controlled Folder Access** — Defender's ransomware shield over Documents / Pictures / Videos / Desktop. Apps need an explicit allow before they can write into protected folders.
+  - **Defender Attack Surface Reduction rules** — Enables a curated bundle of ASR rule IDs that block Office macros from spawning child processes, executable content from email, WMI / WSH persistence, and LSASS credential reads. Wired through `Add-MpPreference -AttackSurfaceReductionRules_Ids/-Actions`.
+- **+12 privacy tweaks** — Closes the remaining gap with the Win11Debloat policy catalog. Highlights: limit diagnostic log collection, limit crash dump collection, plus tighter app-permission / inking / typing / activity-feed gates.
+- **Real portable build** — A dedicated single-exe variant. Download `Reclaim-Portable-vX.Y.Z.exe` from the GitHub release, double-click, run. Writes **nothing** to disk next to itself — no `data/` directory, no `prefs.json`, no `activity.log` file. State (theme, custom profiles, activity log) lives in localStorage inside the standard Webview2 user-data folder.
+
+### Changed
+
+- **Portable detection is now compile-time.** The v0.7.0 `portable.txt` / `data/` marker convention is gone. `is_portable()` returns the value of `cfg!(feature = "portable")`, baked into the binary at build. Installer build = always installed mode; portable build = always portable mode. No runtime ambiguity, no marker files.
+- **`app_data_dir()` returns `""` in portable builds.** Every disk-write Tauri command (`log_append`, `write_app_file`, `read_app_file`, `read_activity_log`) no-ops in portable mode and the Settings page hides the "Data folder" row.
+- **Auto-updater is gated off in portable mode.** Settings → Check for updates opens the GitHub releases page instead of invoking the updater plugin — portable users grab a fresh `Reclaim-Portable-vX.Y.Z.exe` manually.
+
+### Internal
+
+- New `[features] portable = []` in `src-tauri/Cargo.toml`.
+- `src-tauri/src/app_info.rs` — `const PORTABLE: bool = cfg!(feature = "portable")`, `is_portable_sync()` is now a one-liner, `resolve_data_dir()` only handles the installed branch, `exe_dir()` helper removed.
+- New npm script `tauri:build:portable` → `tauri build --no-bundle --features portable`.
+- `.github/workflows/release.yml` — extra "Build portable binary" + "Stage portable binary" steps after the installer build; uploads `Reclaim-Portable-vX.Y.Z.exe` to the GitHub release. The updater-manifest step now strictly filters on the `*setup.exe` NSIS naming pattern so the portable exe can't accidentally hijack `latest.json`.
+- Sidebar grew from 31 to 32 entries; new `/security` route. Tweak count 136 → 151, categories 9 → 10.
+- New `LogAction` variant: `security.toggle` (via the existing tweak-apply path — no new command).
+
+### Distribution notes
+
+- Edge SmartScreen will continue to warn on the unsigned portable `.exe` (and on the unsigned NSIS installer). There is no fix without code-signing. The portable build doesn't make this better or worse — it's just a different shape of unsigned executable. See v0.11.0 distribution notes for the reasoning behind shipping unsigned via GitHub Releases only.
+
 ## v0.11.0
 
 ### Added

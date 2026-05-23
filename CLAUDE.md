@@ -4,14 +4,14 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.11.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), and Phase 9 (Licensing launcher) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.12.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher) and Phase 10 (Security hardening + real portable build) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Headline numbers:
-- **136 reversible tweaks** across 9 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser)
+- **151 reversible tweaks** across 10 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security)
 - **63 bloatware patterns** across 7 groups
 - **46 winget apps** across 8 groups (16 recommended)
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **31 routes** in a 10-group sidebar
+- **32 routes** in a 10-group sidebar
 - **91 Tauri commands** across 20 Rust modules
 
 Headline features built since v0.1.0:
@@ -25,6 +25,7 @@ Headline features built since v0.1.0:
 - Defender combined route, Scheduled tasks browser, Recall data wipe, Mass file unblock, Telemetry firewall (v0.9.0).
 - Browser (Edge) tweaks + dedicated route, Driver rollback via pnputil, AMD/Intel smart vendor-page auto-find (v0.10.0).
 - Windows activation launcher: read-only license state + one-click elevated PowerShell window running the external MAS script (v0.11.0).
+- Security hardening route (LSA Protection, Controlled Folder Access, Defender ASR rules) + 12 extra privacy tweaks. Real portable build: dedicated single-exe variant via the `portable` Cargo feature, completely stateless on disk (v0.12.0).
 
 **Still open for v1.0.0**: i18n (DE + EN). Code-signing is no longer planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 
@@ -90,14 +91,14 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 - **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
 - **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 
-### `src/routes/` — 31 routes
+### `src/routes/` — 32 routes
 
 Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
 - **Top:** Dashboard (`/`), Profiles (`/profiles`)
 - **Clean up:** Bloatware (`/bloatware`), OneDrive (`/onedrive`), AI & Copilot (`/ai`)
 - **Install:** Apps (`/apps`)
-- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Browser (`/browser`)\*, Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
+- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Security hardening (`/security`)\*, Browser (`/browser`)\*, Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
 - **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*, Firewall (`/firewall`)\*
 - **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
 - **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*
@@ -110,7 +111,7 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 ### `src-tauri/src/` — 20 modules, 91 commands
 
 - **`lib.rs`** — plugin init + `invoke_handler!` registry (91 commands).
-- **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode detected via `portable.txt` or `data/` sibling.
+- **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode is **compile-time** via the `portable` Cargo feature (`const PORTABLE: bool = cfg!(feature = "portable")`) — no marker files. In portable builds every disk-write here no-ops and `app_data_dir()` returns `""`; state lives only in localStorage inside the Webview2 user-data folder.
 - **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current).
 - **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary + `StartupFolderPackagedAppX` for UWP), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
 - **`tweaks.rs`** — `run_powershell` (pub(crate), `CREATE_NO_WINDOW`, base64-encoded payload when elevated, output via temp file), `list_installed_appx`, `remove_appx`, `reg_read` / `reg_read_many` / `reg_write` / `reg_delete_value`, `create_restore_point`, `restart_explorer`.

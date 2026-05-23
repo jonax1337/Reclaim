@@ -2,48 +2,38 @@ use serde::{Deserialize, Serialize};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-fn exe_dir() -> Option<PathBuf> {
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-}
+const PORTABLE: bool = cfg!(feature = "portable");
 
 fn is_portable_sync() -> bool {
-    let Some(dir) = exe_dir() else {
-        return false;
-    };
-    dir.join("portable.txt").exists() || dir.join("data").is_dir()
+    PORTABLE
 }
 
-/// Portable mode is enabled when either a `portable.txt` marker file or a
-/// `data/` directory sits next to the executable. Convention adopted from many
-/// Windows apps (Notepad++, IrfanView, …).
+/// Portable mode is baked into the binary at compile time via the `portable`
+/// Cargo feature. The ZIP build enables it; the installer build does not.
 #[tauri::command]
 pub async fn is_portable() -> bool {
     is_portable_sync()
 }
 
 /// Resolve the data directory for logs / profile backups / etc.
-/// - Portable: `<exe-dir>/data`
-/// - Installed: `%APPDATA%/Reclaim`
-///
-/// Creates the directory if missing.
+/// - Portable: returns the empty string. Portable mode is stateless on disk —
+///   all state (theme, custom profiles, activity log) lives in localStorage
+///   inside the Webview2 user-data folder. No `data/` directory is created
+///   next to the exe.
+/// - Installed: `%APPDATA%/Reclaim`, created if missing.
 #[tauri::command]
 pub async fn app_data_dir() -> Result<String, String> {
+    if is_portable_sync() {
+        return Ok(String::new());
+    }
     let dir = resolve_data_dir()?;
     Ok(dir.to_string_lossy().to_string())
 }
 
 fn resolve_data_dir() -> Result<PathBuf, String> {
-    let dir = if is_portable_sync() {
-        exe_dir()
-            .ok_or_else(|| "exe directory unavailable".to_string())?
-            .join("data")
-    } else {
-        dirs::data_dir()
-            .ok_or_else(|| "system data dir unavailable".to_string())?
-            .join("Reclaim")
-    };
+    let dir = dirs::data_dir()
+        .ok_or_else(|| "system data dir unavailable".to_string())?
+        .join("Reclaim");
     std::fs::create_dir_all(&dir).map_err(|e| format!("create data dir failed: {e}"))?;
     Ok(dir)
 }
@@ -100,6 +90,9 @@ fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
 #[tauri::command]
 pub async fn read_app_file(name: String) -> Result<Option<String>, String> {
     validate_app_file_name(&name)?;
+    if is_portable_sync() {
+        return Ok(None);
+    }
     let path = resolve_data_dir()?.join(&name);
     if !path.exists() {
         return Ok(None);
@@ -112,6 +105,9 @@ pub async fn read_app_file(name: String) -> Result<Option<String>, String> {
 #[tauri::command]
 pub async fn write_app_file(name: String, content: String) -> Result<(), String> {
     validate_app_file_name(&name)?;
+    if is_portable_sync() {
+        return Ok(());
+    }
     let path = resolve_data_dir()?.join(&name);
     atomic_write(&path, content.as_bytes()).map_err(|e| format!("write {name} failed: {e}"))
 }
@@ -128,8 +124,12 @@ pub struct LogLine {
 
 /// Append a single log entry (JSON line) to `<app_data_dir>/activity.log`.
 /// localStorage is the primary store — this disk mirror is a crash-safe backup.
+/// In portable mode the mirror is skipped entirely (no `data/` next to the exe).
 #[tauri::command]
 pub async fn log_append(entry: LogLine) -> Result<(), String> {
+    if is_portable_sync() {
+        return Ok(());
+    }
     let path = resolve_data_dir()?.join("activity.log");
     let line = serde_json::to_string(&entry).map_err(|e| e.to_string())?;
     let mut f = std::fs::OpenOptions::new()
@@ -143,6 +143,9 @@ pub async fn log_append(entry: LogLine) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn read_activity_log() -> Result<String, String> {
+    if is_portable_sync() {
+        return Ok(String::new());
+    }
     let path = resolve_data_dir()?.join("activity.log");
     if !path.exists() {
         return Ok(String::new());

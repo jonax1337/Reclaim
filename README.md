@@ -6,18 +6,20 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 
 ## What it does
 
-**136 reversible tweaks** across 9 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
+**151 reversible tweaks** across 10 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
 | Category | Count | Highlights |
 | --- | ---: | --- |
-| Privacy | 31 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync |
+| Privacy | 42 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync, diagnostic log + crash dump limits |
 | AI & Copilot | 10 | Copilot, Recall, Click to Do, Edge AI, Notepad AI, Paint Cocreator, Photos generative erase |
 | Search | 9 | Bing in Start, Cortana, web suggestions, search highlights, SafeSearch, device search history |
-| Explorer | 16 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
-| Taskbar & Start | 20 | widgets, Chat, Task View, alignment, sponsored recs, lock screen ads, clock seconds, end-task right-click, small mode, hide tray People |
+| Explorer | 19 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
+| Taskbar & Start | 18 | widgets, Chat, Task View, alignment, sponsored recs, lock screen ads, clock seconds, end-task right-click, small mode, hide tray People |
 | Notifications | 8 | toasts off, sounds off, lock-screen toasts, tips/tricks, welcome experience, finish-setup, Defender summary |
 | Performance | 20 | background apps, Game DVR, mouse accel, DiagTrack, Reserved Storage, NTFS last-access, scheduled defrag, IPv6 Teredo, NDU, High Performance plan, visual effects |
-| Updates | 8 | defer features, no auto-restart, P2P Delivery Optimization, exclude drivers, extended active hours, block Insider |
+| Updates | 10 | defer features, no auto-restart, P2P Delivery Optimization, exclude drivers, extended active hours, block Insider |
+| Browser (Edge) | 13 | skip first-run, no Bing in URL bar, no background mode, no shopping/wallet/Discover, hide rewards, clean New Tab page, sign-in optional |
+| Security | 3 | LSA Protection (RunAsPPL), Controlled Folder Access, Defender Attack Surface Reduction rules |
 
 **Bloatware remover** — 63 curated AppX patterns across 7 groups (consumer, office, gaming, communication, media, system, other). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
 
@@ -67,7 +69,7 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 - **Real shell icons** for Startup, Bloatware, and OneDrive — extracted from EXEs via `Icon.ExtractAssociatedIcon` (handles quoted paths, env-var expansion, `.lnk` target resolution, Squirrel updater path-hop, progressive whitespace trim for unquoted paths with embedded spaces). UWP entries get their real `Square44x44Logo` from the package manifest — same files Start Menu uses.
 - **Self-elevation on launch**: clicks UAC for you on cold start. If you decline, the app runs in **restricted mode** — admin-requiring tweaks are hidden, admin-only pages are locked, and click-to-elevate buttons in the titlebar, Dashboard, every tweak section, and every locked page get you to UAC anytime. Denial is sticky for the session (no re-prompt loop).
 - **Reversibility is architecture**: every tweak knows its Windows default. Toggle the switch and it's gone.
-- **Portable mode**: drop a `portable.txt` or a `data/` folder next to the exe and Reclaim writes logs and profiles there instead of `%APPDATA%`.
+- **Portable mode**: download `Reclaim-Portable-vX.Y.Z.exe` from Releases — a single-exe build that writes **nothing** to disk next to itself. App state (theme, custom profiles, activity log) lives in the Webview2 user-data store; Windows manages that folder, so a portable run leaves no `data/` directory behind. Built from the same sources via the `portable` Cargo feature.
 - **Restore point on demand** from the Dashboard or Settings.
 - **Auto-updater** wired up via Tauri's updater plugin against GitHub Releases (signed `latest.json`).
 - **Win11 Mica** translucent window with custom violet/fuchsia accent.
@@ -127,7 +129,7 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
     route-cache.svelte.ts        per-route component memoization
     scroll-restore.svelte.ts     per-route scroll position
     startup-preload.svelte.ts    boot-time resource preloads
-  routes/              31 routes (see below)
+  routes/              32 routes (see below)
 
 src-tauri/src/
   lib.rs               Plugin init + 91-command invoke_handler registry

@@ -26,6 +26,7 @@
   import OneDrive from "./routes/OneDrive.svelte";
   import ContextMenu from "./routes/ContextMenu.svelte";
   import Defender from "./routes/Defender.svelte";
+  import Security from "./routes/Security.svelte";
   import Specs from "./routes/Specs.svelte";
   import Startup from "./routes/Startup.svelte";
   import Services from "./routes/Services.svelte";
@@ -66,6 +67,7 @@
     ["/onedrive", OneDrive],
     ["/context-menu", ContextMenu],
     ["/defender", Defender],
+    ["/security", Security],
     ["/updates", Updates],
     ["/windows-update", WindowsUpdate],
     ["/drivers", Drivers],

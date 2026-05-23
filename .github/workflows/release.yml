@@ -65,6 +65,9 @@ jobs:
           "tag=$tag"         | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Build portable binary
+        run: pnpm tauri:build:portable
+
       - name: Stage installer artifacts
         shell: pwsh
         run: |
@@ -135,8 +138,8 @@ jobs:
         run: |
           $version = "${{ steps.version.outputs.version }}"
           $tag     = "${{ steps.version.outputs.tag }}"
-          $nsis    = Get-ChildItem -Path staging -Filter "*.exe" | Where-Object { $_.Name -notlike "*.sig" } | Select-Object -First 1
-          $sigFile = Get-ChildItem -Path staging -Filter "*.exe.sig" | Select-Object -First 1
+          $nsis    = Get-ChildItem -Path staging -Filter "*setup.exe" | Select-Object -First 1
+          $sigFile = Get-ChildItem -Path staging -Filter "*setup.exe.sig" | Select-Object -First 1
           if (-not $nsis -or -not $sigFile) {
             Write-Error "Could not locate NSIS installer + updater signature"
             exit 1
@@ -155,6 +158,16 @@ jobs:
           }
           $manifest | ConvertTo-Json -Depth 5 | Out-File -FilePath "latest.json" -Encoding utf8
 
+      - name: Stage portable binary
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $exe = "src-tauri/target/release/reclaim.exe"
+          if (-not (Test-Path $exe)) { Write-Error "Portable binary not found at $exe"; exit 1 }
+          $dest = "staging/Reclaim-Portable-v$version.exe"
+          Copy-Item $exe -Destination $dest -Force
+          Get-ChildItem staging
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -167,4 +180,5 @@ jobs:
             staging/*.exe.sig
             staging/*.msi
             staging/*.msi.sig
+            staging/*.zip
             latest.json

@@ -10,7 +10,8 @@ export type TweakCategory =
   | "updates"
   | "performance"
   | "notifications"
-  | "browser";
+  | "browser"
+  | "security";
 
 export type RegOp = {
   kind: "reg";
@@ -681,6 +682,158 @@ export const PRIVACY_TWEAKS: Tweak[] = [
     description: "Disables Tablet PC handwriting error reporting.",
     apply: [
       { kind: "reg", hive: "HKCU", path: "Software\\Policies\\Microsoft\\Windows\\TabletPC", name: "PreventHandwritingErrorReports", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+  },
+  {
+    id: "limit-diagnostic-log-collection",
+    category: "privacy",
+    title: "Limit diagnostic log collection",
+    description:
+      "Caps the diagnostic log payload Windows can collect. Pairs with the telemetry level — this gate exists even when 'Required diagnostic data' is the lowest level you can pick.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: policiesData, name: "LimitDiagnosticLogCollection", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: policiesData, name: "LimitDiagnosticLogCollection", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "limit-dump-collection",
+    category: "privacy",
+    title: "Limit crash dump collection",
+    description:
+      "Stops Microsoft from receiving full memory or kernel dumps when something crashes. Local dumps in %LocalAppData%\\CrashDumps still work.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: policiesData, name: "LimitDumpCollection", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: policiesData, name: "LimitDumpCollection", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "feedback-notifications-policy-off",
+    category: "privacy",
+    title: "Block feedback notifications (policy)",
+    description:
+      "Group-policy enforced version of the feedback-prompt block. Suppresses 'How satisfied are you?' toasts even after a feature update resets the per-user keys.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\DataCollection", name: "DoNotShowFeedbackNotifications", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\DataCollection", name: "DoNotShowFeedbackNotifications", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "lock-screen-camera-off",
+    category: "privacy",
+    title: "Disable lock-screen camera",
+    description:
+      "Stops the camera from being usable on the lock screen — protects against drive-by activation while the PC is unattended.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Personalization", name: "NoLockScreenCamera", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Personalization", name: "NoLockScreenCamera", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "lock-screen-slideshow-off",
+    category: "privacy",
+    title: "Disable lock-screen slideshow",
+    description:
+      "Prevents the lock screen from running a slideshow of your pictures — quieter, less I/O, and pictures stay off the lock screen.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Personalization", name: "NoLockScreenSlideshow", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Personalization", name: "NoLockScreenSlideshow", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "hide-account-on-signin",
+    category: "privacy",
+    title: "Hide account details on sign-in screen",
+    description:
+      "Hides your email address (and other account info) on the Windows sign-in screen. Useful for shoulder-surfing protection.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\System", name: "BlockUserFromShowingAccountDetailsOnSignin", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\System", name: "BlockUserFromShowingAccountDetailsOnSignin", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "block-microsoft-accounts",
+    category: "privacy",
+    title: "Block adding Microsoft accounts",
+    description:
+      "Stops Windows from letting users add new Microsoft accounts. Existing accounts that are already signed in keep working.",
+    warning:
+      "If your current Windows session is signed in with a Microsoft account, leave this off — only enable it on machines that should stay on local accounts only.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", name: "NoConnectedUser", type: "DWORD", value: 3, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\System", name: "NoConnectedUser", type: "DWORD", value: 3 },
+    ],
+  },
+  {
+    id: "mdns-off",
+    category: "privacy",
+    title: "Network: disable mDNS multicast",
+    description:
+      "Stops Windows from advertising itself via multicast DNS on local networks. Reduces background chatter and the surface for LAN-side discovery.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows NT\\DNSClient", name: "EnableMulticast", type: "DWORD", value: 0, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows NT\\DNSClient", name: "EnableMulticast", type: "DWORD", value: 0 },
+    ],
+    requiresRestart: "system",
+  },
+  {
+    id: "llmnr-off",
+    category: "privacy",
+    title: "Network: disable LLMNR",
+    description:
+      "Turns off Link-Local Multicast Name Resolution — a classic hardening move. LLMNR is widely abused for credential theft (Responder-style attacks) and is rarely needed on modern networks.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows NT\\DNSClient", name: "EnableMulticastNameResolution", type: "DWORD", value: 0, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows NT\\DNSClient", name: "EnableMulticastNameResolution", type: "DWORD", value: 0 },
+    ],
+    requiresRestart: "system",
+  },
+  {
+    id: "minimize-connections",
+    category: "privacy",
+    title: "Network: prefer single connection",
+    description:
+      "Tells the Windows Connection Manager to stop auto-connecting to additional networks (e.g. open Wi-Fi) while already connected. Cuts down on opportunistic side-channels.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WcmSvc\\GroupPolicy", name: "fMinimizeConnections", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WcmSvc\\GroupPolicy", name: "fMinimizeConnections", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "wpad-off",
+    category: "privacy",
+    title: "Network: disable WPAD",
+    description:
+      "Disables Web Proxy Auto-Discovery. WPAD is a long-standing source of LAN-side proxy hijacks. Only enable if your network genuinely requires automatic proxy detection.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Wpad", name: "WpadOverride", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Wpad", name: "WpadOverride", type: "DWORD", value: 1 },
     ],
   },
 ];
@@ -1364,6 +1517,21 @@ export const EXPLORER_TWEAKS: Tweak[] = [
       { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", name: "DisableThumbsDBOnNetworkFolders", type: "DWORD", value: 1, defaultValue: 0 },
     ],
   },
+  {
+    id: "hide-start-recommended-section",
+    category: "explorer",
+    title: "Hide Start menu 'Recommended' section",
+    description:
+      "Removes the recently-added apps + recent files row at the bottom of the Win11 Start menu. Pure-pinned-apps layout — quieter and faster.",
+    recommended: true,
+    requiresRestart: "explorer",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Explorer", name: "HideRecommendedSection", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Explorer", name: "HideRecommendedSection", type: "DWORD", value: 1 },
+    ],
+  },
 ];
 
 export const TASKBAR_TWEAKS: Tweak[] = [
@@ -1927,6 +2095,35 @@ export const UPDATE_TWEAKS: Tweak[] = [
       "Prevents auto-restart for updates while a presentation is active (full-screen apps, video calls).",
     apply: [
       { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", name: "NoAutoRebootWithLoggedOnUsers", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+  },
+  {
+    id: "no-restart-notifications",
+    category: "updates",
+    title: "Suppress restart notifications",
+    description:
+      "Silences the 'your PC will restart for updates' toasts and reminders. Pairs well with 'No automatic restarts' so Windows stays quiet until you reboot.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", name: "SetAutoRestartNotificationDisable", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate\\AU", name: "SetAutoRestartNotificationDisable", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "lock-wu-ui",
+    category: "updates",
+    title: "Lock Windows Update settings UI",
+    description:
+      "Hides the 'check for updates' button and disables the Pause/Resume controls in Settings. Useful on shared machines where you don't want anyone undoing the configured update policy.",
+    warning:
+      "After enabling, Settings > Windows Update is mostly view-only. Disable this first if you ever need to use the UI to install updates manually.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate", name: "SetDisableUXWUAccess", type: "DWORD", value: 1, deleteOnRevert: true },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\WindowsUpdate", name: "SetDisableUXWUAccess", type: "DWORD", value: 1 },
     ],
   },
 ];
@@ -2547,6 +2744,206 @@ export const BROWSER_TWEAKS: Tweak[] = [
   },
 ];
 
+const asrRoot = "Software\\Policies\\Microsoft\\Windows Defender\\Windows Defender Exploit Guard\\ASR";
+const asrRulesPath = `${asrRoot}\\Rules`;
+
+function asrRule(args: {
+  id: string;
+  guid: string;
+  title: string;
+  description: string;
+  recommended?: boolean;
+  warning?: string;
+}): Tweak {
+  const guid = args.guid.toLowerCase();
+  return {
+    id: args.id,
+    category: "security",
+    title: args.title,
+    description: args.description,
+    recommended: args.recommended,
+    warning: args.warning,
+    // Master ExploitGuard_ASR_Rules uses defaultValue=1 so auto-revert
+    // leaves it enabled — other ASR rules still need it. The per-rule
+    // GUID falls back to "0" (= rule disabled) on revert.
+    apply: [
+      { kind: "reg", hive: "HKLM", path: asrRoot, name: "ExploitGuard_ASR_Rules", type: "DWORD", value: 1, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: asrRulesPath, name: guid, type: "SZ", value: "1", defaultValue: "0" },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: asrRulesPath, name: guid, type: "SZ", value: "1" },
+    ],
+  };
+}
+
+export const SECURITY_TWEAKS: Tweak[] = [
+  {
+    id: "lsa-protection-on",
+    category: "security",
+    title: "Enable LSA Protection (RunAsPPL)",
+    description:
+      "Marks lsass.exe as a Protected Process Light so non-protected processes cannot read its memory. Blocks credential-dumping tools like Mimikatz.",
+    recommended: true,
+    requiresRestart: "system",
+    warning:
+      "Some older drivers or third-party security/AV software refuse to load alongside PPL lsass and will fail silently. If something stops working after the next boot, revert this.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Lsa", name: "RunAsPPL", type: "DWORD", value: 1, defaultValue: 0 },
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Lsa", name: "RunAsPPLBoot", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Lsa", name: "RunAsPPL", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "controlled-folder-access-on",
+    category: "security",
+    title: "Enable Controlled Folder Access",
+    description:
+      "Defender's ransomware shield. Only trusted apps may write to protected folders (Documents, Pictures, etc.). Blocks unknown processes from encrypting your data.",
+    warning:
+      "Legitimate apps that touch protected folders (games saving to Documents, backup tools, syncing clients) may get blocked until you whitelist them in Defender > Ransomware protection > Allow an app.",
+    apply: [
+      { kind: "shell", script: "Set-MpPreference -EnableControlledFolderAccess Enabled" },
+    ],
+    revert: [
+      { kind: "shell", script: "Set-MpPreference -EnableControlledFolderAccess Disabled" },
+    ],
+  },
+  asrRule({
+    id: "asr-block-email-executable-content",
+    guid: "BE9BA2D9-53EA-4CDC-84E5-9B1EEEE46550",
+    title: "ASR: Block executable content from email + webmail",
+    description:
+      "Blocks .exe/.scr/.js etc. when they're opened straight out of an email client or downloaded from webmail. Low compatibility risk.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-office-child-processes",
+    guid: "D4F940AB-401B-4EFC-AADC-AD5F3C50688A",
+    title: "ASR: Block Office apps from creating child processes",
+    description:
+      "Stops Word/Excel/PowerPoint from spawning cmd, powershell, mshta, etc. Single best macro-malware brake.",
+    recommended: true,
+    warning: "Will block legitimate macros that shell out to PowerShell or cmd.",
+  }),
+  asrRule({
+    id: "asr-block-office-executable-content",
+    guid: "3B576869-A4EC-4529-8536-B80A7769E899",
+    title: "ASR: Block Office apps from creating executable content",
+    description:
+      "Office can no longer write .exe/.dll/.scr files to disk. Stops dropper-style macros that stage a binary in %TEMP%.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-office-code-injection",
+    guid: "75668C1F-73B5-4CF0-BB93-3ECF5CB7CC84",
+    title: "ASR: Block Office apps from injecting into other processes",
+    description:
+      "Blocks Office processes from injecting code into other running processes. Defeats a common bypass for the child-process rule.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-js-vbs-downloads",
+    guid: "D3E037E1-3EB8-44C8-A917-57927947596D",
+    title: "ASR: Block JS/VBS from launching downloaded executables",
+    description:
+      "Stops JavaScript and VBScript from launching .exe content they fetched from the internet — common HTA / .js dropper pattern.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-obfuscated-scripts",
+    guid: "5BEB7EFE-FD9A-4556-801D-275E5FFC04CC",
+    title: "ASR: Block execution of obfuscated scripts",
+    description:
+      "Heuristic block on heavily obfuscated PowerShell/JS/VBS. Mostly catches red-team / commodity malware.",
+    warning: "Can occasionally false-positive on legitimate minified or packed scripts.",
+  }),
+  asrRule({
+    id: "asr-block-win32-from-office-macro",
+    guid: "92E97FA1-2EDF-4476-BDD6-9DD0B4DDDC7B",
+    title: "ASR: Block Win32 API calls from Office macros",
+    description:
+      "VBA macros can no longer call into the Win32 API (Declare statements). Closes one of the oldest macro-to-shellcode paths.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-untrusted-executables",
+    guid: "01443614-CD74-433A-B99E-2ECDC07BFC25",
+    title: "ASR: Block untrusted executables (prevalence/age/trust)",
+    description:
+      "Blocks .exe files unless they're prevalent, old enough, or on Defender's trust list. Strong protection — also breaks niche / new / self-built tools.",
+    warning:
+      "High compatibility risk. New installers, freshly built dev tools, niche utilities, portable apps — anything Defender hasn't seen often will be blocked.",
+  }),
+  asrRule({
+    id: "asr-block-ransomware",
+    guid: "C1DB55AB-C21A-4637-BB3F-A12568109D35",
+    title: "ASR: Use advanced ransomware protection",
+    description:
+      "Defender's ML-based ransomware behavior block. Low false-positive rate.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-lsass-credential-stealing",
+    guid: "9E6C4E1F-7D60-472F-BA1A-A39EF669E4B2",
+    title: "ASR: Block credential stealing from lsass.exe",
+    description:
+      "Blocks processes from opening a handle to lsass with read-memory rights. Complements LSA Protection above.",
+    recommended: true,
+    warning: "Some endpoint monitoring / EDR / password manager helpers legitimately touch lsass — they may break.",
+  }),
+  asrRule({
+    id: "asr-block-psexec-wmi",
+    guid: "D1E49AAC-8F56-4280-B9BA-993A6D77406C",
+    title: "ASR: Block process creations from PsExec + WMI",
+    description:
+      "Blocks remote process creation via PsExec or WMI. Standard lateral-movement vector for ransomware crews.",
+    warning:
+      "Breaks legitimate remote administration via PsExec / Invoke-WmiMethod. Don't enable on machines you manage with these tools.",
+  }),
+  asrRule({
+    id: "asr-block-usb-untrusted",
+    guid: "B2B3F03D-6A65-4F7B-A9C7-1C7EF74A9BA4",
+    title: "ASR: Block untrusted/unsigned processes from USB",
+    description:
+      "Stops unsigned executables on removable media from running. Cheap protection against autorun-style attacks.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-office-comms-child",
+    guid: "26190899-1602-49E8-8B27-EB1D0A1CE869",
+    title: "ASR: Block Outlook from creating child processes",
+    description:
+      "Same idea as the Office child-process rule, but specifically for Outlook + Skype/Teams clients. Stops a popular phishing kill chain.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-adobe-reader-child",
+    guid: "7674BA52-37EB-4A4F-A9A1-F0F9A1619A2C",
+    title: "ASR: Block Adobe Reader from creating child processes",
+    description:
+      "Adobe Reader can no longer spawn other processes. Defeats malicious-PDF kill chains.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-wmi-persistence",
+    guid: "E6DB77E5-3DF2-4CF1-B95A-636979351E5B",
+    title: "ASR: Block persistence through WMI event subscription",
+    description:
+      "Blocks malware from installing WMI permanent event consumers — a stealthy persistence mechanism.",
+    recommended: true,
+  }),
+  asrRule({
+    id: "asr-block-vulnerable-signed-drivers",
+    guid: "56A863A9-875E-4185-98A7-B882C64B5CE5",
+    title: "ASR: Block abuse of vulnerable signed drivers",
+    description:
+      "Blocks known-vulnerable signed drivers from loading. Defeats 'bring-your-own-driver' kernel attacks.",
+    warning: "May block some legitimate kernel-level tools (older anti-cheat, hardware monitoring) that rely on outdated signed drivers.",
+  }),
+];
+
 export const ALL_TWEAKS: Tweak[] = [
   ...PRIVACY_TWEAKS,
   ...AI_TWEAKS,
@@ -2557,6 +2954,7 @@ export const ALL_TWEAKS: Tweak[] = [
   ...UPDATE_TWEAKS,
   ...NOTIFICATION_TWEAKS,
   ...BROWSER_TWEAKS,
+  ...SECURITY_TWEAKS,
 ];
 
 export function getTweaksByCategory(category: TweakCategory): Tweak[] {

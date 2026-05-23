@@ -37,6 +37,16 @@
 
   async function checkForUpdates() {
     if (checkingUpdate) return;
+    if (portable) {
+      toast.warning(
+        "Auto-update disabled in portable mode",
+        "Opening the releases page so you can grab a fresh ZIP.",
+      );
+      try {
+        await openUrl("https://github.com/jonax1337/reclaim/releases");
+      } catch {}
+      return;
+    }
     checkingUpdate = true;
     try {
       const update = await checkUpdate();
@@ -211,10 +221,10 @@
           <dd>
             {#if portable}
               <span class="font-medium">Portable</span>
-              <span class="text-muted-foreground"> · data stays next to the exe</span>
+              <span class="text-muted-foreground"> · stateless on disk, settings live in the browser store</span>
             {:else}
               <span class="font-medium">Installed</span>
-              <span class="text-muted-foreground"> · drop <code class="font-mono">portable.txt</code> next to the exe for portable mode</span>
+              <span class="text-muted-foreground"> · download the portable build for a single-exe variant</span>
             {/if}
           </dd>
           {#if dataDir}
