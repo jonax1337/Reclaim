@@ -407,6 +407,120 @@ export async function firewallRemoveBlock(name: string): Promise<void> {
   await invoke("firewall_remove_block", { name });
 }
 
+export type DefaultAppKind = "file" | "protocol";
+
+export type DefaultAppInfo = {
+  key: string;
+  kind: DefaultAppKind;
+  progId: string | null;
+  friendlyName: string | null;
+  command: string | null;
+};
+
+export async function getDefaultApps(
+  items: Array<{ kind: DefaultAppKind; key: string }>,
+): Promise<DefaultAppInfo[]> {
+  const raw = await invoke<
+    Array<{
+      key: string;
+      kind: DefaultAppKind;
+      prog_id: string | null;
+      friendly_name: string | null;
+      command: string | null;
+    }>
+  >("get_default_apps", { req: { items } });
+  return raw.map((r) => ({
+    key: r.key,
+    kind: r.kind,
+    progId: r.prog_id,
+    friendlyName: r.friendly_name,
+    command: r.command,
+  }));
+}
+
+export async function openDefaultApps(target = ""): Promise<void> {
+  await invoke("open_default_apps", { target });
+}
+
+export type WallpaperStyle = 0 | 1 | 2 | 6 | 10 | 22;
+
+export type PersonalizationStatus = {
+  path: string | null;
+  style: number;
+  tile: boolean;
+  lockscreenPolicyPath: string | null;
+};
+
+export async function personalizationStatus(): Promise<PersonalizationStatus> {
+  const raw = await invoke<{
+    path: string | null;
+    style: number;
+    tile: boolean;
+    lockscreen_policy_path: string | null;
+  }>("personalization_status");
+  return {
+    path: raw.path,
+    style: raw.style,
+    tile: raw.tile,
+    lockscreenPolicyPath: raw.lockscreen_policy_path,
+  };
+}
+
+export async function setWallpaper(path: string, style: WallpaperStyle): Promise<void> {
+  await invoke("set_wallpaper", { path, style });
+}
+
+export async function setLockscreen(path: string): Promise<void> {
+  await invoke("set_lockscreen", { path });
+}
+
+export async function clearLockscreen(): Promise<void> {
+  await invoke("clear_lockscreen");
+}
+
+export type DriverPackage = {
+  publishedName: string;
+  originalName: string;
+  provider: string;
+  className: string;
+  classGuid: string;
+  version: string;
+  date: string;
+  signer: string;
+};
+
+export async function listDriverPackages(classFilter?: string): Promise<DriverPackage[]> {
+  const raw = await invoke<
+    Array<{
+      published_name: string;
+      original_name: string;
+      provider: string;
+      class_name: string;
+      class_guid: string;
+      version: string;
+      date: string;
+      signer: string;
+    }>
+  >("list_driver_packages", { classFilter: classFilter ?? null });
+  return raw.map((d) => ({
+    publishedName: d.published_name,
+    originalName: d.original_name,
+    provider: d.provider,
+    className: d.class_name,
+    classGuid: d.class_guid,
+    version: d.version,
+    date: d.date,
+    signer: d.signer,
+  }));
+}
+
+export async function deleteDriverPackage(
+  publishedName: string,
+  uninstall: boolean,
+): Promise<void> {
+  await invoke("delete_driver_package", { publishedName, uninstall });
+}
+
 export async function setDohTemplate(
   serverIp: string,
   template: string,

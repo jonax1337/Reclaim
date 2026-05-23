@@ -7,6 +7,9 @@
   import Bloatware from "./routes/Bloatware.svelte";
   import Privacy from "./routes/Privacy.svelte";
   import AI from "./routes/AI.svelte";
+  import Browser from "./routes/Browser.svelte";
+  import Defaults from "./routes/Defaults.svelte";
+  import Personalization from "./routes/Personalization.svelte";
   import Explorer from "./routes/Explorer.svelte";
   import Search from "./routes/Search.svelte";
   import Taskbar from "./routes/Taskbar.svelte";
@@ -48,6 +51,9 @@
     ["/bloatware", Bloatware],
     ["/privacy", Privacy],
     ["/ai", AI],
+    ["/browser", Browser],
+    ["/defaults", Defaults],
+    ["/personalization", Personalization],
     ["/explorer", Explorer],
     ["/search", Search],
     ["/taskbar", Taskbar],

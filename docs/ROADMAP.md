@@ -94,16 +94,22 @@ Shipped:
 
 ---
 
+## ✅ Phase 8 — Customize & drivers (v0.10.0)
+
+The remaining "Cross-cutting future ideas" landed as a v0.10.0 batch.
+
+Shipped:
+- **Browser** (`/browser`) — New `browser` tweak category + dedicated route with 13 curated Edge policies (skip first-run, kill Bing in address bar + background mode + shopping + wallet + Discover + Rewards + the install-as-app wizard, clean up the New Tab page, make sign-in optional, send DNT, disable personalization reporting + Collections + diagnostic data).
+- **Default apps** (`/defaults`) — Reads HKCU UserChoice for 15 file types + 4 protocols, surfaces Edge defaults with a warning badge, deep-links to `ms-settings:defaultapps` for changes. New `defaults.rs` module.
+- **Personalization** (`/personalization`) — Wallpaper + lock screen customizer with fit-mode chooser; wallpaper via `SystemParametersInfo(SPI_SETDESKWALLPAPER)`, lock screen via the `Personalization` CSP policy (admin). New `personalization.rs` module.
+- **Driver rollback** (in `/drivers`) — `pnputil /enum-drivers` rollback for any installed OEM driver package (Display / Net / Audio / All). New `driver_packages.rs` module with strict `oem<digits>.inf` validation.
+- **AMD / Intel auto-find** — The existing per-vendor `open_driver_search` flow (NVIDIA had it since v0.8.0) is now wired up for AMD and Intel too, replacing the basic browser-search fallback.
+
+---
+
 ## Cross-cutting future ideas (post-1.0, not committed)
 
-These could become Phase 8+ if there's demand:
-
-- **Browser tweaks** — Edge policies for hub sidebar, copilot, news feed (some already covered as tweaks).
-- **Driver rollback** — list installed driver versions, roll back via `pnputil`.
-- **AMD / Intel driver auto-update** — same flow as the NVIDIA one in v0.8.0.
-- **Default-app override** — Edge → user-choice for PDF/PNG/HTML in one click.
-- **Wallpaper / Lock screen customizer**.
-- **Sound scheme picker**.
+- **Sound scheme picker** — Switch the Windows sound scheme (Default / No sounds / custom).
 
 ---
 

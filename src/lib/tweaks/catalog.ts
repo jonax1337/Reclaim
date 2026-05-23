@@ -9,7 +9,8 @@ export type TweakCategory =
   | "taskbar"
   | "updates"
   | "performance"
-  | "notifications";
+  | "notifications"
+  | "browser";
 
 export type RegOp = {
   kind: "reg";
@@ -2401,6 +2402,151 @@ export const NOTIFICATION_TWEAKS: Tweak[] = [
   },
 ];
 
+const edgePolicy = "Software\\Policies\\Microsoft\\Edge";
+
+export const BROWSER_TWEAKS: Tweak[] = [
+  {
+    id: "edge-first-run-skip",
+    category: "browser",
+    title: "Skip Edge first-run experience",
+    description:
+      "Skips the Edge onboarding wizard, sign-in prompts, and import-from-other-browser nags on first launch.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "HideFirstRunExperience", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+  },
+  {
+    id: "edge-bing-suggestions-off",
+    category: "browser",
+    title: "Disable Bing in the Edge address bar",
+    description: "Stops Edge from showing Bing search suggestions and Bing rich answers in the address bar.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "AddressBarMicrosoftSearchInBingProviderEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "SearchSuggestEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-background-mode-off",
+    category: "browser",
+    title: "Don't run Edge in the background",
+    description:
+      "Stops the 'Continue running background apps when Microsoft Edge is closed' behavior. Frees RAM and stops background telemetry.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "BackgroundModeEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "StartupBoostEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-shopping-off",
+    category: "browser",
+    title: "Disable Edge shopping assistant",
+    description: "Hides the shopping assistant, price comparison, coupon detector, and discount notifications.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "EdgeShoppingAssistantEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-wallet-off",
+    category: "browser",
+    title: "Disable Edge wallet & crypto",
+    description:
+      "Turns off the built-in payments / address autofill nag, the Microsoft Wallet, and the integrated crypto wallet.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "WalletDonationEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "CryptoWalletEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-discover-off",
+    category: "browser",
+    title: "Disable the Discover button",
+    description: "Removes the Bing 'Discover' / Copilot pill in the upper-right of every Edge page.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "DiscoverPageContextEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "CopilotPageContext", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-ntp-clean",
+    category: "browser",
+    title: "Clean up the New Tab page",
+    description:
+      "Disables MSN news feed, Bing 'quick links', sponsored content tiles, and the background-image picker on the New Tab page.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "NewTabPageContentEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "NewTabPageQuickLinksEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "NewTabPageAllowedBackgroundTypes", type: "DWORD", value: 3, defaultValue: 0 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "ShowRecommendationsEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-rewards-off",
+    category: "browser",
+    title: "Hide Microsoft Rewards in Edge",
+    description: "Removes the Rewards button from Edge and stops the related background syncing.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "ShowMicrosoftRewards", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-signin-optional",
+    category: "browser",
+    title: "Make Edge sign-in optional",
+    description:
+      "Stops Edge from forcing a Microsoft Account sign-in on first launch. You can still sign in manually if you want to sync.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "BrowserSignin", type: "DWORD", value: 1, defaultValue: 2 },
+    ],
+  },
+  {
+    id: "edge-do-not-track",
+    category: "browser",
+    title: "Send Do Not Track header",
+    description: "Configures Edge to send the 'Do Not Track' header on every request. Cosmetic on most sites but harmless.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "ConfigureDoNotTrack", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+  },
+  {
+    id: "edge-personalization-off",
+    category: "browser",
+    title: "Disable Edge personalization reporting",
+    description:
+      "Stops Edge from reporting browsing/site usage data to Microsoft for personalization and advertising.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "PersonalizationReportingEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "DiagnosticData", type: "DWORD", value: 0, defaultValue: 2 },
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "EdgeCollectionsEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-default-nag-off",
+    category: "browser",
+    title: "Stop the 'Make Edge default' nag",
+    description: "Suppresses the periodic Edge banner asking you to make Edge your default browser.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "DefaultBrowserSettingEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+  {
+    id: "edge-pinning-wizard-off",
+    category: "browser",
+    title: "Disable the 'install this site as an app' wizard",
+    description: "Hides the persistent Edge pop-up suggesting you install the current website as a desktop app.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: edgePolicy, name: "PinningWizardAllowed", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+  },
+];
+
 export const ALL_TWEAKS: Tweak[] = [
   ...PRIVACY_TWEAKS,
   ...AI_TWEAKS,
@@ -2410,6 +2556,7 @@ export const ALL_TWEAKS: Tweak[] = [
   ...PERFORMANCE_TWEAKS,
   ...UPDATE_TWEAKS,
   ...NOTIFICATION_TWEAKS,
+  ...BROWSER_TWEAKS,
 ];
 
 export function getTweaksByCategory(category: TweakCategory): Tweak[] {

@@ -2,6 +2,23 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.10.0
+
+### Added
+
+- **Browser** (`/browser`) — Dedicated route for Microsoft Edge customization. New `browser` category in the tweak catalog with 13 curated tweaks via `HKLM\Software\Policies\Microsoft\Edge`: skip first-run experience, disable Bing in address bar, kill background mode + startup boost, hide shopping assistant, wallet + crypto wallet, Discover button, Microsoft Rewards, the install-as-app wizard, the "make Edge default" nag, clean up the New Tab page (no MSN feed / quick links / sponsored content / background picker), make sign-in optional, send Do Not Track, disable personalization reporting + Collections + diagnostic data.
+- **Default apps** (`/defaults`) — Reads `HKCU` UserChoice for 15 common file types and 4 protocols, resolves each ProgId to its friendly name + command path, flags Edge defaults with a warning badge. Per-row "Change" button deep-links to the Windows Settings page for that specific type (`ms-settings:defaultapps?fileType=.pdf` / `?protocol=http`). New Rust module `defaults.rs` (winreg lookup + ms-settings: launch with whitelisted target prefixes).
+- **Personalization** (`/personalization`) — Wallpaper + lock screen customizer. Wallpaper section: file picker, fit-mode chooser (Fill / Fit / Stretch / Tile / Center / Span), one-click apply via `SystemParametersInfo(SPI_SETDESKWALLPAPER)` interop in PowerShell. Lock screen section (admin-required): writes the `Personalization` CSP policy under `HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization`, "Clear policy" button restores Windows Spotlight. New Rust module `personalization.rs`.
+- **Driver rollback** (in `/drivers`) — New "Installed driver packages" section below the per-GPU cards. Calls `pnputil /enum-drivers` filtered by Display / Net / Audio / All, parses the localized text output into typed `DriverPackage` rows (published name, provider, version, date, signer). Rollback action confirms then runs `pnputil /delete-driver oem<N>.inf /uninstall /force`. Strict `oem<digits>.inf` validation on the published name. New Rust module `driver_packages.rs`.
+- **AMD / Intel auto-find drivers** — The AMD / Intel "Search drivers" buttons in `/drivers` now route through the existing `open_driver_search` Tauri command (a WebviewWindowBuilder with vendor-specific auto-fill JS that was previously NVIDIA-only), giving AMD/Intel the same "smart vendor page" UX as NVIDIA. Renamed the button to "Auto-find {Vendor} drivers" with a wand icon to signal the smarter flow.
+
+### Internal
+
+- New routes: `/browser`, `/defaults`, `/personalization`. Sidebar grew to 32 entries.
+- New `LogAction` variants: `personalization.wallpaper`, `personalization.lockscreen`, `driver.rollback`.
+- New tweak category: `browser` (13 tweaks).
+- Rust modules now 21, commands 67.
+
 ## v0.9.0
 
 ### Added

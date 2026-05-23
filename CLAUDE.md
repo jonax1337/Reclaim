@@ -4,15 +4,15 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.9.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.10.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth) and Phase 8 (Customize & drivers) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Headline numbers:
-- **123 reversible tweaks** across 8 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates)
+- **136 reversible tweaks** across 9 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser)
 - **63 bloatware patterns** across 7 groups
 - **46 winget apps** across 8 groups (16 recommended)
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **29 routes** in a 9-group sidebar
-- **57 Tauri commands** across 17 Rust modules
+- **32 routes** in a 9-group sidebar
+- **67 Tauri commands** across 21 Rust modules
 
 Headline features built since v0.1.0:
 - Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
@@ -23,6 +23,7 @@ Headline features built since v0.1.0:
 - Polish (v0.7.0): portable mode, crash-safe activity.log mirror, auto-updater wiring.
 - OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
 - Defender combined route, Scheduled tasks browser, Recall data wipe, Mass file unblock, Telemetry firewall (v0.9.0).
+- Browser (Edge) tweaks + dedicated route, Default-apps deep-link helper, Wallpaper/Lock-screen customizer, Driver rollback via pnputil, AMD/Intel smart vendor-page auto-find (v0.10.0).
 
 **Still open for v1.0.0**: i18n (DE + EN), code-signing the installer (EV cert or SignPath).
 
@@ -88,14 +89,14 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 - **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
 - **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 
-### `src/routes/` — 29 routes
+### `src/routes/` — 32 routes
 
 Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
 - **Top:** Dashboard (`/`), Profiles (`/profiles`)
 - **Clean up:** Bloatware (`/bloatware`), OneDrive (`/onedrive`), AI & Copilot (`/ai`)
 - **Install:** Apps (`/apps`)
-- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
+- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Browser (`/browser`)\*, Default apps (`/defaults`), Wallpaper & Lock (`/personalization`), Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
 - **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*, Firewall (`/firewall`)\*
 - **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
 - **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*
@@ -104,9 +105,9 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
 \* admin required — hidden / locked in restricted mode, click-to-elevate buttons everywhere.
 
-### `src-tauri/src/` — 17 modules, 57 commands
+### `src-tauri/src/` — 21 modules, 67 commands
 
-- **`lib.rs`** — plugin init + `invoke_handler!` registry (57 commands).
+- **`lib.rs`** — plugin init + `invoke_handler!` registry (67 commands).
 - **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode detected via `portable.txt` or `data/` sibling.
 - **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current).
 - **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary + `StartupFolderPackagedAppX` for UWP), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
@@ -125,6 +126,9 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **`schtasks.rs`** — `list_scheduled_tasks` (parses `Get-ScheduledTask | Get-ScheduledTaskInfo` to JSON), `set_scheduled_task(path, name, enabled)`, `run_scheduled_task(path, name)`, `delete_scheduled_task(path, name)`. Path + name validated (must start with `\`, no quotes/newlines).
 - **`recall.rs`** — `recall_status` detects the Copilot+ snapshot store under `%LOCALAPPDATA%\CoreAIPlatform.00` (presence, size, snapshot count, AppX state, policy state). `recall_wipe(also_remove_appx, also_set_policy)` uses `takeown` + `icacls` + recursive `Remove-Item` because the data dir is normally locked, then optionally writes `DisableAIDataAnalysis = 1` and removes the `MicrosoftWindows.Client.AIX` AppX.
 - **`firewall.rs`** — Sentinel-grouped (`Reclaim:` prefix) outbound Windows Firewall block manager. `firewall_list_blocks` returns active reclaim groups with rule + enabled counts. `firewall_apply_block(name, programs, remote_addresses)` wipes the group then re-creates one program rule per exe path + one combined `-RemoteAddress @(...)` rule per group. `firewall_remove_block(name)` deletes the group. All name/path/address inputs strictly validated before interpolation.
+- **`defaults.rs`** — `get_default_apps(items)` reads HKCU UserChoice for each file extension / protocol, resolves the ProgId to a friendly name + open command via HKCR. `open_default_apps(target)` launches `ms-settings:defaultapps` with a whitelisted target prefix (`fileType=` / `protocol=` / `registeredAppMachine=` / `registeredAppUser=`) and a strictly validated value.
+- **`personalization.rs`** — `personalization_status` reads current wallpaper path + style + tile flag + lock-screen policy path. `set_wallpaper(path, style)` writes the desktop reg values and calls `SystemParametersInfo(SPI_SETDESKWALLPAPER)` via inline `Add-Type` interop. `set_lockscreen(path)` writes the `Personalization` CSP policy under `HKLM\SOFTWARE\Policies\Microsoft\Windows\Personalization` (admin); `clear_lockscreen` removes it.
+- **`driver_packages.rs`** — `list_driver_packages(class_filter?)` enumerates OEM driver packages via `pnputil /enum-drivers`, parses the locale-agnostic key-value block format into typed `DriverPackage` records. `delete_driver_package(published_name, uninstall)` calls `pnputil /delete-driver oem<N>.inf /uninstall /force` after strict `oem<digits>.inf` validation.
 
 ## Critical conventions
 

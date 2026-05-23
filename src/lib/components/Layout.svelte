@@ -28,6 +28,9 @@
     MousePointer2,
     Clock,
     Flame,
+    Globe,
+    FileType2,
+    Image,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
@@ -136,6 +139,9 @@
       items: [
         { href: "/privacy", label: "Privacy", icon: Shield },
         { href: "/defender", label: "Defender", icon: ShieldCheck, adminOnly: true },
+        { href: "/browser", label: "Browser (Edge)", icon: Globe, adminOnly: true },
+        { href: "/defaults", label: "Default apps", icon: FileType2 },
+        { href: "/personalization", label: "Wallpaper & Lock", icon: Image },
         { href: "/explorer", label: "Explorer", icon: FolderOpen },
         { href: "/context-menu", label: "Right-click menu", icon: MousePointer2, adminOnly: true },
         { href: "/taskbar", label: "Taskbar & Start", icon: Bell },

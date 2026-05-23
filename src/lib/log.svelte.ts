@@ -31,7 +31,10 @@ export type LogAction =
   | "schtasks.toggle"
   | "schtasks.run"
   | "schtasks.delete"
-  | "recall.wipe";
+  | "recall.wipe"
+  | "personalization.wallpaper"
+  | "personalization.lockscreen"
+  | "driver.rollback";
 
 export type LogEntry = {
   id: number;
@@ -145,4 +148,7 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "schtasks.run": "Scheduled task run",
   "schtasks.delete": "Scheduled task deleted",
   "recall.wipe": "Recall data wiped",
+  "personalization.wallpaper": "Wallpaper changed",
+  "personalization.lockscreen": "Lock screen changed",
+  "driver.rollback": "Driver rolled back",
 };

@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from "svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import { Card, CardContent, CardHeader, CardTitle, Button, Badge, toast } from "$lib/ui";
+  import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Dialog, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -15,14 +15,24 @@
     Play,
     CheckCircle2,
     AlertTriangle,
+    Wand2,
+    Trash2,
+    Package,
+    Filter,
   } from "@lucide/svelte";
   import {
     isTauri,
     downloadDriver,
     launchInstaller,
     revealInExplorer,
+    openDriverSearch,
+    listDriverPackages,
+    deleteDriverPackage,
     type NvidiaDriverInfo,
+    type DriverPackage,
   } from "$lib/tweaks/bridge";
+  import { admin } from "$lib/admin.svelte";
+  import AdminBanner from "$lib/components/AdminBanner.svelte";
   import { log } from "$lib/log.svelte";
   import {
     hardwareResource,
@@ -341,6 +351,14 @@
 
   async function openVendorSearch(v: Vendor, gpuName: string | undefined) {
     if (!gpuName) return openVendor(v);
+    if (v === "amd" || v === "intel" || v === "nvidia") {
+      try {
+        await openDriverSearch(v, gpuName, osLabel);
+        return;
+      } catch (e) {
+        toast.error("Could not open vendor search", String(e));
+      }
+    }
     const q = encodeURIComponent(gpuName);
     const url =
       v === "amd"
@@ -394,6 +412,63 @@
     const current = nvidiaShortVersion(s.gpu.DriverVersion);
     return compareVersions(s.latest.version, current) > 0;
   }
+
+  // ---- Installed driver packages (pnputil-backed rollback) ----
+  type ClassFilter = "Display" | "Net" | "Sound, video and game controllers" | "all";
+  let packageClass = $state<ClassFilter>("Display");
+  let packages = $state<DriverPackage[]>([]);
+  let packagesLoading = $state(false);
+  let packagesLoaded = $state(false);
+  let packageBusy = $state<Set<string>>(new Set());
+  let rollbackOpen = $state(false);
+  let rollbackTarget = $state<DriverPackage | null>(null);
+
+  async function loadPackages() {
+    if (!isTauri()) return;
+    packagesLoading = true;
+    try {
+      const filter = packageClass === "all" ? undefined : packageClass;
+      packages = await listDriverPackages(filter);
+      packagesLoaded = true;
+    } catch (e) {
+      toast.error("pnputil failed", String(e));
+    } finally {
+      packagesLoading = false;
+    }
+  }
+
+  function askRollback(p: DriverPackage) {
+    rollbackTarget = p;
+    rollbackOpen = true;
+  }
+
+  async function confirmRollback() {
+    if (!rollbackTarget) return;
+    const p = rollbackTarget;
+    rollbackOpen = false;
+    rollbackTarget = null;
+    if (packageBusy.has(p.publishedName)) return;
+    packageBusy = new Set(packageBusy).add(p.publishedName);
+    try {
+      await deleteDriverPackage(p.publishedName, true);
+      log.success("driver.rollback", `${p.provider} ${p.version}`, `Deleted ${p.publishedName}`);
+      toast.success(`${p.publishedName} removed`, "Windows will fall back to the previous driver or its default.");
+      await loadPackages();
+    } catch (e) {
+      toast.error("Rollback failed", String(e));
+      log.error("driver.rollback", p.publishedName, "Failed", String(e));
+    } finally {
+      const after = new Set(packageBusy);
+      after.delete(p.publishedName);
+      packageBusy = after;
+    }
+  }
+
+  $effect(() => {
+    // Refetch when class filter changes (after first load).
+    packageClass;
+    if (packagesLoaded) void loadPackages();
+  });
 </script>
 
 <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -431,6 +506,9 @@
     <div class="px-6 py-16 text-center text-sm text-muted-foreground">No graphics adapters found.</div>
   </Card>
 {:else}
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
+    Graphics adapters
+  </h2>
   <div class="flex flex-col gap-4">
     {#each gpuStates as s, i (i)}
       {@const gpu = s.gpu}
@@ -578,8 +656,8 @@
             {/if}
             {#if s.vendor === "amd" || s.vendor === "intel"}
               <Button size="sm" onclick={() => openVendorSearch(s.vendor, gpu.Name)}>
-                <Search />
-                Search {vendorLabel(s.vendor)} drivers
+                <Wand2 />
+                Auto-find {vendorLabel(s.vendor)} drivers
               </Button>
             {/if}
             {#if s.vendor !== "unknown"}
@@ -613,4 +691,126 @@
       </Card>
     {/each}
   </div>
+
+  <!-- Installed driver packages (rollback) -->
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-8">
+    Installed driver packages
+  </h2>
+  {#if isTauri() && admin.checked && !admin.elevated}
+    <AdminBanner
+      title="Driver rollback needs administrator"
+      description="Removing driver packages with pnputil requires elevated rights. Click here to relaunch with UAC."
+      declinedToast="Driver rollback requires admin."
+    />
+  {:else}
+    <Card class="card-inset">
+      <div class="px-5 py-4 flex items-center gap-3 border-b border-foreground/8">
+        <div class="grid place-items-center size-9 rounded-md bg-primary/15 text-primary shrink-0">
+          <Package class="size-4" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="text-base font-semibold">Installed driver packages</h3>
+          <p class="text-xs text-muted-foreground mt-0.5">
+            Lists OEM-installed driver packages via <code class="font-mono text-[11px]">pnputil /enum-drivers</code>.
+            Removing a package rolls back to the next-best signed driver (or the OS default).
+          </p>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-b border-foreground/8 flex flex-wrap items-center gap-2">
+        <Filter class="size-3.5 text-muted-foreground" />
+        <span class="text-xs text-muted-foreground">Class:</span>
+        {#each ["Display", "Net", "Sound, video and game controllers", "all"] as cls (cls)}
+          <Button
+            size="sm"
+            variant={packageClass === cls ? "default" : "outline"}
+            onclick={() => (packageClass = cls as ClassFilter)}
+          >
+            {cls === "all" ? "All" : cls === "Sound, video and game controllers" ? "Audio" : cls}
+          </Button>
+        {/each}
+        <Button
+          size="sm"
+          variant="outline"
+          class="ml-auto"
+          onclick={loadPackages}
+          disabled={packagesLoading}
+        >
+          {#if packagesLoading}
+            <Loader2 class="animate-spin" />
+          {:else}
+            <RefreshCw />
+          {/if}
+          {packagesLoaded ? "Refresh" : "Scan"}
+        </Button>
+      </div>
+      {#if packagesLoading && !packagesLoaded}
+        <div class="grid place-items-center py-12 text-sm text-muted-foreground">
+          <Loader2 class="size-5 animate-spin mb-2" />
+          Reading driver packages…
+        </div>
+      {:else if !packagesLoaded}
+        <div class="px-6 py-12 text-center text-sm text-muted-foreground">
+          Click <span class="font-semibold">Scan</span> to enumerate installed drivers.
+        </div>
+      {:else if packages.length === 0}
+        <div class="px-6 py-12 text-center text-sm text-muted-foreground">
+          No driver packages in this class.
+        </div>
+      {:else}
+        <div>
+          {#each packages as p (p.publishedName)}
+            {@const isBusy = packageBusy.has(p.publishedName)}
+            <div
+              class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors"
+            >
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-sm font-medium">{p.provider}</span>
+                  <Badge variant="outline" class="font-mono">{p.publishedName}</Badge>
+                  <Badge variant="outline">{p.version}</Badge>
+                </div>
+                <p class="text-[11px] text-muted-foreground mt-1">
+                  {p.originalName} · {p.className} · {p.date}
+                  {#if p.signer}
+                    · <span class="text-muted-foreground/70">signed by {p.signer}</span>
+                  {/if}
+                </p>
+              </div>
+              <div class="shrink-0 pt-0.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onclick={() => askRollback(p)}
+                  disabled={isBusy}
+                >
+                  {#if isBusy}
+                    <Loader2 class="animate-spin" />
+                  {:else}
+                    <Trash2 />
+                  {/if}
+                  Roll back
+                </Button>
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </Card>
+  {/if}
 {/if}
+
+<Dialog
+  bind:open={rollbackOpen}
+  title={rollbackTarget ? `Roll back ${rollbackTarget.publishedName}?` : ""}
+  description={rollbackTarget
+    ? `Removes ${rollbackTarget.provider} ${rollbackTarget.version} (${rollbackTarget.originalName}). Windows falls back to the previous signed driver, or its built-in default if none exists. May require a reboot.`
+    : ""}
+>
+  {#snippet footer()}
+    <Button variant="outline" onclick={() => (rollbackOpen = false)}>Cancel</Button>
+    <Button variant="destructive" onclick={confirmRollback}>
+      <Trash2 />
+      Roll back
+    </Button>
+  {/snippet}
+</Dialog>
