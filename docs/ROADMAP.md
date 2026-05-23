@@ -61,7 +61,6 @@ Goal of this phase: everything needed before a 1.0 release.
 
 ### Shipped (v0.7.0)
 
-- **Onboarding** — `OnboardingDialog.svelte` on first launch, optional restore-point + Reclaim Basics.
 - **Portable mode** — drop `portable.txt` or a `data/` folder next to the exe; `app_data_dir()` then resolves there instead of `%APPDATA%/Reclaim`. Settings page shows the mode + a clickable path.
 - **Crash-safe log mirror** — `log_append(entry)` writes one JSON line per log entry to `<app_data_dir>/activity.log` alongside the localStorage write.
 - **Auto-updater wired** — `tauri-plugin-updater` plugin loaded; Settings has a "Check for updates" button. Without the signing secrets, falls back to opening the GitHub releases page.

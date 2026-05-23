@@ -34,7 +34,6 @@
   import { admin } from "$lib/admin.svelte";
   import { setScrollContainer, onRouteChange } from "$lib/scroll-restore.svelte";
   import { onMount } from "svelte";
-  import OnboardingDialog from "./OnboardingDialog.svelte";
   import TerminalPanel from "./TerminalPanel.svelte";
   import { tasks } from "$lib/tasks.svelte";
   import { Terminal, Loader2, X as XIcon } from "@lucide/svelte";
@@ -326,7 +325,6 @@
 </div>
 
 <Toaster />
-<OnboardingDialog />
 <TerminalPanel />
 
 <Dialog

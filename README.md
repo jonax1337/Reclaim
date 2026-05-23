@@ -65,7 +65,6 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 - **Real shell icons** for Startup, Bloatware, and OneDrive — extracted from EXEs via `Icon.ExtractAssociatedIcon` (handles quoted paths, env-var expansion, `.lnk` target resolution, Squirrel updater path-hop, progressive whitespace trim for unquoted paths with embedded spaces). UWP entries get their real `Square44x44Logo` from the package manifest — same files Start Menu uses.
 - **Self-elevation on launch**: clicks UAC for you on cold start. If you decline, the app runs in **restricted mode** — admin-requiring tweaks are hidden, admin-only pages are locked, and click-to-elevate buttons in the titlebar, Dashboard, every tweak section, and every locked page get you to UAC anytime. Denial is sticky for the session (no re-prompt loop).
 - **Reversibility is architecture**: every tweak knows its Windows default. Toggle the switch and it's gone.
-- **First-run onboarding**: optional create-restore-point + apply-Reclaim-Basics flow.
 - **Portable mode**: drop a `portable.txt` or a `data/` folder next to the exe and Reclaim writes logs and profiles there instead of `%APPDATA%`.
 - **Restore point on demand** from the Dashboard or Settings.
 - **Auto-updater** wired up via Tauri's updater plugin against GitHub Releases (signed `latest.json`).
@@ -116,11 +115,11 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
     ui/                shadcn-style components (Button/Card/Switch/…)
                        BulkActionBar, Titlebar, Toaster
     components/        Layout, TweakSection, TweakRow, ProfileCard,
-                       OnboardingDialog, AdminBanner, TerminalPanel (xterm)
+                       AdminBanner, TerminalPanel (xterm)
     log.svelte.ts      Activity log (500 entries, localStorage + file mirror)
     admin.svelte.ts    Elevation + auto-UAC store
     theme.svelte.ts    system / light / dark
-    prefs.svelte.ts    App prefs (onboarded flag, etc.)
+    prefs.svelte.ts    App prefs (theme, persisted to file + localStorage)
     tasks.svelte.ts    Long-running task registry (PTY-backed)
     cache.svelte.ts    SWR-style resource cache
     route-cache.svelte.ts        per-route component memoization

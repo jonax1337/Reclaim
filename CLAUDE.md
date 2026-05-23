@@ -20,7 +20,7 @@ Headline features built since v0.1.0:
 - Tweak breadth (v0.4.0): +71 tweaks, new Notifications category.
 - System maintenance (v0.5.0): SFC / DISM / chkdsk / Defender / WinSxS / network reset, Power Plans manager, ConPTY-based PTY terminal.
 - Profile Builder (v0.6.0): custom profiles, `.reclaim` JSON envelope with schema versioning, import/export.
-- Polish (v0.7.0): onboarding, portable mode, crash-safe activity.log mirror, auto-updater wiring.
+- Polish (v0.7.0): portable mode, crash-safe activity.log mirror, auto-updater wiring.
 - OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
 
 **Still open for v1.0.0**: i18n (DE + EN), code-signing the installer (EV cert or SignPath).
@@ -56,7 +56,7 @@ Headline features built since v0.1.0:
 - **`log.svelte.ts`** — `$state`-based activity log, 500 entries, persists to localStorage **and** fires `log_append(entry)` to mirror as JSON-lines into `<app_data_dir>/activity.log`. `log.success/info/warn/error` with action + target + message + optional details.
 - **`admin.svelte.ts`** — elevation store. `admin.elevated`, `admin.checked`, `admin.requesting`. `maybeAutoElevate` runs on cold launch (sessionStorage flag stops re-prompting after denial). `relaunchElevated` invokes Rust to UAC and exits.
 - **`theme.svelte.ts`** — `system | light | dark`. Persists to localStorage. Toggled only via Settings (sidebar switcher was removed).
-- **`prefs.svelte.ts`** — file-backed app preferences (e.g. `onboarded` flag for first-run gate). Reads/writes via Rust `read_app_file` / `write_app_file` (atomic temp + rename).
+- **`prefs.svelte.ts`** — file-backed app preferences (currently theme only). Reads/writes via Rust `read_app_file` / `write_app_file` (atomic temp + rename), mirrored to localStorage for synchronous first paint.
 - **`tasks.svelte.ts`** — long-running task registry. Each entry carries a unique task id, the active PTY session, and an xterm terminal instance so users can switch routes without losing maintenance output.
 - **`cache.svelte.ts`** — SWR-style cache for Tauri queries (e.g. AppX list, services, hardware info). Stale-while-revalidate prevents flashing the empty state when navigating back.
 - **`route-cache.svelte.ts`** — per-route component memoization so transitions don't re-mount expensive routes.
@@ -84,7 +84,6 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 - **`TweakSection.svelte`** — header bar (active count + select-all + apply-recommended + revert-all) + Card list + BulkActionBar. Filters out admin-requiring tweaks in lite mode, shows banner.
 - **`TweakRow.svelte`** — row with left primary-accent bar (when on or selected), checkbox (click anywhere on row to select), title + badges, switch on right. `data-no-select` on switch/checkbox.
 - **`TweakPreviewDialog.svelte`** — pre-apply confirmation showing the exact registry/shell operations + reversibility status.
-- **`OnboardingDialog.svelte`** — first-launch dialog (restore-point + Reclaim Basics opt-in).
 - **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
 - **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 

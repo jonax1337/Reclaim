@@ -28,8 +28,8 @@ The same flow runs backwards for `revertTweak`.
 - **Live PowerShell**: app inventories (`Get-AppxPackage`), service list (`Get-Service`), startup entries, hardware info — all queried fresh on route mount, cached only for the lifetime of the route.
 - **localStorage**:
   - `reclaim.activity-log` (last 500 entries)
-  - `reclaim.theme` (`system` / `light` / `dark`)
-  - `reclaim.onboarding.dismissed` (planned for Phase 6)
+  - `reclaim.prefs` (theme; mirrored to `<app_data_dir>/prefs.json`)
+  - `reclaim.custom-profiles` (user-created profiles)
 - **sessionStorage**:
   - `reclaim.elevate-denied` — stops auto-UAC prompting until app restart
 - **In-memory** ($state stores): `admin`, `theme`, `log`, route-local state.

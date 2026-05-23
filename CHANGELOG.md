@@ -23,7 +23,6 @@ All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https
 ### Added
 
 - **Profile file format** — Export writes `.reclaim` files (still JSON inside). Import accepts both `.reclaim` and `.json` for backwards compatibility.
-- **Onboarding** — `OnboardingDialog.svelte` shows on first launch when `localStorage["reclaim.onboarded"] !== "1"`. Single dialog with two optional toggles: create restore point + apply Reclaim Basics. Skip dismisses without acting.
 - **Portable mode** — `is_portable()` returns true when `portable.txt` or a `data/` directory sits next to the executable. `app_data_dir()` resolves to either `<exe-dir>/data` (portable) or `%APPDATA%/Reclaim` (installed) and creates it on demand. Settings page shows the mode + a clickable path that opens the folder in Explorer.
 - **Log mirror** — `log_append(entry)` writes one JSON line per log entry to `<app_data_dir>/activity.log`. `log.svelte.ts` fires this fire-and-forget alongside the localStorage write. Crash-safe — survives webview cache wipes.
 - **Auto-updater** — `tauri-plugin-updater` plugin wired in (Cargo + Rust init + JS dep). Settings page has a "Check for updates" button. Falls back to opening the GitHub releases page in the browser when the updater isn't configured.
