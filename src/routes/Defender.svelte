@@ -53,11 +53,23 @@
   } | null>(null);
   let confirmOpen = $state(false);
 
-  // Per-tab add inputs.
-  let pathInput = $state("");
-  let processInput = $state("");
-  let extensionInput = $state("");
-  let addBusy = $state<DefenderExclusionKind | null>(null);
+  // Add-exclusion dialog state.
+  let addOpen = $state(false);
+  let addKind = $state<DefenderExclusionKind>("path");
+  let addValue = $state("");
+  let addBusy = $state(false);
+
+  function openAdd(kind: DefenderExclusionKind) {
+    addKind = kind;
+    addValue = "";
+    addOpen = true;
+  }
+
+  const EXCLUSION_LABELS: Record<DefenderExclusionKind, string> = {
+    path: "file or folder",
+    process: "process",
+    extension: "extension",
+  };
 
   async function reload() {
     if (!canFetch) return;
@@ -226,7 +238,7 @@
         multiple: false,
         title: "Choose folder to exclude",
       });
-      if (picked && typeof picked === "string") pathInput = picked;
+      if (picked && typeof picked === "string") addValue = picked;
     } catch (e) {
       toast.error("Could not open folder picker", String(e));
     }
@@ -239,34 +251,32 @@
         multiple: false,
         title: "Choose file to exclude",
       });
-      if (picked && typeof picked === "string") pathInput = picked;
+      if (picked && typeof picked === "string") addValue = picked;
     } catch (e) {
       toast.error("Could not open file picker", String(e));
     }
   }
 
-  async function addExclusion(kind: DefenderExclusionKind) {
-    const value = (kind === "path" ? pathInput : kind === "process" ? processInput : extensionInput)
-      .trim();
+  async function submitAdd() {
+    const value = addValue.trim();
     if (!value) {
       toast.error("Enter a value first");
       return;
     }
-    addBusy = kind;
+    addBusy = true;
     try {
-      await defenderAddExclusion(kind, value);
-      log.success("defender.exclusion.add", value, `Added ${kind} exclusion`);
-      toast.success(`Added ${kind} exclusion`);
-      if (kind === "path") pathInput = "";
-      else if (kind === "process") processInput = "";
-      else extensionInput = "";
+      await defenderAddExclusion(addKind, value);
+      log.success("defender.exclusion.add", value, `Added ${addKind} exclusion`);
+      toast.success(`Added ${addKind} exclusion`);
+      addOpen = false;
+      addValue = "";
       invalidate("defender.exclusions");
       await exRes?.refresh();
     } catch (e) {
       toast.error("Add exclusion failed", String(e));
       log.error("defender.exclusion.add", value, "Failed", String(e));
     } finally {
-      addBusy = null;
+      addBusy = false;
     }
   }
 
@@ -452,36 +462,23 @@
   </p>
 
   <!-- Files & folders -->
-  <Card class="card-inset mb-4">
-    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
+  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
       <span class="text-sm font-medium">Files &amp; folders</span>
-      <Badge variant="outline" class="ml-auto">{exclusions.paths.length}</Badge>
-    </div>
-    <div class="px-5 py-3 flex flex-wrap gap-2 border-b border-foreground/8">
-      <input
-        type="text"
-        bind:value={pathInput}
-        placeholder="C:\path\to\file or folder"
-        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-        onkeydown={(e) => e.key === "Enter" && addExclusion("path")}
-      />
-      <Button variant="outline" onclick={pickFolder}>Pick folder</Button>
-      <Button variant="outline" onclick={pickFile}>Pick file</Button>
-      <Button onclick={() => addExclusion("path")} disabled={addBusy === "path"}>
-        {#if addBusy === "path"}
-          <Loader2 class="animate-spin" />
-        {:else}
-          <Plus />
-        {/if}
+      <Badge variant="outline">{exclusions.paths.length}</Badge>
+      <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("path")}>
+        <Plus />
         Add
       </Button>
     </div>
     {#if exclusions.paths.length === 0}
-      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No path exclusions.</div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">
+        No path exclusions.
+      </div>
     {:else}
       {#each exclusions.paths as p (p)}
         {@const isBusy = busy.has(`rm:path:${p}`)}
-        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+        <div class="flex items-center gap-3 py-2.5 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
           <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
           <Button
             size="sm"
@@ -502,34 +499,23 @@
   </Card>
 
   <!-- Processes -->
-  <Card class="card-inset mb-4">
-    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
+  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
       <span class="text-sm font-medium">Processes</span>
-      <Badge variant="outline" class="ml-auto">{exclusions.processes.length}</Badge>
-    </div>
-    <div class="px-5 py-3 flex flex-wrap gap-2 border-b border-foreground/8">
-      <input
-        type="text"
-        bind:value={processInput}
-        placeholder="myapp.exe"
-        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-        onkeydown={(e) => e.key === "Enter" && addExclusion("process")}
-      />
-      <Button onclick={() => addExclusion("process")} disabled={addBusy === "process"}>
-        {#if addBusy === "process"}
-          <Loader2 class="animate-spin" />
-        {:else}
-          <Plus />
-        {/if}
+      <Badge variant="outline">{exclusions.processes.length}</Badge>
+      <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("process")}>
+        <Plus />
         Add
       </Button>
     </div>
     {#if exclusions.processes.length === 0}
-      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No process exclusions.</div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">
+        No process exclusions.
+      </div>
     {:else}
       {#each exclusions.processes as p (p)}
         {@const isBusy = busy.has(`rm:process:${p}`)}
-        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+        <div class="flex items-center gap-3 py-2.5 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
           <span class="text-sm font-mono truncate flex-1" title={p}>{p}</span>
           <Button
             size="sm"
@@ -550,34 +536,23 @@
   </Card>
 
   <!-- Extensions -->
-  <Card class="card-inset mb-4">
-    <div class="px-5 py-3 flex items-center gap-2 border-b border-foreground/8">
+  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
       <span class="text-sm font-medium">File extensions</span>
-      <Badge variant="outline" class="ml-auto">{exclusions.extensions.length}</Badge>
-    </div>
-    <div class="px-5 py-3 flex flex-wrap gap-2 border-b border-foreground/8">
-      <input
-        type="text"
-        bind:value={extensionInput}
-        placeholder="log (with or without leading dot)"
-        class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-        onkeydown={(e) => e.key === "Enter" && addExclusion("extension")}
-      />
-      <Button onclick={() => addExclusion("extension")} disabled={addBusy === "extension"}>
-        {#if addBusy === "extension"}
-          <Loader2 class="animate-spin" />
-        {:else}
-          <Plus />
-        {/if}
+      <Badge variant="outline">{exclusions.extensions.length}</Badge>
+      <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("extension")}>
+        <Plus />
         Add
       </Button>
     </div>
     {#if exclusions.extensions.length === 0}
-      <div class="px-5 py-6 text-center text-xs text-muted-foreground">No extension exclusions.</div>
+      <div class="px-5 py-6 text-center text-xs text-muted-foreground">
+        No extension exclusions.
+      </div>
     {:else}
       {#each exclusions.extensions as p (p)}
         {@const isBusy = busy.has(`rm:extension:${p}`)}
-        <div class="flex items-center gap-3 py-2 px-5 border-b border-foreground/8 last:border-b-0">
+        <div class="flex items-center gap-3 py-2.5 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
           <span class="text-sm font-mono truncate flex-1" title={p}>.{p}</span>
           <Button
             size="sm"
@@ -608,6 +583,61 @@
     <Button variant="destructive" onclick={confirmDisable}>
       <ShieldOff />
       Disable anyway
+    </Button>
+  {/snippet}
+</Dialog>
+
+<Dialog
+  bind:open={addOpen}
+  title="Add {EXCLUSION_LABELS[addKind]} exclusion"
+  description={addKind === "path"
+    ? "Defender will skip scanning this file or folder. Use sparingly — every exclusion is a potential blind spot."
+    : addKind === "process"
+      ? "Defender will skip files opened by this executable. Use sparingly."
+      : "Defender will skip files with this extension across all drives. Use sparingly."}
+>
+  <div class="space-y-3">
+    <label class="flex flex-col gap-1">
+      <span class="text-xs font-medium text-muted-foreground">
+        {addKind === "path" ? "Path" : addKind === "process" ? "Executable name" : "Extension"}
+      </span>
+      <input
+        type="text"
+        bind:value={addValue}
+        placeholder={addKind === "path"
+          ? "C:\\path\\to\\file or folder"
+          : addKind === "process"
+            ? "myapp.exe"
+            : "log (with or without leading dot)"}
+        class="h-9 rounded-md border border-input bg-card px-3 text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+        onkeydown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void submitAdd();
+          }
+        }}
+      />
+    </label>
+    {#if addKind === "path"}
+      <div class="flex gap-2">
+        <Button variant="outline" size="sm" onclick={pickFolder} disabled={addBusy}>
+          Pick folder…
+        </Button>
+        <Button variant="outline" size="sm" onclick={pickFile} disabled={addBusy}>
+          Pick file…
+        </Button>
+      </div>
+    {/if}
+  </div>
+  {#snippet footer()}
+    <Button variant="outline" onclick={() => (addOpen = false)} disabled={addBusy}>Cancel</Button>
+    <Button onclick={submitAdd} disabled={addBusy || !addValue.trim()}>
+      {#if addBusy}
+        <Loader2 class="animate-spin" />
+      {:else}
+        <Plus />
+      {/if}
+      Add exclusion
     </Button>
   {/snippet}
 </Dialog>

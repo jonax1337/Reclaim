@@ -611,48 +611,42 @@
         or single file via <code class="font-mono text-[11px]">Unblock-File</code>. Useful for big downloads
         where every extracted file would otherwise trigger a SmartScreen prompt.
       </p>
-      <div class="flex flex-wrap gap-2">
-        <input
-          type="text"
-          bind:value={unblockTarget}
-          placeholder="C:\Users\You\Downloads\extracted-archive"
-          class="flex-1 min-w-[16rem] h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-          disabled={unblockRunning}
-        />
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="flex-1 min-w-[16rem]">
+          <input
+            type="text"
+            bind:value={unblockTarget}
+            placeholder="Folder or file to unblock…"
+            class="w-full h-9 rounded-md border border-input bg-card px-3 text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+            disabled={unblockRunning}
+          />
+        </div>
         <Button variant="outline" onclick={pickUnblockFolder} disabled={unblockRunning}>
           <FolderOpen />
-          Folder
+          Folder…
         </Button>
         <Button variant="outline" onclick={pickUnblockFile} disabled={unblockRunning}>
           <FileIcon />
-          File
+          File…
         </Button>
-      </div>
-      <label
-        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
-      >
-        <div class="pt-0.5">
-          <Checkbox bind:checked={unblockRecursive} disabled={unblockRunning} />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="text-sm font-medium">Recurse into subfolders</span>
-          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Only applies when the target is a folder. Single-file targets are unblocked directly.
-          </p>
-        </div>
-      </label>
-      <div class="flex justify-end">
         {#if unblockRunning}
           <Button variant="outline" onclick={() => (tasks.panelOpen = true)}>
             Show output
           </Button>
         {:else}
-          <Button onclick={runUnblock}>
+          <Button onclick={runUnblock} disabled={!unblockTarget.trim()}>
             <Play />
             Unblock
           </Button>
         {/if}
       </div>
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <Checkbox bind:checked={unblockRecursive} disabled={unblockRunning} />
+        <span class="text-sm">
+          Recurse into subfolders
+          <span class="text-muted-foreground">— folder targets only</span>
+        </span>
+      </label>
     </div>
   </Card>
 
