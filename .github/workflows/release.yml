@@ -69,8 +69,10 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path staging | Out-Null
-          Get-ChildItem src-tauri/target/release/bundle/nsis -Filter "*.exe" | Copy-Item -Destination staging
-          Get-ChildItem src-tauri/target/release/bundle/msi  -Filter "*.msi" | Copy-Item -Destination staging
+          # Copy installers AND their .sig sidecars — the updater manifest step
+          # needs the .sig file produced by `tauri build` with the signing key.
+          Get-ChildItem "src-tauri/target/release/bundle/nsis/*" -Include "*.exe","*.exe.sig" -File | Copy-Item -Destination staging
+          Get-ChildItem "src-tauri/target/release/bundle/msi/*"  -Include "*.msi","*.msi.sig" -File | Copy-Item -Destination staging
           Get-ChildItem staging
 
       - name: Upload unsigned bundle for signing
