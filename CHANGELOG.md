@@ -2,6 +2,17 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.12.1
+
+### Fixed
+
+- **Auto-updater actually installs now.** Previously, clicking "Check for updates" in Settings would detect an available update but only open the GitHub releases page — `update.downloadAndInstall()` was never called. Now the flow is: detect → confirm via native dialog → download + verify signature → run NSIS installer → relaunch. The plumbing was already in place (signed `latest.json`, `.exe.sig` sidecars, embedded Ed25519 pubkey) — only the frontend wiring was missing.
+- New `log.app.update` action variant records the install in the activity log.
+
+### Note for users on v0.11.0 / v0.12.0
+
+This fix lives in the v0.12.1 frontend. Older clients still ship the broken behavior and will continue to open the releases page instead of self-installing. To get the working in-app updater, install v0.12.1 once manually (NSIS or MSI from the GitHub release). After that, future updates (v0.12.1 → v0.13.0 onward) install in-app.
+
 ## v0.12.0
 
 ### Added

@@ -16,6 +16,8 @@
   import { log } from "$lib/log.svelte";
   import { version as appVersion } from "../../package.json";
   import { check as checkUpdate } from "@tauri-apps/plugin-updater";
+  import { relaunch } from "@tauri-apps/plugin-process";
+  import { ask } from "@tauri-apps/plugin-dialog";
   import { openUrl } from "@tauri-apps/plugin-opener";
 
   let info = $state<SystemInfo | null>(null);
@@ -50,21 +52,27 @@
     checkingUpdate = true;
     try {
       const update = await checkUpdate();
-      if (update) {
-        toast.success(
-          `Update available: v${update.version}`,
-          "Open the release page to download manually.",
-        );
-        await openUrl(`https://github.com/jonax1337/reclaim/releases/tag/v${update.version}`);
-      } else {
+      if (!update) {
         toast.success("You're up to date", `Running v${appVersion}.`);
+        return;
       }
+      const proceed = await ask(
+        `A new version is available.\n\nCurrent: v${appVersion}\nNew: v${update.version}\n\nDownload and install now? Reclaim will restart automatically.`,
+        { title: "Update available", okLabel: "Install", cancelLabel: "Later", kind: "info" },
+      );
+      if (!proceed) {
+        toast.show("Update postponed", { description: `v${update.version} is available — install anytime from Settings.` });
+        return;
+      }
+      toast.show("Downloading update", { description: `v${update.version} — this may take a moment.`, duration: 0 });
+      await update.downloadAndInstall();
+      log.success("app.update", `v${update.version}`, "Update installed, relaunching");
+      await relaunch();
     } catch (e) {
-      // No updater endpoint or signing not yet configured — fall back to the
-      // releases page so users can still grab a new build manually.
+      log.error("app.update", "Updater", "Update check / install failed", String(e));
       toast.warning(
-        "Updater not yet active",
-        "Opening the releases page in your browser instead.",
+        "Updater unavailable",
+        "Opening the releases page so you can grab the new build manually.",
       );
       try {
         await openUrl("https://github.com/jonax1337/reclaim/releases");
