@@ -4,176 +4,26 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.8.0** — OneDrive removal, right-click menu editor, real shell-icon extraction (exe + AppX), CI/release pipeline. Built on top of v0.7.0. i18n + signed-release distribution still open before v1.0.0.
+**v0.8.0.** Phases 1-5 shipped, Phase 6 partially shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-v0.1.0 baseline (26 tasks):
-- 7 tweak categories (Privacy, AI, Search, Explorer, Taskbar, Updates, Performance)
-- 4 profile presets (Gaming, Privacy Max, Performance, Reclaim Basics)
-- Bloatware remover with live AppX detection (~55 curated patterns)
-- Windows Update center (search + install via `Microsoft.Update.Session` COM API)
-- Drivers page (GPU detection + Auto-Search webview with form injection for NVIDIA/AMD/Intel)
-- System info: Specs (CPU/GPU/RAM/Storage/MB/BIOS), Startup apps, Services
-- Self-elevation flow (auto UAC at launch, lite-mode fallback, click-to-elevate everywhere)
-- Activity log with localStorage persistence
-- Floating BulkActionBar pattern for selections
+Headline numbers:
+- **123 reversible tweaks** across 8 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates)
+- **63 bloatware patterns** across 7 groups
+- **46 winget apps** across 8 groups (16 recommended)
+- **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
+- **26 routes** in a 9-group sidebar
+- **47 Tauri commands** across 14 Rust modules
 
-v0.2.0 additions (Phase 1):
-- `/hosts` route — curated builtin blocklists (MS Telemetry, Office/Edge, MS Ads)
-  plus remote StevenBlack lists fetched on demand. Sentinel-based merge
-  (`# >>> Reclaim: Name` … `# <<< Reclaim: Name`) leaves user lines untouched.
-  Raw editor dialog with auto-`hosts.reclaim.bak` and one-click restore.
-- `/network` route — DNS & DoH presets (Cloudflare / Cloudflare-Families / Quad9 /
-  AdGuard / Google / Mullvad). One-click apply-to-all-connected, per-adapter
-  custom servers, reset-to-DHCP, flush-cache.
-- `src-tauri/src/network.rs` — hosts read/write/backup/restore, blocklist apply/remove,
-  sentinel scan, `fetch_blocklist` via `reqwest`, DNS get/set/reset, DoH template add.
-- New log actions: `network.blocklist_apply/remove`, `network.hosts_edit/restore`,
-  `network.dns_set/reset`, `network.doh_set`.
+Headline features built since v0.1.0:
+- Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
+- Winget apps (v0.3.0): curated catalog with bulk install / upgrade / uninstall, live xterm output.
+- Tweak breadth (v0.4.0): +71 tweaks, new Notifications category.
+- System maintenance (v0.5.0): SFC / DISM / chkdsk / Defender / WinSxS / network reset, Power Plans manager, ConPTY-based PTY terminal.
+- Profile Builder (v0.6.0): custom profiles, `.reclaim` JSON envelope with schema versioning, import/export.
+- Polish (v0.7.0): onboarding, portable mode, crash-safe activity.log mirror, auto-updater wiring.
+- OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
 
-v0.3.0 additions (Phase 2):
-- `/apps` route — curated winget catalog with ~60 apps across 8 groups (Browsers,
-  Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app
-  install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended,
-  upgrade-available badge with version diff.
-- `src-tauri/src/winget.rs` — `winget_available`, `winget_version`,
-  `winget_list_installed` / `winget_list_upgradable` (returns raw text, frontend regex-matches
-  catalog IDs to versions), `winget_install` / `winget_uninstall` / `winget_upgrade` with
-  `-e --silent --accept-source-agreements --accept-package-agreements`.
-- `src/lib/apps/catalog.ts` — `AppEntry` type, `UNIQUE_APPS`, `GROUP_LABELS`, `GROUP_ORDER`,
-  `RECOMMENDED_IDS`.
-- Missing-winget banner with deep-link to App Installer in MS Store (fallback to web URL).
-- New log actions: `app.install / app.uninstall / app.upgrade`.
-
-v0.4.0 additions (Phase 3):
-- New tweak category `notifications` + `/notifications` route. `NOTIFICATION_TWEAKS` (8 entries):
-  toasts off, sounds off, lock-screen toasts off, tips/tricks, welcome experience,
-  finish-setup, Start app suggestions, Defender summary off.
-- +15 Privacy: inking/typing personalization, app access (Account, Contacts, Calendar,
-  Call History, Messaging, App diagnostics), SmartScreen (Explorer/Edge/Store),
-  Compat Appraiser + ProgramDataUpdater scheduled tasks, clipboard history,
-  app launch tracking, handwriting data sharing.
-- +5 AI: Paint Cocreator, Photos generative erase, WindowsAI policy umbrella, Edge Hub
-  sidebar (Bing Chat), Office connected experiences feedback.
-- +5 Search: SafeSearch, device search history, MSA/AAD cloud search, recent docs in Start.
-- +10 Explorer: compact mode, no '- Shortcut' suffix, drive letters first, nav-pane
-  expand/show-all, confirm-file-delete back, restore Explorer on logon, verbose status
-  messages, hide Quick Access pinned/recent, thumbcache off on network.
-- +8 Taskbar: combine-when-full, small mode, hide search box, hide tray People,
-  multi-monitor current-monitor-only, primary-monitor-only, NoRecentDocsHistory,
-  show-all-tray icons.
-- +5 Updates: exclude drivers from WU, extended active hours (6–23), notify before
-  download, block Insider Preview, no-auto-restart-with-users.
-- +10 Performance: Reserved Storage off (DISM), NTFS last-access off (fsutil),
-  scheduled defrag off, IPv6 Teredo off, NDU service off, High Performance plan,
-  menu show delay 0ms, visual effects best-performance, WSearch indexing off.
-- `PROFILES.privacy-max` extended to ~50 ids; `PROFILES.gaming` and `PROFILES.performance`
-  reference the new perf tweaks.
-
-**Next**: see `docs/ROADMAP.md`. Phase 4 is System Maintenance (DISM/SFC/Power Plans).
-
-v0.5.0 additions (Phase 4):
-- `/maintenance` route — three sections (Repair / Cleanup & disk / Network) plus a
-  Power Plans manager. Live console pane with autoscroll shows stdout/stderr line-by-line.
-- Operations: SFC /scannow · DISM CheckHealth/ScanHealth/RestoreHealth ·
-  WinSxS cleanup and ResetBase · Network stack reset (winsock + ip + flushdns +
-  release/renew) · CleanMgr launcher (GUI) · Memory Diagnostic launcher (mdsched).
-- Power plans: list with active flag, one-click activate, "Unlock Ultimate Performance"
-  duplicates the hidden GUID so it appears in the list.
-- `src-tauri/src/maintenance.rs` — streaming via `tauri::ipc::Channel<StreamEvent>`.
-  `run_streamed()` spawns a PowerShell child, reads stdout + stderr on separate threads,
-  emits StreamEvents (`stdout` / `stderr` / `exit`). GUID input validated for power-plan
-  ops; PowerShell payload is static per operation, no string injection.
-- Bridge: `maintenanceRun(op, onEvent)`, `listPowerPlans`, `setPowerPlan`,
-  `unlockUltimatePerformance`, `launchCleanmgr`, `launchMemoryDiagnostic`.
-- New log actions: `maintenance.run`, `power.set`, `power.unlock`.
-
-**Next phase**: Phase 5 — Profile Builder + JSON import/export.
-
-v0.6.0 additions (Phase 5):
-- `/profiles` route — full profile management with built-in section (read-only, exportable)
-  and custom section (edit / export / delete / apply). Header has Import + New buttons.
-- `/profile-builder` route — form-driven creator/editor: name/tagline/description/gradient
-  picker, two `<details>`-based accordions for tweaks (grouped by category) and bloatware
-  (grouped by category). "Add all recommended" shortcut, per-section all/none toggle.
-- `ProfileV1` versioned JSON envelope schema (`schemaVersion: 1`, name/tagline/description/
-  gradient/tweakIds/bloatwarePatterns/custom/createdAt). `parseEnvelope()` validates,
-  drops unknown tweak ids (warns user), regenerates id.
-- `customProfiles` reactive `$state` store backed by localStorage key `reclaim.custom-profiles`.
-  `profileEdit` mini-store carries the draft between Profiles list and ProfileBuilder.
-- `GRADIENT_PRESETS` — 8 named gradient choices (Violet/Indigo/Emerald/Sunset/Sky/Rose/Lime/Slate).
-- `src-tauri/src/files.rs` — tiny `read_text_file` / `write_text_file` commands for paths
-  picked via `@tauri-apps/plugin-dialog` (`save()` / `open()`). No tauri-plugin-fs dep.
-- Sidebar: "Profiles" added to the unlabeled top group next to Dashboard.
-- New log activity already covered by existing `tweak.apply` action.
-
-**Next phase**: Phase 6 — i18n + Portable + Onboarding + Auto-Updater (1.0.0).
-
-v0.7.0 additions (Phase 6, partial):
-- **Profile file format**: export now writes `.reclaim` files (still JSON inside). Import
-  accepts both `.reclaim` and `.json` for backwards compatibility.
-- **Onboarding** — `OnboardingDialog.svelte` shows on first launch (when
-  `localStorage["reclaim.onboarded"] !== "1"`). Single dialog with two optional toggles:
-  create restore point + apply Reclaim Basics. Skip dismisses without acting.
-- **Portable mode** — `is_portable()` returns true when `portable.txt` or a `data/` directory
-  sits next to the executable. `app_data_dir()` resolves to either `<exe-dir>/data` (portable)
-  or `%APPDATA%/Reclaim` (installed) and creates it on demand. Settings page shows the mode
-  + a clickable path that opens the folder in Explorer.
-- **Log mirror** — `log_append(entry)` writes one JSON line per log entry to
-  `<app_data_dir>/activity.log`. `log.svelte.ts` fires this fire-and-forget alongside the
-  localStorage write. Crash-safe — survives webview cache wipes.
-- **Auto-updater** — `tauri-plugin-updater` plugin wired in (Cargo + Rust init +
-  `@tauri-apps/plugin-updater` JS dep). Settings page has a "Check for updates" button.
-  **Not yet shippable** until:
-  1. Generate Ed25519 keypair: `pnpm tauri signer generate`
-  2. Add the public key + endpoint to `tauri.conf.json` under `plugins.updater`
-  3. Sign release builds with `tauri build --target <…> --bundles …` using the private key
-  4. Publish `latest.json` + the signed installer to GitHub Releases
-  The "Check for updates" button currently falls back to opening the GitHub releases page
-  in the browser when the updater isn't configured — so it stays useful in dev.
-- New Rust module: `src-tauri/src/app_info.rs`.
-
-**Still open for v1.0.0**:
-- i18n (DE + EN locales, custom 50-line store, refactor every `.svelte` string).
-- Real updater config (Ed25519 keypair + signed release pipeline).
-- Code-signing the installer (EV cert or SignPath).
-
-v0.8.0 additions:
-- `/onedrive` — Hero card with the real Microsoft OneDrive logo + status badges
-  (Running/Idle/Installed). Two-step flow: pick redirected folders to back up
-  (Documents/Desktop/Pictures/sync root) via Tauri dialog → robocopy to chosen path;
-  then uninstall via the official `OneDriveSetup.exe /uninstall`, remove leftover
-  folders, unpin the sidebar CLSID, optionally write the
-  `DisableFileSyncNGSC` group policy to prevent re-install.
-- `/context-menu` — list & toggle shell-extension `ContextMenuHandlers`. Aggregates
-  Files / Folders / Folder-background / Drives / AllFileObjects, dedupes by CLSID,
-  resolves friendly names from `HKCR\CLSID\<id>`. Toggle writes
-  `HKLM\…\Shell Extensions\Blocked\<guid>`. System entries dimmed by default with a
-  Show System toggle. Disabled entries bubble to the top.
-- **Real shell icons** for Startup + Bloatware + OneDrive:
-  - `src-tauri/src/icons.rs` — `get_file_icons(cmds)` uses a `ResolveCommand`
-    helper that handles quoted paths, env-var expansion, .lnk target resolution,
-    Squirrel-updater path-hop (`Update.exe` → `app-*.*.*\<Name>.exe`), and
-    progressive whitespace trim for unquoted paths with embedded spaces
-    (`F:\Riot Games\Riot Client\…`). PNG bytes via
-    `Icon.ExtractAssociatedIcon($resolved).ToBitmap()`.
-  - `get_appx_icons(patterns)` reads `Square44x44Logo` (or fallbacks) from each
-    installed package's `InstallLocation\AppxManifest.xml` — same files Start
-    Menu uses for the Apps list.
-  - `resolve_commands(cmds)` batch path resolver, reused by the Properties verb
-    and Open File Location actions.
-  - `open_properties(command)` invokes the Shell.Application "Properties" verb on
-    the resolved path — same dialog as right-click → Properties in Explorer.
-- **Startup enumerator** now also scans `StartupFolderPackagedAppX` (the UWP
-  autostart bucket) and renders UWP entries with their real package icons.
-- **Per-row 3-dot menu** (fixed-positioned popover that escapes Card overflow):
-  Open file location · Properties · Copy path/AUMID · Search online. Hover state
-  is inset-rounded inside `p-1` container (shadcn-style, not full-bleed).
-- **CI**: `.github/workflows/check.yml` runs svelte-check + cargo check on every
-  push/PR. `.github/workflows/release.yml` triggers on `v*` tags or
-  `workflow_dispatch`; builds NSIS + MSI via `pnpm tauri build`, optionally signs
-  with `TAURI_SIGNING_PRIVATE_KEY` secrets, generates `latest.json` for the
-  updater, drafts a GitHub Release with the artifacts. To go live: drop the
-  private key into repo secrets and push a `vX.Y.Z` tag.
+**Still open for v1.0.0**: i18n (DE + EN), code-signing the installer (EV cert or SignPath).
 
 ## Stack
 
@@ -181,27 +31,46 @@ v0.8.0 additions:
 |---|---|
 | Frontend | Svelte 5 (runes only), TypeScript strict, Vite 6, Tailwind v4, Bits UI |
 | Routing | `svelte-spa-router` (hash) |
+| Terminal | `@xterm/xterm` + `addon-fit` + `addon-web-links` |
 | Rust | Tauri 2 + `winreg` + `windows-rs` (TokenElevation) |
-| Persistence | localStorage (logs, theme); no DB |
+| HTTP | `reqwest` 0.12 (rustls-tls) |
+| PTY | `portable-pty` (ConPTY on Windows) |
+| Persistence | localStorage (logs, theme) + `<app_data_dir>/activity.log` mirror; no DB |
 | Window effect | Mica via `tauri.conf.json` `windowEffects` |
-| Plugins | shell, dialog, opener, window-state, process |
+| Plugins | shell, dialog, opener, window-state, process, updater |
 
 ## Architecture
 
 ### `src/lib/tweaks/` — the catalog system
 
-- **`catalog.ts`** — every tweak is a typed `Tweak` record with `apply: TweakOp[]`, optional `revert`, optional `check[]`. `TweakOp` is either `RegOp` (hive/path/name/type/value/defaultValue) or `ShellOp` (PowerShell script). Tweaks are grouped per category and unioned into `ALL_TWEAKS`.
-- **`bloatware.ts`** — `BloatwareEntry[]` with PowerShell wildcard patterns (`*Spotify*`). Frontend converts to regex via `patternMatches`.
-- **`profiles.ts`** — `Profile` references tweaks by id; `resolveProfileTweaks` looks them up.
-- **`bridge.ts`** — TS wrappers around every Tauri command (`get_system_info`, `list_installed_appx`, `reg_read/write`, `search_windows_updates`, …). All `invoke` calls go through here.
+- **`catalog.ts`** — every tweak is a typed `Tweak` record with `apply: TweakOp[]`, optional `revert`, optional `check[]`. `TweakOp` is either `RegOp` (hive/path/name/type/value/defaultValue) or `ShellOp` (PowerShell script). Tweaks are grouped per category and unioned into `ALL_TWEAKS`. Currently 123 entries across 8 categories.
+- **`bloatware.ts`** — 63 `BloatwareEntry` records with PowerShell wildcard patterns (`*Spotify*`). Frontend converts to regex via `patternMatches`. Groups: consumer, office, gaming, communication, media, system, other.
+- **`profiles.ts`** — `Profile` references tweaks by id; `resolveProfileTweaks` looks them up. Built-ins: Gaming (12), Privacy Maximum (41), Performance (17), Reclaim Basics (dynamic — every `recommended: true` tweak).
+- **`customProfiles.svelte.ts`** — `$state`-based reactive store backed by localStorage key `reclaim.custom-profiles`. CRUD for user-created profiles.
+- **`profileEdit.svelte.ts`** — mini-store that carries a profile draft between `/profiles` (list) and `/profile-builder` (editor).
+- **`bridge.ts`** — TS wrappers around every Tauri command. All `invoke()` calls go through here. Grouped by domain (system / registry / tweak / bloatware / winupdate / drivers / hosts / dns / winget / maintenance / files / icons / context-menu / onedrive / app-info).
 - **`executor.ts`** — `applyTweak` / `revertTweak` / `getTweakState` / `tweakRequiresAdmin`. Hooks into `log` for every operation.
 
 ### `src/lib/` — shared
 
-- **`log.svelte.ts`** — `$state`-based activity log, 500 entries, persists to localStorage. `log.success/info/warn/error` with action + target + message + optional details.
+- **`log.svelte.ts`** — `$state`-based activity log, 500 entries, persists to localStorage **and** fires `log_append(entry)` to mirror as JSON-lines into `<app_data_dir>/activity.log`. `log.success/info/warn/error` with action + target + message + optional details.
 - **`admin.svelte.ts`** — elevation store. `admin.elevated`, `admin.checked`, `admin.requesting`. `maybeAutoElevate` runs on cold launch (sessionStorage flag stops re-prompting after denial). `relaunchElevated` invokes Rust to UAC and exits.
 - **`theme.svelte.ts`** — `system | light | dark`. Persists to localStorage. Toggled only via Settings (sidebar switcher was removed).
+- **`prefs.svelte.ts`** — file-backed app preferences (e.g. `onboarded` flag for first-run gate). Reads/writes via Rust `read_app_file` / `write_app_file` (atomic temp + rename).
+- **`tasks.svelte.ts`** — long-running task registry. Each entry carries a unique task id, the active PTY session, and an xterm terminal instance so users can switch routes without losing maintenance output.
+- **`cache.svelte.ts`** — SWR-style cache for Tauri queries (e.g. AppX list, services, hardware info). Stale-while-revalidate prevents flashing the empty state when navigating back.
+- **`route-cache.svelte.ts`** — per-route component memoization so transitions don't re-mount expensive routes.
+- **`scroll-restore.svelte.ts`** — per-route scroll position store, applied on route enter.
+- **`startup-preload.svelte.ts`** — fires the slow Tauri queries (system info, installed AppX, services) on app boot so the corresponding routes open instantly.
 - **`utils.ts`** — `cn()` via tailwind-merge + clsx.
+
+### `src/lib/` — domain helpers (non-catalog)
+
+- **`apps/catalog.ts`** — `AppEntry` type, 46 `UNIQUE_APPS`, `GROUP_LABELS`, `GROUP_ORDER`, 16 `RECOMMENDED_IDS`.
+- **`hosts/`** — builtin blocklists (MS Telemetry, Office/Edge, MS Ads) and remote source URLs (StevenBlack lists).
+- **`network/`** — DoH provider presets (Cloudflare, Cloudflare-Families, Quad9, AdGuard, Google, Mullvad) + DNS helpers.
+- **`maintenance/`** — operation catalog (op id → label, description, expected duration, admin-required flag).
+- **`profiles/`** — `GRADIENT_PRESETS` (8 named choices) + import/export helpers (parse / validate / serialize the `ProfileV1` envelope).
 
 ### `src/lib/ui/` — shadcn-style wrappers
 
@@ -209,36 +78,64 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 
 ### `src/lib/components/`
 
-- **`Layout.svelte`** — Titlebar (with elevate-button) + 4-group sidebar (Clean up / Customize / Updates & drivers / System info / App) + main scroll area. Sidebar uses `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` for Win11 chrome look.
+- **`Layout.svelte`** — Titlebar (with elevate-button) + 9-group sidebar (top / Clean up / Install / Customize / Network / Updates & drivers / System info / App) + main scroll area. Sidebar uses `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` for the Win11 chrome look.
 - **`ProfileCard.svelte`** — gradient-topped card with name, tagline, description, tweak-count, "Preview" button → confirm dialog → batch apply.
+- **`ProfileIcon.svelte`** — small gradient avatar used in the sidebar / profile lists.
 - **`TweakSection.svelte`** — header bar (active count + select-all + apply-recommended + revert-all) + Card list + BulkActionBar. Filters out admin-requiring tweaks in lite mode, shows banner.
 - **`TweakRow.svelte`** — row with left primary-accent bar (when on or selected), checkbox (click anywhere on row to select), title + badges, switch on right. `data-no-select` on switch/checkbox.
+- **`TweakPreviewDialog.svelte`** — pre-apply confirmation showing the exact registry/shell operations + reversibility status.
+- **`OnboardingDialog.svelte`** — first-launch dialog (restore-point + Reclaim Basics opt-in).
+- **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
+- **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 
-### `src/routes/`
+### `src/routes/` — 26 routes
 
-Dashboard, Bloatware, Privacy, AI, Search, Explorer, Taskbar, Performance, Updates (settings), WindowsUpdate (scan+install), Drivers, Specs, Startup, Services, Logs, Settings, NotFound.
+Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
-### `src-tauri/src/`
+- **Top:** Dashboard (`/`), Profiles (`/profiles`)
+- **Clean up:** Bloatware (`/bloatware`), OneDrive (`/onedrive`), AI & Copilot (`/ai`)
+- **Install:** Apps (`/apps`)
+- **Customize:** Privacy (`/privacy`), Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
+- **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*
+- **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
+- **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Maintenance (`/maintenance`)\*
+- **App:** Activity log (`/logs`), Settings (`/settings`)
+- Plus `/profile-builder` (entered from `/profiles`) and `NotFound` (`*`).
 
-- **`lib.rs`** — plugin init + `invoke_handler!` registry.
-- **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (Start-Process -Verb RunAs, then exit current).
-- **`tweaks.rs`** — `run_ps` (pub(crate), `CREATE_NO_WINDOW`), `list_installed_appx`, `remove_appx`, `reg_read/write/delete_value`, `create_restore_point`, `restart_explorer`. Also custom base64 encoder for elevated PowerShell wrapping.
-- **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
+\* admin required — hidden / locked in restricted mode, click-to-elevate buttons everywhere.
+
+### `src-tauri/src/` — 14 modules, 47 commands
+
+- **`lib.rs`** — plugin init + `invoke_handler!` registry (47 commands).
+- **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode detected via `portable.txt` or `data/` sibling.
+- **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current).
+- **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary + `StartupFolderPackagedAppX` for UWP), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
+- **`tweaks.rs`** — `run_powershell` (pub(crate), `CREATE_NO_WINDOW`, base64-encoded payload when elevated, output via temp file), `list_installed_appx`, `remove_appx`, `reg_read` / `reg_read_many` / `reg_write` / `reg_delete_value`, `create_restore_point`, `restart_explorer`.
 - **`winupdate.rs`** — `search_windows_updates` (online search via `Microsoft.Update.Session`), `install_windows_updates` (AcceptEula + Download + Install collection).
-- **`driver_search.rs`** — `open_driver_search` opens new `WebviewWindowBuilder` to vendor URL with `initialization_script` that fills NVIDIA dropdowns by option-text match and auto-clicks Search. AMD/Intel use a simpler search-box injector.
+- **`driver_search.rs`** — `open_driver_search` opens a new `WebviewWindowBuilder` to vendor URL with `initialization_script` that fills NVIDIA dropdowns by option-text match and auto-clicks Search. AMD/Intel use a simpler search-box injector.
+- **`driver_update.rs`** — `lookup_nvidia_driver(gpu_name)` queries the public NVIDIA series/family API for the latest driver. `download_driver(url, filename)` streams to `%DOWNLOADS%` with live progress events. `launch_installer(path)` spawns with `DETACHED_PROCESS`. `reveal_in_explorer(path)` opens Explorer `/select`.
+- **`winget.rs`** — `winget_available`, `winget_version`, `winget_list_installed` / `winget_list_upgradable` (raw text; frontend regex-matches catalog IDs to versions), `winget_install` / `winget_uninstall` / `winget_upgrade` with `-e --silent --accept-source-agreements --accept-package-agreements`. Streaming variant `winget_run_stream(op, id, scope_user, on_event)` emits live stdout/stderr events to an xterm.
+- **`network.rs`** — `read_hosts` / `write_hosts` (atomic; auto-backup to `hosts.reclaim.bak`), `has_hosts_backup` / `restore_hosts_backup`, `apply_blocklist` / `remove_blocklist` / `list_active_blocklists` (sentinel pattern `# >>> Reclaim: Name` … `# <<< Reclaim: Name`), `fetch_blocklist` (HTTP GET, parses hosts-format), `flush_dns`, `get_dns_servers` / `set_dns_servers` / `reset_dns_servers`, `set_doh_template`.
+- **`maintenance.rs`** — ConPTY-backed maintenance runner. `maintenance_run_stream(task_id, op, cols, rows, on_event)` spawns the op in a `portable-pty` session, streams output via `tauri::ipc::Channel<StreamEvent>`. `maintenance_pty_resize(task_id, cols, rows)`, `maintenance_pty_kill(task_id)`. Power-plan ops: `list_power_plans` (parses `powercfg /list` output), `set_power_plan(guid)`, `unlock_ultimate_performance` (duplicates the hidden GUID `e9a42b02-d5df-448d-aa00-03f14749eb61`), `delete_power_plan(guid)` (blocks built-in GUIDs). Plus `launch_cleanmgr`, `launch_memory_diagnostic`. GUID inputs validated; PowerShell payloads are static per operation, no string injection.
+- **`onedrive.rs`** — `onedrive_detect` (process + registry + folder-redirection state), `onedrive_backup(target_dir, items)` (robocopy each source, path validation against safe roots), `onedrive_uninstall(disable_policy, remove_leftovers)` (stops process, runs `OneDriveSetup.exe /uninstall`, optionally removes leftover folders and writes the `DisableFileSyncNGSC` group policy).
+- **`context_menu.rs`** — `context_menu_list` enumerates `ContextMenuHandlers` under Files/Folders/Folder-background/Drives/AllFileObjects, dedupes by CLSID, resolves friendly names from `HKCR\CLSID\<id>`. `context_menu_toggle(clsid, disabled)` writes `HKLM\…\Shell Extensions\Blocked\<guid>`.
+- **`icons.rs`** — `get_file_icons(commands)` extracts base64-PNG icons from EXEs via `Icon.ExtractAssociatedIcon().ToBitmap()`. Uses a `ResolveCommand` helper that handles quoted paths, env-var expansion, `.lnk` target resolution, Squirrel-updater path-hop (`Update.exe` → `app-*.*.*\<Name>.exe`), and progressive whitespace trim for unquoted paths with embedded spaces (e.g. `F:\Riot Games\Riot Client\...`). `get_appx_icons(patterns)` reads `Square44x44Logo` (or fallbacks) from each installed package's `InstallLocation\AppxManifest.xml`. `resolve_commands(commands)` is the batch path resolver shared with Properties + Open File Location actions. `open_properties(command)` invokes the Shell.Application "Properties" verb.
+- **`files.rs`** — `read_text_file(path)` / `write_text_file(path, content)` for paths picked via `@tauri-apps/plugin-dialog` (`save()` / `open()`). No `tauri-plugin-fs` dep.
 
 ## Critical conventions
 
 1. **Tweak is data, not code.** New tweak = one entry in `catalog.ts`. Logic stays in executor.
 2. **Svelte 5 runes only**: `$state`, `$derived`, `$effect`, `$props`. No `export let`, no legacy stores in components.
-3. **English UI strings, English code comments.** No German UI text anywhere.
+3. **English UI strings, English code comments.** No German UI text anywhere (until Phase 6 i18n lands).
 4. **No comments except when WHY is non-obvious.** Don't narrate what code does.
 5. **Reversibility is contract.** Every tweak either supplies `revert: TweakOp[]` or has `defaultValue` on every reg op so the fallback revert can restore. Shell-based tweaks MUST supply explicit `revert`.
 6. **Admin detection per tweak**: any `RegOp` with `hive: "HKLM"` OR any `ShellOp` → `tweakRequiresAdmin == true`. Lite-mode filters these out.
-7. **PowerShell scripts are static**, never built from user input.
-8. **AppX patterns** are PowerShell wildcards (`*Foo*`). Bloatware UI converts to regex for matching against `Get-AppxPackage` output.
+7. **PowerShell scripts are static**, never built from user input. Where user-controlled input is needed (e.g. power-plan GUID, blocklist URL, adapter name), validate it in Rust before interpolating.
+8. **AppX patterns** are PowerShell wildcards (`*Foo*`). Bloatware UI converts to regex for matching against `Get-AppxPackage` output. **The Bloatware page hides entries that aren't installed** — never show "Not present" rows; rely on the live AppX scan to decide what to display.
 9. **Card list pattern**: use `<Card class="overflow-hidden gap-0 py-0 card-inset">` for row lists. The base Card has `gap-6` for stacked content; lists need `gap-0`.
 10. **BulkActionBar pattern**: rows have `data-no-select` on interactive controls; rest of row is click-to-select.
+11. **Every Rust command → `bridge.ts` wrapper → typed.** No raw `invoke()` in routes.
+12. **Every long-running op streams via Channel + xterm.** Don't show a spinner for anything that can take >2 seconds — wire a `TerminalPanel`.
 
 ## How to add a tweak
 
@@ -246,7 +143,7 @@ Dashboard, Bloatware, Privacy, AI, Search, Explorer, Taskbar, Performance, Updat
 // in catalog.ts
 {
   id: "kebab-case-id",
-  category: "privacy",   // or one of the 7 categories
+  category: "privacy",   // or one of the 8 categories
   title: "Short title",
   description: "One-sentence what+why.",
   recommended: true,     // optional
@@ -274,13 +171,14 @@ revert: [{ kind: "shell", script: "Set-Service X -StartupType Automatic" }],
 2. Import in `src/App.svelte`, add to `routes` map
 3. Add nav entry in `src/lib/components/Layout.svelte` `navGroups`
 4. If admin-only, set `adminOnly: true` on the nav entry — Layout marks with `ShieldAlert`
+5. If the route does anything slow on mount, add a preload entry in `startup-preload.svelte.ts`
 
 ## How to add a Rust command
 
-1. Implement in the appropriate module (`tweaks.rs`/`sysquery.rs`/`winupdate.rs`/etc.)
+1. Implement in the appropriate module (e.g. `tweaks.rs` / `sysquery.rs` / `winupdate.rs`)
 2. Mark with `#[tauri::command]`
 3. Register in `src-tauri/src/lib.rs` `invoke_handler!`
-4. Wrap in `src/lib/tweaks/bridge.ts` (camelCase TS wrapper, normalize snake_case → camelCase if needed)
+4. Wrap in `src/lib/tweaks/bridge.ts` (camelCase TS wrapper; normalize snake_case → camelCase if needed)
 
 ## How to add a profile
 
@@ -295,9 +193,8 @@ In `src/lib/tweaks/profiles.ts`, add a `Profile` entry with:
 - `pnpm dev` — frontend only (Tauri APIs unavailable; UI shows "Browser preview" hints)
 - `pnpm check` — svelte-check (must be 0 errors before commit)
 - `pnpm build` — Vite production build
-- `pnpm tauri:build` — release bundle
+- `pnpm tauri:build` — release bundle (NSIS + MSI in `src-tauri/target/release/bundle/`)
 - `cargo check` (from `src-tauri/`) — Rust validate
-- **Always run `pnpm exec svelte-check` directly** if `pnpm check` fails on the pre-flight `pnpm install` step. Make sure `pnpm-workspace.yaml` has `allowBuilds: esbuild: true`.
 
 ## Tauri config notes
 
@@ -306,17 +203,28 @@ In `src/lib/tweaks/profiles.ts`, add a `Profile` entry with:
 - Body `bg` is `oklch(0.99 0 0 / 94%)` light / `oklch(0.14 0.006 285 / 82%)` dark → mostly opaque so Mica falls back gracefully on unsupported systems.
 - Card uses `bg-card/95 backdrop-blur-md` — frosted glass over Mica.
 - Sidebar uses `bg-foreground/[0.04]` (theme-agnostic 4% overlay) + `sidebar-bg` radial gradient hint.
+- `plugins.updater` configured with the Ed25519 pubkey and a GitHub Releases endpoint (`https://github.com/jonax1337/reclaim/releases/latest/download/latest.json`).
+
+## CI / Release pipeline
+
+- **`.github/workflows/check.yml`** — runs `svelte-check` + `cargo check` on every push to `main` and every PR. Uses pnpm 9 + Node 20 + Rust stable on `windows-latest`.
+- **`.github/workflows/release.yml`** — triggers on `v*` tags or `workflow_dispatch`. Builds NSIS + MSI via `pnpm tauri build`. If `TAURI_SIGNING_PRIVATE_KEY` is set as a secret, the bundle is signed and `latest.json` is generated for the updater. Drafts a GitHub Release with the artifacts.
+- **Updater key**: Ed25519 keypair generated via `pnpm tauri signer generate -p "" -w .updater-key -f --ci` (passwordless for CI). Private key is in repo secret `TAURI_SIGNING_PRIVATE_KEY`. Public key is committed in `.updater-key.pub` and embedded in `tauri.conf.json` `plugins.updater.pubkey`. **Never commit `.updater-key`** — it's in `.gitignore`.
 
 ## Cargo deps
 
 ```toml
 tauri = "2"
-tauri-plugin-{shell,dialog,opener,window-state,process} = "2"
+tauri-plugin-{shell,dialog,opener,window-state,process,updater} = "2"
 serde, serde_json, thiserror
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+futures-util = "0.3"
+regex = "1"
+dirs = "5"
+portable-pty = "0.8"
+base64 = "0.22"
 [target.cfg(windows)] winreg = "0.52", windows = "0.58" (Foundation, Registry, Security, Threading)
 ```
-
-No URL or urlencoding crate — `driver_search.rs` has a small inline URL encoder.
 
 ## Don't
 
@@ -325,11 +233,16 @@ No URL or urlencoding crate — `driver_search.rs` has a small inline URL encode
 - Don't add a tweak that doesn't have either `revert` or full `defaultValue` coverage.
 - Don't store sensitive data in localStorage. The activity log is fine; never write tokens or registry secrets there.
 - Don't disable the auto-elevate prompt — denial is tracked in sessionStorage so it doesn't re-prompt that session.
-- Don't use German strings anywhere in the UI.
+- Don't use German strings anywhere in the UI (until Phase 6 i18n).
 - Don't write to HKLM without checking `admin.elevated` (the executor will fail silently, but you'd skip the UX feedback).
 - Don't `gap-6` on a list card — use `gap-0 py-0`.
+- Don't run long PowerShell ops with a spinner. Wire `TerminalPanel` + `tasks` + a streaming Rust command.
+- Don't commit `.updater-key` (private signing key). The public key + GH Actions secret are the only copies that should exist.
 
 ## Further reading
 
-- `docs/ROADMAP.md` — phased plan (Phase 1-6) for getting from "best UX debloater" to "best of all time".
+- `CHANGELOG.md` — per-version diff from v0.1.0 to v0.8.0.
+- `docs/ROADMAP.md` — phased plan (Phases 1-6) with shipped vs open items.
+- `docs/ARCHITECTURE.md` — deeper dive on the tweak engine + bridge layer.
+- `docs/CONTRIBUTING.md` — workflow for contributors.
 - `README.md` — user-facing overview.

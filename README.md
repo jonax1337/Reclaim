@@ -1,52 +1,82 @@
 # Reclaim Your Windows
 
-A modern Windows 11 debloater and tweak suite. **Live state detection**, **reversible by design**, **Mica UI**. No GeForce Experience, no Adrenalin, no DSA — just the OS you paid for.
+A modern Windows 11 debloater and tweak suite — **live state detection**, **reversible by design**, **Mica UI**. No GeForce Experience, no Adrenalin, no DSA, no telemetry. Just the OS you paid for.
 
 > Inspired by [Win11Debloat](https://github.com/Raphire/Win11Debloat) and [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil), but built from scratch with a focus on transparency, reversibility, and modern UX.
 
 ## What it does
 
-**Debloat** — Remove 55+ pre-installed bloatware apps (Bing apps, Xbox suite, Teams Consumer, Copilot, Clipchamp, Spotify/Netflix/TikTok stubs, …). Lists only what's actually on your system.
+**123 reversible tweaks** across 8 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
-**Tweak** — 60+ Windows tweaks across 7 categories with **live status** showing what's already on:
-- **Privacy**: telemetry, advertising ID, activity history, location, Wi-Fi Sense, autoplay, OneDrive ads, clipboard cloud sync, shared experiences
-- **AI & Copilot**: Copilot, Recall, Click to Do, Edge AI, Notepad Copilot
-- **Search**: Bing-in-Start, Cortana, web suggestions, search highlights
-- **Explorer**: classic Win10 context menu, file extensions, hidden files, long paths, full path in title
-- **Taskbar & Start**: widgets, Chat, Task View, alignment, sponsored recommendations, lock screen ads, seconds in clock, End-task right-click
-- **Performance**: background apps, Storage Sense, Fast Startup, Game DVR, mouse accel, DiagTrack service, telemetry tasks, hibernation
-- **Updates**: defer features, no auto-restart, disable Delivery Optimization (P2P)
+| Category | Count | Highlights |
+| --- | ---: | --- |
+| Privacy | 31 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync |
+| AI & Copilot | 10 | Copilot, Recall, Click to Do, Edge AI, Notepad AI, Paint Cocreator, Photos generative erase |
+| Search | 9 | Bing in Start, Cortana, web suggestions, search highlights, SafeSearch, device search history |
+| Explorer | 16 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
+| Taskbar & Start | 20 | widgets, Chat, Task View, alignment, sponsored recs, lock screen ads, clock seconds, end-task right-click, small mode, hide tray People |
+| Notifications | 8 | toasts off, sounds off, lock-screen toasts, tips/tricks, welcome experience, finish-setup, Defender summary |
+| Performance | 20 | background apps, Game DVR, mouse accel, DiagTrack, Reserved Storage, NTFS last-access, scheduled defrag, IPv6 Teredo, NDU, High Performance plan, visual effects |
+| Updates | 8 | defer features, no auto-restart, P2P Delivery Optimization, exclude drivers, extended active hours, block Insider |
 
-**Profiles** — One-click presets:
-- **Gaming** — kills Game DVR / background apps / mouse accel for max FPS
-- **Privacy Maximum** — full lockdown (28 tweaks)
-- **Performance** — free RAM and disk
+**Bloatware remover** — 63 curated AppX patterns across 7 groups (consumer, office, gaming, communication, media, system, other). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
+
+**OneDrive removal** — Two-step flow: pick redirected folders (Documents/Desktop/Pictures/sync root) to back up via `robocopy`, then run the official `OneDriveSetup.exe /uninstall`, remove leftover folders, unpin the sidebar CLSID, and optionally write the `DisableFileSyncNGSC` group policy to prevent re-install.
+
+**Right-click menu editor** — Toggle shell-extension `ContextMenuHandlers` on/off. Aggregates Files / Folders / Folder-background / Drives / AllFileObjects, dedupes by CLSID, resolves friendly names from `HKCR\CLSID\<id>`. System entries dimmed by default with a "Show System" toggle.
+
+**App installer (winget)** — 46 curated apps across 8 groups (Browsers, Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended (16 picks), live upgrade-available badge with version diff. Streams stdout to an embedded xterm terminal.
+
+**Hosts & blocklists** — Curated builtin lists (Microsoft Telemetry, Office/Edge, MS Ads) plus on-demand StevenBlack remote lists. Sentinel-based merge (`# >>> Reclaim: Name` … `# <<< Reclaim: Name`) leaves your existing hosts entries untouched. Raw editor with auto `hosts.reclaim.bak` and one-click restore.
+
+**DNS & DoH** — Provider presets (Cloudflare, Cloudflare-Families, Quad9, AdGuard, Google, Mullvad). One-click apply-to-all-connected, per-adapter custom servers, reset-to-DHCP, flush-cache, DoH template registration.
+
+**Windows Update center** — Scan + filter (Security / Quality / Drivers / Optional) + install via the native `Microsoft.Update.Session` COM API. No PSWindowsUpdate dependency.
+
+**Driver updates without the bloat** — Detects GPU (NVIDIA / AMD / Intel). For NVIDIA: queries the public series/family API to find the latest driver, streams the download with live progress, launches the installer detached. Or use **Auto-Search** to open the vendor's manual search page with your specs pre-filled and the search auto-clicked.
+
+**System maintenance** — Three sections plus a Power Plans manager, all wired to a **real PTY terminal** (xterm + ConPTY) with live stdout/stderr:
+
+- Repair: SFC `/scannow`, DISM CheckHealth/ScanHealth/RestoreHealth, chkdsk scan/spotfix, WinSxS cleanup + ResetBase
+- Cleanup: temp cleanup, icon cache reset, font cache reset, Store reset, CleanMgr launcher
+- Defender: signature update, quick/full/offline scan
+- Reset: Windows Update components, print spooler, network stack (winsock + ip + flushdns + release/renew), firewall, Memory Diagnostic launcher
+- Power Plans: list + activate, "Unlock Ultimate Performance" duplicates the hidden GUID, delete custom plans
+
+**Profiles** — Four built-in presets:
+
+- **Gaming** (12 tweaks) — kills Game DVR / background apps / mouse accel for max FPS
+- **Privacy Maximum** (41 tweaks) — full telemetry & tracking lockdown
+- **Performance** (17 tweaks) — free RAM and disk
 - **Reclaim Basics** — every recommended tweak
 
-**Windows Update center** — Scan, filter (Security / Quality / Drivers / Optional), and install Microsoft Update via the native `Microsoft.Update.Session` COM API. No PSWindowsUpdate module dependency.
-
-**Driver updates without the bloat** — Detects your GPU (NVIDIA / AMD / Intel), checks Windows Update for signed drivers, and offers an **Auto-Search** button that opens the vendor's manual search page with your specs pre-filled and the search auto-clicked. Then install the standard driver with the companion-app checkbox unchecked.
+…plus a full **profile builder** for custom profiles. Pick any subset of tweaks + bloatware patterns, save, export to a `.reclaim` file (JSON envelope with schema versioning), share, import. Validation drops unknown tweak ids with a warning.
 
 **System info** — CPU / GPU (driver version + date) / RAM (per-slot speed + manufacturer) / Storage (per-drive usage + physical drives) / Motherboard / BIOS.
 
-**Startup apps** — Enumerates HKCU\Run, HKLM\Run (incl. 32-bit), and both Startup folders. Toggle via the same `StartupApproved` binary blob Task Manager uses.
+**Startup apps** — Enumerates HKCU\Run, HKLM\Run (incl. 32-bit), both Startup folders, and `StartupFolderPackagedAppX` (UWP autostart). Toggle via the same `StartupApproved` binary blob Task Manager uses. Per-row 3-dot menu: open file location, properties (real Shell.Application "Properties" verb), copy path/AUMID, search online.
 
-**Services** — Curated "notable services" list (DiagTrack, WSearch, SysMain, Xbox, …) with explanations, or full list of every Win32 service. Disable + stop in one click, with a confirmation dialog.
+**Services** — Curated "notable services" list (DiagTrack, WSearch, SysMain, Xbox, …) with plain-English explanations, or the full list of every Win32 service. Disable + stop in one click with a confirmation dialog.
 
-**Activity log** — Every tweak applied/reverted, every app removed, every restore point — persistent across sessions, filterable by severity, expand for PowerShell stderr.
+**Activity log** — Every tweak applied/reverted, every app removed/installed, every restore point — persistent in localStorage **and** mirrored crash-safe to `activity.log` as JSON-lines in the app data dir. Filterable by severity, expand for stderr.
 
 ## Other things that make Reclaim different
 
-- **Self-elevation on launch**: clicks UAC for you on cold start. If you decline, the app runs in **restricted mode** — admin-requiring tweaks are hidden, Services route is locked, and click-to-elevate buttons in the titlebar, Dashboard, every tweak section, and on the Services page get you to UAC anytime.
+- **Real shell icons** for Startup, Bloatware, and OneDrive — extracted from EXEs via `Icon.ExtractAssociatedIcon` (handles quoted paths, env-var expansion, `.lnk` target resolution, Squirrel updater path-hop, progressive whitespace trim for unquoted paths with embedded spaces). UWP entries get their real `Square44x44Logo` from the package manifest — same files Start Menu uses.
+- **Self-elevation on launch**: clicks UAC for you on cold start. If you decline, the app runs in **restricted mode** — admin-requiring tweaks are hidden, admin-only pages are locked, and click-to-elevate buttons in the titlebar, Dashboard, every tweak section, and every locked page get you to UAC anytime. Denial is sticky for the session (no re-prompt loop).
 - **Reversibility is architecture**: every tweak knows its Windows default. Toggle the switch and it's gone.
+- **First-run onboarding**: optional create-restore-point + apply-Reclaim-Basics flow.
+- **Portable mode**: drop a `portable.txt` or a `data/` folder next to the exe and Reclaim writes logs and profiles there instead of `%APPDATA%`.
 - **Restore point on demand** from the Dashboard or Settings.
+- **Auto-updater** wired up via Tauri's updater plugin against GitHub Releases (signed `latest.json`).
 - **Win11 Mica** translucent window with custom violet/fuchsia accent.
 - **No telemetry**. Activity log is local-only. We're a privacy tool — irony would be fatal.
 
 ## Setup (development)
 
 ```powershell
-cd E:\DEV\reclaim
+git clone https://github.com/jonax1337/reclaim.git
+cd reclaim
 pnpm install
 pnpm tauri:dev
 ```
@@ -57,71 +87,110 @@ Requirements:
 - Webview2 runtime (ships with Windows 11)
 - Windows 11 22H2+ for Mica (graceful fallback otherwise)
 
-`pnpm-workspace.yaml` declares `allowBuilds: esbuild: true` so the install doesn't choke on esbuild's postinstall script.
-
 ## Production build
 
 ```powershell
 pnpm tauri:build
 ```
 
-Produces an NSIS installer in `src-tauri/target/release/bundle/nsis/`.
+Produces NSIS + MSI installers in `src-tauri/target/release/bundle/`.
 
 ## Architecture
 
 ```
-src/                  Svelte 5 + Tailwind v4 + Bits UI
+src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
   lib/
     tweaks/
-      catalog.ts      All registry tweaks as typed data (60+)
-      bloatware.ts    AppX wildcard patterns (~55)
-      profiles.ts     Preset bundles (Gaming, Privacy Max, …)
-      bridge.ts       TS wrappers for every Tauri command
-      executor.ts     applyTweak / revertTweak / getTweakState
-    ui/               shadcn-style components (Bits UI), BulkActionBar
-    components/       Layout, ProfileCard, TweakSection, TweakRow
-    log.svelte.ts     localStorage activity log (500 entries)
-    admin.svelte.ts   Elevation + auto-UAC store
-    theme.svelte.ts   system / light / dark
-  routes/             Dashboard, Bloatware, Privacy, AI, …
-                      WindowsUpdate, Drivers, Specs, Startup,
-                      Services, Logs, Settings, NotFound
+      catalog.ts       123 typed tweak records (apply/revert/check ops)
+      bloatware.ts     63 AppX wildcard patterns
+      profiles.ts      Built-in preset bundles
+      bridge.ts        TS wrappers for every Tauri command
+      executor.ts      applyTweak / revertTweak / getTweakState
+      customProfiles.svelte.ts   localStorage-backed custom profile store
+      profileEdit.svelte.ts      handoff state for ProfileBuilder
+    apps/catalog.ts    46 curated winget entries (8 groups)
+    hosts/             Builtin blocklists + remote sources
+    network/           DoH provider presets, DNS helpers
+    maintenance/       Operation catalog (op id → label/description)
+    profiles/          Gradient presets, profile import/export helpers
+    ui/                shadcn-style components (Button/Card/Switch/…)
+                       BulkActionBar, Titlebar, Toaster
+    components/        Layout, TweakSection, TweakRow, ProfileCard,
+                       OnboardingDialog, AdminBanner, TerminalPanel (xterm)
+    log.svelte.ts      Activity log (500 entries, localStorage + file mirror)
+    admin.svelte.ts    Elevation + auto-UAC store
+    theme.svelte.ts    system / light / dark
+    prefs.svelte.ts    App prefs (onboarded flag, etc.)
+    tasks.svelte.ts    Long-running task registry (PTY-backed)
+    cache.svelte.ts    SWR-style resource cache
+    route-cache.svelte.ts        per-route component memoization
+    scroll-restore.svelte.ts     per-route scroll position
+    startup-preload.svelte.ts    boot-time resource preloads
+  routes/              26 routes (see below)
 
 src-tauri/src/
-  lib.rs              Plugin init + command registry
-  sysinfo.rs          Windows version + elevation + relaunch_elevated
-  tweaks.rs           PowerShell runner + AppX + registry + restore point
-  sysquery.rs         Hardware / Startup / Services
-  winupdate.rs        Microsoft.Update.Session search + install
-  driver_search.rs    Vendor webview with auto-fill injection
+  lib.rs               Plugin init + 47-command invoke_handler registry
+  app_info.rs          Portable mode, app data dir, activity.log mirror
+  sysinfo.rs           Windows version + elevation + relaunch_elevated + accent color
+  sysquery.rs          Hardware (WMI) / Startup (Run + AppX AUMID) / Services
+  tweaks.rs            PowerShell runner + AppX + registry + restore point
+  winupdate.rs         Microsoft.Update.Session search + install
+  driver_search.rs     Vendor webview with auto-fill JS injection
+  driver_update.rs     NVIDIA API lookup + streaming download + detached launcher
+  winget.rs            winget CLI integration (with streaming variants)
+  network.rs           hosts file + blocklists + DNS / DoH
+  maintenance.rs       ConPTY-based PTY runner + Power Plans
+  onedrive.rs          Detection + robocopy backup + uninstall
+  context_menu.rs      Shell-extension CLSID enumeration & Blocked toggle
+  icons.rs             EXE icon + AppX icon extraction, command resolver
+  files.rs             Text file I/O for user-picked paths
 ```
+
+### Routes (26 total)
+
+Grouped in the sidebar as: Top · Clean up · Install · Customize · Network · Updates & drivers · System info · App.
+
+- **Top:** Dashboard, Profiles
+- **Clean up:** Bloatware, OneDrive, AI & Copilot
+- **Install:** Apps (winget)
+- **Customize:** Privacy, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
+- **Network:** Hosts & blocklists*, DNS & DoH*
+- **Updates & drivers:** Windows Update, Drivers, Update settings
+- **System info:** Specs, Startup apps, Services*, Maintenance*
+- **App:** Activity log, Settings
+
+\* admin required. Hidden in restricted mode, click-to-elevate everywhere.
 
 ## Stack
 
-| Layer        | Tech                                                |
-| ------------ | --------------------------------------------------- |
-| Frontend     | Svelte 5 (runes), TypeScript strict, Vite 6, Tailwind v4 |
-| UI primitives| Bits UI, Lucide icons, Geist (variable)             |
-| Routing      | `svelte-spa-router` (hash)                          |
-| Backend      | Rust + Tauri 2                                      |
-| Registry     | `winreg` crate                                      |
-| Elevation    | `windows-rs` (TokenElevation), PowerShell `Start-Process -Verb RunAs` |
-| Win Update   | `Microsoft.Update.Session` COM (no PS module)       |
-| AppX         | PowerShell `Get-/Remove-AppxPackage`                |
+| Layer | Tech |
+| --- | --- |
+| Frontend | Svelte 5 (runes), TypeScript strict, Vite 6, Tailwind v4 |
+| UI primitives | Bits UI, Lucide icons, Geist (variable) |
+| Terminal | @xterm/xterm + addon-fit + addon-web-links |
+| Routing | `svelte-spa-router` (hash) |
+| Backend | Rust + Tauri 2 |
+| Registry | `winreg` crate |
+| Elevation | `windows-rs` (TokenElevation), PowerShell `Start-Process -Verb RunAs` |
+| Win Update | `Microsoft.Update.Session` COM (no PS module) |
+| AppX | PowerShell `Get-/Remove-AppxPackage` |
+| HTTP | `reqwest` 0.12 (rustls) |
+| PTY | `portable-pty` (ConPTY on Windows) |
+| Auto-updater | `tauri-plugin-updater` (Ed25519-signed `latest.json` from GH Releases) |
 
 ## Roadmap
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phased plan toward "best Windows debloater of all time": hosts + DNS, winget app manager, +100 more tweaks, system maintenance, custom profile builder, i18n, portable mode.
+Phases 1-5 are shipped. Phase 6 (i18n + signed release pipeline) is partially complete — see [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0.
 
 ## Inspirations
 
 - [Win11Debloat](https://github.com/Raphire/Win11Debloat) — feature scope reference
 - [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil) — winget integration idea
-- [Belim/SophiApp](https://github.com/Sophia-Community/SophiApp) — depth of tweak catalog
+- [Sophia-Community/SophiApp](https://github.com/Sophia-Community/SophiApp) — depth of tweak catalog
 - [builtbybel/privatezilla](https://github.com/builtbybel/privatezilla) — privacy focus
 
-All registry keys and PowerShell commands used here are from public Microsoft documentation.
+All registry keys and PowerShell commands used here come from public Microsoft documentation.
 
 ## License
 
-MIT
+[MIT](LICENSE)

@@ -14,3 +14,11 @@ src-tauri/gen/schemas
 
 # Local-only scraped data
 .nvidia-series.xml
+
+# Claude Code internal state
+.claude/
+
+# pnpm regenerates this when it sees onlyBuiltDependencies in package.json,
+# but the auto-generated file lacks `packages:` which breaks pnpm 9 in CI.
+# The canonical config lives in package.json under "pnpm".
+pnpm-workspace.yaml
