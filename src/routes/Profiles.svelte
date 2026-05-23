@@ -17,13 +17,19 @@
     PROFILES,
     parseEnvelope,
     resolveProfileTweaks,
+    profileAppliedStats,
     toEnvelope,
     type Profile,
   } from "$lib/tweaks/profiles";
   import { customProfiles } from "$lib/tweaks/customProfiles.svelte";
   import { profileEdit } from "$lib/tweaks/profileEdit.svelte";
-  import { applyTweak, getTweakState } from "$lib/tweaks/executor";
+  import { applyTweak, getTweakState, type TweakState } from "$lib/tweaks/executor";
+  import { tweakStatesResource, K_TWEAK_STATES } from "$lib/route-cache.svelte";
+  import { invalidate } from "$lib/cache.svelte";
   import { log } from "$lib/log.svelte";
+
+  const statesRes = tweakStatesResource();
+  const states = $derived<Record<string, TweakState>>(statesRes.data ?? {});
 
   let busy = $state<string | null>(null);
   let deleteOpen = $state(false);
@@ -128,6 +134,8 @@
       }
     }
     busy = null;
+    invalidate(K_TWEAK_STATES);
+    await statesRes.refresh();
     if (fail === 0) {
       toast.success(
         `${p.name} applied`,
@@ -167,7 +175,7 @@
 <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
   {#each PROFILES as p (p.id)}
     {@const isBusy = busy === p.id}
-    {@const tweakCount = resolveProfileTweaks(p).length}
+    {@const stats = profileAppliedStats(p, states)}
     <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
       <div class="grid place-items-center size-9 rounded-md shrink-0 bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5">
         <ProfileIcon name={p.gradient} class="size-4" />
@@ -175,9 +183,19 @@
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-sm font-medium">{p.name}</span>
-          <Badge variant="outline">{tweakCount} tweaks</Badge>
+          {#if stats.percent === 100}
+            <Badge variant="success">All {stats.total} applied</Badge>
+          {:else}
+            <Badge variant="outline">{stats.applied} / {stats.total} applied · {stats.percent}%</Badge>
+          {/if}
         </div>
         <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
+        <div class="mt-2 h-1 rounded-full bg-muted overflow-hidden max-w-xs">
+          <div
+            class="h-full rounded-full bg-primary transition-all duration-500"
+            style="width: {stats.percent}%"
+          ></div>
+        </div>
       </div>
       <div class="shrink-0 flex items-center gap-2 pt-0.5">
         {#if isBusy}
@@ -222,7 +240,7 @@
   <Card class="overflow-hidden gap-0 py-0 card-inset">
     {#each customProfiles.items as p (p.id)}
       {@const isBusy = busy === p.id}
-      {@const tweakCount = resolveProfileTweaks(p).length}
+      {@const stats = profileAppliedStats(p, states)}
       <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
         <div class="grid place-items-center size-9 rounded-md shrink-0 bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5">
           <ProfileIcon name={p.gradient} class="size-4" />
@@ -231,12 +249,24 @@
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{p.name}</span>
             <Badge variant="default">Custom</Badge>
-            <Badge variant="outline">{tweakCount} tweaks</Badge>
+            {#if stats.percent === 100 && stats.total > 0}
+              <Badge variant="success">All {stats.total} applied</Badge>
+            {:else}
+              <Badge variant="outline">{stats.applied} / {stats.total} applied · {stats.percent}%</Badge>
+            {/if}
             {#if p.bloatwarePatterns?.length}
               <Badge variant="outline">{p.bloatwarePatterns.length} bloatware</Badge>
             {/if}
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
+          {#if stats.total > 0}
+            <div class="mt-2 h-1 rounded-full bg-muted overflow-hidden max-w-xs">
+              <div
+                class="h-full rounded-full bg-primary transition-all duration-500"
+                style="width: {stats.percent}%"
+              ></div>
+            </div>
+          {/if}
         </div>
         <div class="shrink-0 flex items-center gap-2 pt-0.5">
           {#if isBusy}

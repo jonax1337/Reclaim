@@ -8,11 +8,14 @@
     FolderOpen,
     Search,
     Bell,
+    BellRing,
     RefreshCw,
     ArrowRight,
     Wand2,
     History,
     Loader2,
+    Gauge,
+    Globe,
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import {
@@ -28,6 +31,9 @@
     SEARCH_TWEAKS,
     TASKBAR_TWEAKS,
     UPDATE_TWEAKS,
+    PERFORMANCE_TWEAKS,
+    NOTIFICATION_TWEAKS,
+    BROWSER_TWEAKS,
   } from "$lib/tweaks/catalog";
   import { BLOATWARE } from "$lib/tweaks/bloatware";
   import { getTweakState, applyTweak, type TweakState } from "$lib/tweaks/executor";
@@ -130,6 +136,13 @@
       count: PRIVACY_TWEAKS.length,
     },
     {
+      href: "/browser",
+      icon: Globe,
+      label: "Browser (Edge)",
+      desc: "Shopping, Discover, wallet, NTP",
+      count: BROWSER_TWEAKS.length,
+    },
+    {
       href: "/explorer",
       icon: FolderOpen,
       label: "Explorer",
@@ -149,6 +162,20 @@
       label: "Search",
       desc: "Bing, highlights, Cortana",
       count: SEARCH_TWEAKS.length,
+    },
+    {
+      href: "/notifications",
+      icon: BellRing,
+      label: "Notifications",
+      desc: "Toasts, sounds, Action Center",
+      count: NOTIFICATION_TWEAKS.length,
+    },
+    {
+      href: "/performance",
+      icon: Gauge,
+      label: "Performance",
+      desc: "Background apps, visual effects",
+      count: PERFORMANCE_TWEAKS.length,
     },
     {
       href: "/updates",

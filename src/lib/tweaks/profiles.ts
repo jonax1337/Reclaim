@@ -181,6 +181,26 @@ export function resolveProfileTweaks(profile: Profile): Tweak[] {
   return profile.tweakIds.map((id) => map.get(id)).filter((t): t is Tweak => !!t);
 }
 
+export type ProfileStats = {
+  total: number;
+  applied: number;
+  percent: number;
+};
+
+/** Count how many of a profile's tweaks are currently in the "on" state.
+ *  Unknown states are treated as not-applied so the percentage doesn't
+ *  flicker upward just because a check failed. */
+export function profileAppliedStats(
+  profile: Profile,
+  states: Record<string, "on" | "off" | "unknown">,
+): ProfileStats {
+  const tweaks = resolveProfileTweaks(profile);
+  const total = tweaks.length;
+  if (total === 0) return { total: 0, applied: 0, percent: 0 };
+  const applied = tweaks.filter((t) => states[t.id] === "on").length;
+  return { total, applied, percent: Math.round((applied / total) * 100) };
+}
+
 /* ------------------------------------------------------------------------- */
 /* JSON envelope I/O.                                                         */
 /* ------------------------------------------------------------------------- */

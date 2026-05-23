@@ -2,8 +2,10 @@
   import { Card, CardContent, Button, toast } from "$lib/ui";
   import { ChevronRight } from "@lucide/svelte";
   import type { Profile } from "$lib/tweaks/profiles";
-  import { resolveProfileTweaks } from "$lib/tweaks/profiles";
-  import { applyTweak, getTweakState } from "$lib/tweaks/executor";
+  import { resolveProfileTweaks, profileAppliedStats } from "$lib/tweaks/profiles";
+  import { applyTweak, getTweakState, type TweakState } from "$lib/tweaks/executor";
+  import { tweakStatesResource, K_TWEAK_STATES } from "$lib/route-cache.svelte";
+  import { invalidate } from "$lib/cache.svelte";
   import ProfileIcon from "./ProfileIcon.svelte";
   import TweakPreviewDialog from "./TweakPreviewDialog.svelte";
 
@@ -14,6 +16,9 @@
   let busy = $state(false);
 
   const tweaks = $derived(resolveProfileTweaks(profile));
+  const statesRes = tweakStatesResource();
+  const states = $derived<Record<string, TweakState>>(statesRes.data ?? {});
+  const stats = $derived(profileAppliedStats(profile, states));
 
   async function applyAll() {
     if (busy) return;
@@ -36,6 +41,8 @@
     }
     busy = false;
     open = false;
+    invalidate(K_TWEAK_STATES);
+    await statesRes.refresh();
     if (fail === 0) {
       toast.success(
         `${profile.name} applied`,
@@ -69,10 +76,19 @@
     <p class="text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[3rem]">
       {profile.description}
     </p>
-    <div class="flex items-center justify-between mt-4">
-      <span class="text-[10px] uppercase tracking-wider text-muted-foreground/70">
-        {tweaks.length} tweaks
-      </span>
+    <div class="mt-3">
+      <div class="flex items-baseline justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70 mb-1.5">
+        <span>{stats.applied} / {stats.total} applied</span>
+        <span class="tabular-nums">{stats.percent}%</span>
+      </div>
+      <div class="h-1 rounded-full bg-muted overflow-hidden">
+        <div
+          class="h-full rounded-full bg-primary transition-all duration-500"
+          style="width: {stats.percent}%"
+        ></div>
+      </div>
+    </div>
+    <div class="flex justify-end mt-4">
       <Button size="sm" variant="outline" onclick={() => (open = true)}>
         Preview
         <ChevronRight class="size-3" />
