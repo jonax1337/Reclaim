@@ -109,6 +109,7 @@
     const out: Record<string, BloatwareEntry[]> = {};
     const q = filter.trim().toLowerCase();
     for (const b of BLOATWARE) {
+      if (isInstalled(b).length === 0) continue;
       if (q && !b.title.toLowerCase().includes(q) && !b.pattern.toLowerCase().includes(q)) continue;
       (out[b.group] ||= []).push(b);
     }
@@ -136,7 +137,8 @@
     {#if loading}
       Scanning installed apps…
     {:else if isTauri()}
-      <span class="font-medium text-foreground tabular-nums">{installedCount}</span> of {BLOATWARE.length} known apps found
+      <span class="font-medium text-foreground tabular-nums">{installedCount}</span>
+      installed bloatware {installedCount === 1 ? "app" : "apps"} found
       · <span class="text-foreground">{recommendedInstalled}</span> recommended to remove
       {#if installedRes.revalidating}
         · <span class="text-muted-foreground/70">refreshing…</span>
@@ -172,6 +174,17 @@
     <Loader2 class="size-6 animate-spin mb-2" />
     Scanning installed apps…
   </div>
+{:else if installedCount === 0}
+  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
+    <Sparkles class="size-6 mb-2 text-emerald-500" />
+    <p class="font-medium text-foreground">No bloatware detected</p>
+    <p class="mt-1">None of the {BLOATWARE.length} known patterns matched an installed app.</p>
+  </div>
+{:else if Object.keys(groups).length === 0}
+  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
+    <Search class="size-6 mb-2" />
+    No matches for "{filter}".
+  </div>
 {:else}
   <div class="flex flex-col gap-6">
     {#each groupOrder as g (g)}
@@ -187,18 +200,17 @@
               class="text-xs text-primary hover:underline"
               onclick={() => selectAllInstalled(entries)}
             >
-              select installed
+              select all
             </button>
           </div>
           <Card class="overflow-hidden gap-0 py-0 card-inset">
             {#each entries as entry (entry.pattern)}
               {@const matches = isInstalled(entry)}
-              {@const isAvailable = matches.length > 0}
               {@const isSelected = selected.has(entry.pattern)}
               <label
-                class="relative flex items-start gap-4 py-3 px-5 border-b last:border-b-0 transition-colors {isAvailable
-                  ? 'hover:bg-accent/40 cursor-pointer'
-                  : 'opacity-50'} {isSelected ? 'bg-primary/[0.04]' : ''}"
+                class="relative flex items-start gap-4 py-3 px-5 border-b last:border-b-0 transition-colors hover:bg-accent/40 cursor-pointer {isSelected
+                  ? 'bg-primary/[0.04]'
+                  : ''}"
               >
                 <span
                   class="absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all {isSelected
@@ -209,7 +221,6 @@
                 <div class="pt-0.5">
                   <Checkbox
                     checked={isSelected}
-                    disabled={!isAvailable}
                     onCheckedChange={(v) => {
                       const next = new Set(selected);
                       if (v) next.add(entry.pattern);
@@ -242,13 +253,8 @@
                         Recommended
                       </Badge>
                     {/if}
-                    {#if isAvailable}
-                      <Badge variant="default">Installed</Badge>
-                      {#if matches.some((m) => m.provisioned)}
-                        <Badge variant="outline">Provisioned</Badge>
-                      {/if}
-                    {:else}
-                      <Badge variant="outline">Not present</Badge>
+                    {#if matches.some((m) => m.provisioned)}
+                      <Badge variant="outline">Provisioned</Badge>
                     {/if}
                     {#if entry.warning}
                       <Badge variant="warning">
