@@ -1,0 +1,62 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Reclaim",
+  "version": "0.8.0",
+  "identifier": "digital.laux.reclaim",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Reclaim Your Windows",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 1000,
+        "minHeight": 640,
+        "decorations": false,
+        "transparent": true,
+        "resizable": true,
+        "windowEffects": {
+          "effects": ["mica"]
+        }
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "category": "Utility",
+    "shortDescription": "Win11 debloat & privacy tool",
+    "longDescription": "Reclaim Your Windows — entferne Bloatware, deaktiviere Telemetrie und nimm dir dein Windows zurück.",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/jonax1337/reclaim/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVEMzE2MTc1NUQwODk4QUMKUldTc21BaGRkV0V4WGR1eFNMcmtYT0g3K2xGV1VTejVEbDFobUJ5VkZMWU5VYmZqbU0yMGlpVUgK",
+      "dialog": false
+    }
+  }
+}

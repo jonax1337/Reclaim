@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7b54ff"/>
+      <stop offset="55%" stop-color="#6a45e8"/>
+      <stop offset="100%" stop-color="#4f2fb8"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ecdfff"/>
+    </linearGradient>
+    <linearGradient id="topShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="boltShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="10"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.35"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="232" ry="232" fill="url(#topShine)"/>
+  <rect x="8" y="8" width="1008" height="1008" rx="226" ry="226"
+        fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="2"/>
+
+  <g transform="translate(256,256) scale(21.333)" filter="url(#boltShadow)">
+    <path fill="url(#bolt)"
+          d="M14.158 2.13a.5.5 0 0 1 .811.553L13.06 9h6.44a.5.5 0 0 1 .374.832l-10 11.25a.5.5 0 0 1-.84-.482L10.94 14H4.5a.5.5 0 0 1-.375-.832l10.033-11.038Z"/>
+  </g>
+</svg>

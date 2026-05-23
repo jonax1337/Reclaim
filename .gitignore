@@ -1,0 +1,16 @@
+node_modules
+dist
+.DS_Store
+.vite
+*.log
+
+# Tauri
+src-tauri/target
+src-tauri/gen/schemas
+
+# Updater private key — never commit. Public key is in tauri.conf.json.
+.updater-key
+*.updater-key
+
+# Local-only scraped data
+.nvidia-series.xml

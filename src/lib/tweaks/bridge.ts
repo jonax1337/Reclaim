@@ -1,0 +1,670 @@
+import { invoke, Channel } from "@tauri-apps/api/core";
+
+export type PsResult = {
+  success: boolean;
+  stdout: string;
+  stderr: string;
+  code: number;
+};
+
+export type AppxPackage = {
+  name: string;
+  packageFullName: string;
+  publisher: string;
+  installed: boolean;
+  provisioned: boolean;
+};
+
+export type SystemInfo = {
+  productName: string;
+  displayVersion: string;
+  build: string;
+  edition: string;
+  username: string;
+};
+
+export type RegHive = "HKCU" | "HKLM" | "HKCR" | "HKU";
+export type RegType = "DWORD" | "SZ" | "EXPANDSZ";
+
+export type RegLocator = { hive: RegHive; path: string; name: string };
+export type RegValue = RegLocator & { type: RegType; value: number | string };
+
+export function isTauri(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+export async function getSystemInfo(): Promise<SystemInfo> {
+  const raw = await invoke<{
+    product_name: string;
+    display_version: string;
+    build: string;
+    edition: string;
+    username: string;
+  }>("get_system_info");
+  return {
+    productName: raw.product_name,
+    displayVersion: raw.display_version,
+    build: raw.build,
+    edition: raw.edition,
+    username: raw.username,
+  };
+}
+
+export async function isElevated(): Promise<boolean> {
+  return invoke<boolean>("is_elevated");
+}
+
+export async function getAccentColor(): Promise<[number, number, number] | null> {
+  return invoke<[number, number, number] | null>("get_accent_color");
+}
+
+export async function listInstalledAppx(): Promise<AppxPackage[]> {
+  const raw = await invoke<
+    Array<{
+      name: string;
+      package_full_name: string;
+      publisher: string;
+      installed: boolean;
+      provisioned: boolean;
+    }>
+  >("list_installed_appx");
+  return raw.map((p) => ({
+    name: p.name,
+    packageFullName: p.package_full_name,
+    publisher: p.publisher,
+    installed: p.installed,
+    provisioned: p.provisioned,
+  }));
+}
+
+export async function removeAppx(packageName: string, allUsers = true): Promise<PsResult> {
+  return invoke<PsResult>("remove_appx", { packageName, allUsers });
+}
+
+export async function regRead(loc: RegLocator): Promise<string | number | null> {
+  const v = await invoke<string | number | null>("reg_read", { locator: loc });
+  return v;
+}
+
+/** Bulk variant: one IPC round-trip for the whole list. Backed by an async
+ * Rust command that off-loads to spawn_blocking, so it doesn't pin the IPC
+ * main thread the way 150 individual reg_read calls would. */
+export async function regReadMany(
+  locators: RegLocator[],
+): Promise<Array<string | number | null>> {
+  return invoke<Array<string | number | null>>("reg_read_many", { locators });
+}
+
+export async function regWrite(value: RegValue): Promise<void> {
+  await invoke("reg_write", { value });
+}
+
+export async function regDeleteValue(loc: RegLocator): Promise<void> {
+  await invoke("reg_delete_value", { locator: loc });
+}
+
+export async function runPowershell(script: string, elevated = false): Promise<PsResult> {
+  return invoke<PsResult>("run_powershell", { script, elevated });
+}
+
+export async function createRestorePoint(description: string): Promise<PsResult> {
+  return invoke<PsResult>("create_restore_point", { description });
+}
+
+export async function restartExplorer(): Promise<PsResult> {
+  return invoke<PsResult>("restart_explorer");
+}
+
+export type StartupApp = {
+  id: string;
+  name: string;
+  command: string;
+  source: string;
+  enabled: boolean;
+};
+
+export type ServiceEntry = {
+  name: string;
+  displayName: string;
+  status: string;
+  startType: string;
+  canPauseAndContinue: boolean;
+};
+
+export type ServiceStartType =
+  | "Automatic"
+  | "AutomaticDelayedStart"
+  | "Manual"
+  | "Disabled";
+export type ServiceRunState = "Running" | "Stopped" | null;
+
+export async function getHardwareInfo(): Promise<unknown> {
+  return invoke<unknown>("get_hardware_info");
+}
+
+export async function listStartupApps(): Promise<StartupApp[]> {
+  return invoke<StartupApp[]>("list_startup_apps");
+}
+
+export async function setStartupEnabled(id: string, enabled: boolean): Promise<void> {
+  await invoke("set_startup_enabled", { id, enabled });
+}
+
+export async function listServices(): Promise<ServiceEntry[]> {
+  const raw = await invoke<
+    Array<{
+      name: string;
+      display_name: string;
+      status: string;
+      start_type: string;
+      can_pause_and_continue: boolean;
+    }>
+  >("list_services");
+  return raw.map((s) => ({
+    name: s.name,
+    displayName: s.display_name,
+    status: s.status,
+    startType: s.start_type,
+    canPauseAndContinue: s.can_pause_and_continue,
+  }));
+}
+
+export async function setService(
+  name: string,
+  startType: ServiceStartType,
+  runState: ServiceRunState = null,
+): Promise<void> {
+  await invoke("set_service", { name, startType, runState });
+}
+
+export type WuUpdate = {
+  id: string;
+  revision: number;
+  title: string;
+  description: string;
+  kbs: string;
+  severity: string;
+  sizeMb: number;
+  categories: string;
+  isDownloaded: boolean;
+  isDriver: boolean;
+  isOptional: boolean;
+  rebootRequired: number;
+};
+
+export type WuInstallResult = {
+  ok: boolean;
+  installed: number;
+  failed: number;
+  rebootRequired: boolean;
+  message: string;
+};
+
+export async function searchWindowsUpdates(driverOnly = false): Promise<WuUpdate[]> {
+  const raw = await invoke<
+    Array<{
+      id: string;
+      revision: number;
+      title: string;
+      description: string;
+      kbs: string;
+      severity: string;
+      size_mb: number;
+      categories: string;
+      is_downloaded: boolean;
+      is_driver: boolean;
+      is_optional: boolean;
+      reboot_required: number;
+    }>
+  >("search_windows_updates", { driverOnly });
+  return raw.map((u) => ({
+    id: u.id,
+    revision: u.revision,
+    title: u.title,
+    description: u.description,
+    kbs: u.kbs,
+    severity: u.severity,
+    sizeMb: u.size_mb,
+    categories: u.categories,
+    isDownloaded: u.is_downloaded,
+    isDriver: u.is_driver,
+    isOptional: u.is_optional,
+    rebootRequired: u.reboot_required,
+  }));
+}
+
+export async function openDriverSearch(
+  vendor: "nvidia" | "amd" | "intel",
+  gpuName: string,
+  osName: string,
+): Promise<void> {
+  await invoke("open_driver_search", { vendor, gpuName, osName });
+}
+
+export type NvidiaDriverInfo = {
+  version: string;
+  name: string;
+  releaseDate: string;
+  osName: string;
+  downloadUrl: string;
+  detailsUrl: string;
+  sizeMb: number | null;
+};
+
+export type DownloadedFile = {
+  path: string;
+  sizeBytes: number;
+};
+
+export async function lookupNvidiaDriver(gpuName: string): Promise<NvidiaDriverInfo> {
+  const raw = await invoke<{
+    version: string;
+    name: string;
+    release_date: string;
+    os_name: string;
+    download_url: string;
+    details_url: string;
+    size_mb: number | null;
+  }>("lookup_nvidia_driver", { gpuName });
+  return {
+    version: raw.version,
+    name: raw.name,
+    releaseDate: raw.release_date,
+    osName: raw.os_name,
+    downloadUrl: raw.download_url,
+    detailsUrl: raw.details_url,
+    sizeMb: raw.size_mb,
+  };
+}
+
+export async function downloadDriver(url: string, filename: string): Promise<DownloadedFile> {
+  const raw = await invoke<{ path: string; size_bytes: number }>("download_driver", {
+    url,
+    filename,
+  });
+  return { path: raw.path, sizeBytes: raw.size_bytes };
+}
+
+export async function launchInstaller(path: string): Promise<void> {
+  await invoke("launch_installer", { path });
+}
+
+export async function revealInExplorer(path: string): Promise<void> {
+  await invoke("reveal_in_explorer", { path });
+}
+
+export type HostsBlock = {
+  name: string;
+  entryCount: number;
+};
+
+export type AdapterDns = {
+  alias: string;
+  description: string;
+  ipv4: string[];
+  ipv6: string[];
+  isUp: boolean;
+};
+
+export async function readHosts(): Promise<string> {
+  return invoke<string>("read_hosts");
+}
+
+export async function writeHosts(content: string): Promise<void> {
+  await invoke("write_hosts", { content });
+}
+
+export async function hasHostsBackup(): Promise<boolean> {
+  return invoke<boolean>("has_hosts_backup");
+}
+
+export async function restoreHostsBackup(): Promise<void> {
+  await invoke("restore_hosts_backup");
+}
+
+export async function applyBlocklist(name: string, entries: string[]): Promise<number> {
+  return invoke<number>("apply_blocklist", { name, entries });
+}
+
+export async function removeBlocklist(name: string): Promise<void> {
+  await invoke("remove_blocklist", { name });
+}
+
+export async function listActiveBlocklists(): Promise<HostsBlock[]> {
+  const raw = await invoke<Array<{ name: string; entry_count: number }>>(
+    "list_active_blocklists",
+  );
+  return raw.map((b) => ({ name: b.name, entryCount: b.entry_count }));
+}
+
+export async function fetchBlocklist(url: string): Promise<string[]> {
+  return invoke<string[]>("fetch_blocklist", { url });
+}
+
+export async function flushDns(): Promise<PsResult> {
+  return invoke<PsResult>("flush_dns");
+}
+
+export async function getDnsServers(): Promise<AdapterDns[]> {
+  const raw = await invoke<
+    Array<{
+      alias: string;
+      description: string;
+      ipv4: string[];
+      ipv6: string[];
+      is_up: boolean;
+    }>
+  >("get_dns_servers");
+  return raw.map((a) => ({
+    alias: a.alias,
+    description: a.description,
+    ipv4: a.ipv4 ?? [],
+    ipv6: a.ipv6 ?? [],
+    isUp: a.is_up,
+  }));
+}
+
+export async function setDnsServers(
+  adapter: string,
+  ipv4: string[],
+  ipv6: string[],
+): Promise<void> {
+  await invoke("set_dns_servers", { apply: { adapter, ipv4, ipv6 } });
+}
+
+export async function resetDnsServers(adapter: string): Promise<void> {
+  await invoke("reset_dns_servers", { adapter });
+}
+
+export async function setDohTemplate(
+  serverIp: string,
+  template: string,
+  allowFallback = false,
+): Promise<void> {
+  await invoke("set_doh_template", {
+    apply: { server_ip: serverIp, template, allow_fallback: allowFallback },
+  });
+}
+
+export type WingetVersion = { available: boolean; version: string };
+
+export async function wingetAvailable(): Promise<boolean> {
+  return invoke<boolean>("winget_available");
+}
+
+export async function wingetVersion(): Promise<WingetVersion> {
+  return invoke<WingetVersion>("winget_version");
+}
+
+export async function wingetListInstalled(): Promise<string> {
+  return invoke<string>("winget_list_installed");
+}
+
+export async function wingetListUpgradable(): Promise<string> {
+  return invoke<string>("winget_list_upgradable");
+}
+
+export async function wingetInstall(id: string, scopeUser = false): Promise<PsResult> {
+  return invoke<PsResult>("winget_install", { id, scopeUser });
+}
+
+export async function wingetUninstall(id: string): Promise<PsResult> {
+  return invoke<PsResult>("winget_uninstall", { id });
+}
+
+export async function wingetUpgrade(id: string): Promise<PsResult> {
+  return invoke<PsResult>("winget_upgrade", { id });
+}
+
+export type WingetOp = "install" | "uninstall" | "upgrade";
+
+export async function wingetRunStream(
+  op: WingetOp,
+  id: string,
+  scopeUser: boolean,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("winget_run_stream", { op, id, scopeUser, onEvent: channel });
+}
+
+export type MaintenanceOp =
+  // Repair
+  | "sfc"
+  | "dism-check"
+  | "dism-scan"
+  | "dism-restore"
+  | "chkdsk-scan"
+  | "chkdsk-spotfix"
+  // Cleanup
+  | "winsxs-cleanup"
+  | "winsxs-resetbase"
+  | "temp-cleanup"
+  // Defender
+  | "defender-sig-update"
+  | "defender-quick-scan"
+  | "defender-full-scan"
+  | "defender-offline-scan"
+  | "defender-status"
+  // Reset
+  | "wu-components-reset"
+  | "spooler-reset"
+  | "icon-cache-reset"
+  | "font-cache-reset"
+  | "store-reset"
+  // Network
+  | "network-reset"
+  | "firewall-reset";
+
+export type StreamEvent = {
+  /** stdout/stderr/info: legacy line-oriented (used by winget).
+   *  bytes: base64-encoded raw PTY output (maintenance — pipe straight to xterm).
+   *  exit: data is the numeric exit code as a string. */
+  kind: "stdout" | "stderr" | "exit" | "info" | "bytes";
+  data: string;
+  /** Legacy CR-flush marker for line-oriented streams. */
+  progress?: boolean;
+};
+
+export type PowerPlan = {
+  guid: string;
+  name: string;
+  active: boolean;
+};
+
+export async function maintenanceRunStream(
+  taskId: string,
+  op: MaintenanceOp,
+  cols: number,
+  rows: number,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("maintenance_run_stream", {
+    taskId,
+    op,
+    cols,
+    rows,
+    onEvent: channel,
+  });
+}
+
+export async function maintenancePtyResize(
+  taskId: string,
+  cols: number,
+  rows: number,
+): Promise<void> {
+  await invoke("maintenance_pty_resize", { taskId, cols, rows });
+}
+
+export async function maintenancePtyKill(taskId: string): Promise<void> {
+  await invoke("maintenance_pty_kill", { taskId });
+}
+
+export async function listPowerPlans(): Promise<PowerPlan[]> {
+  return invoke<PowerPlan[]>("list_power_plans");
+}
+
+export async function setPowerPlan(guid: string): Promise<void> {
+  await invoke("set_power_plan", { guid });
+}
+
+export async function unlockUltimatePerformance(): Promise<string> {
+  return invoke<string>("unlock_ultimate_performance");
+}
+
+export async function deletePowerPlan(guid: string): Promise<void> {
+  await invoke("delete_power_plan", { guid });
+}
+
+export async function readTextFile(path: string): Promise<string> {
+  return invoke<string>("read_text_file", { path });
+}
+
+export async function writeTextFile(path: string, content: string): Promise<void> {
+  await invoke("write_text_file", { path, content });
+}
+
+export async function isPortable(): Promise<boolean> {
+  return invoke<boolean>("is_portable");
+}
+
+export async function appDataDir(): Promise<string> {
+  return invoke<string>("app_data_dir");
+}
+
+export type LogLine = {
+  ts: number;
+  level: string;
+  action: string;
+  target: string;
+  message: string;
+  details?: string;
+};
+
+export async function logAppend(entry: LogLine): Promise<void> {
+  await invoke("log_append", { entry });
+}
+
+/** Read a file from `<app_data_dir>/<name>`. Returns null if it doesn't exist. */
+export async function readAppFile(name: string): Promise<string | null> {
+  return invoke<string | null>("read_app_file", { name });
+}
+
+/** Atomically write to `<app_data_dir>/<name>`. */
+export async function writeAppFile(name: string, content: string): Promise<void> {
+  await invoke("write_app_file", { name, content });
+}
+
+/** Read the whole activity.log file (JSON-lines). Returns "" if missing. */
+export async function readActivityLog(): Promise<string> {
+  return invoke<string>("read_activity_log");
+}
+
+/** Returns a path → base64 PNG map. Paths whose icons can't be extracted are omitted. */
+export async function getFileIcons(paths: string[]): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("get_file_icons", { paths });
+}
+
+/** Returns an AppX-pattern → base64 PNG map. Patterns whose package isn't installed
+ * (or has no resolvable logo) are omitted. */
+export async function getAppxIcons(patterns: string[]): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("get_appx_icons", { patterns });
+}
+
+export async function openProperties(command: string): Promise<void> {
+  await invoke("open_properties", { command });
+}
+
+/** Batch-resolve registry command lines to actual file paths. Skips entries
+ * whose path can't be resolved (e.g. orphaned Run keys, UWP monikers). */
+export async function resolveCommands(commands: string[]): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>("resolve_commands", { commands });
+}
+
+export type ContextMenuEntry = {
+  clsid: string;
+  name: string;
+  friendly: string | null;
+  disabled: boolean;
+  categories: string[];
+};
+
+export async function contextMenuList(): Promise<ContextMenuEntry[]> {
+  return invoke<ContextMenuEntry[]>("context_menu_list");
+}
+
+export async function contextMenuToggle(clsid: string, disabled: boolean): Promise<void> {
+  await invoke("context_menu_toggle", { clsid, disabled });
+}
+
+export type OneDriveStatus = {
+  installed: boolean;
+  processRunning: boolean;
+  syncFolder: string | null;
+  redirectedDocuments: string | null;
+  redirectedDesktop: string | null;
+  redirectedPictures: string | null;
+};
+
+export async function onedriveDetect(): Promise<OneDriveStatus> {
+  const raw = await invoke<{
+    installed: boolean;
+    process_running: boolean;
+    sync_folder: string | null;
+    redirected_documents: string | null;
+    redirected_desktop: string | null;
+    redirected_pictures: string | null;
+  }>("onedrive_detect");
+  return {
+    installed: raw.installed,
+    processRunning: raw.process_running,
+    syncFolder: raw.sync_folder,
+    redirectedDocuments: raw.redirected_documents,
+    redirectedDesktop: raw.redirected_desktop,
+    redirectedPictures: raw.redirected_pictures,
+  };
+}
+
+export async function onedriveBackup(
+  targetDir: string,
+  items: string[],
+): Promise<PsResult> {
+  return invoke<PsResult>("onedrive_backup", { req: { target_dir: targetDir, items } });
+}
+
+export async function onedriveUninstall(opts: {
+  disablePolicy: boolean;
+  removeLeftovers: boolean;
+}): Promise<PsResult> {
+  return invoke<PsResult>("onedrive_uninstall", {
+    req: { disable_policy: opts.disablePolicy, remove_leftovers: opts.removeLeftovers },
+  });
+}
+
+export async function launchCleanmgr(): Promise<void> {
+  await invoke("launch_cleanmgr");
+}
+
+export async function launchMemoryDiagnostic(): Promise<void> {
+  await invoke("launch_memory_diagnostic");
+}
+
+export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
+  const r = await invoke<{
+    ok: boolean;
+    installed: number;
+    failed: number;
+    reboot_required: boolean;
+    message: string;
+  }>("install_windows_updates", { ids });
+  return {
+    ok: r.ok,
+    installed: r.installed,
+    failed: r.failed,
+    rebootRequired: r.reboot_required,
+    message: r.message,
+  };
+}
