@@ -604,7 +604,7 @@
   <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
     Files
   </h2>
-  <Card class="card-inset mb-6">
+  <Card class="card-inset mb-6 py-0">
     <div class="px-5 py-4 space-y-3">
       <p class="text-xs text-muted-foreground leading-relaxed">
         Strips <code class="font-mono text-[11px]">Zone.Identifier</code> (Mark-of-the-Web) from a folder

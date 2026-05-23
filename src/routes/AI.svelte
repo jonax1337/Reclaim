@@ -93,8 +93,8 @@
   <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
     Recall snapshot store
   </h2>
-  <Card class="card-inset mb-6">
-    <div class="px-5 py-4 space-y-4">
+  <Card class="card-inset mb-6 py-0">
+    <div class="px-5 py-4 space-y-3">
       <p class="text-xs text-muted-foreground leading-relaxed">
         Scrubs every snapshot Recall has captured on this device. Independent of disabling the feature
         — use this if Recall was previously enabled and you want the on-disk store gone.
