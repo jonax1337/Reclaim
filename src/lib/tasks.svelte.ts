@@ -6,6 +6,7 @@ import {
   maintenancePtyKill,
   maintenancePtyResize,
   maintenanceRunStream,
+  unblockFilesStream,
   type MaintenanceOp,
   type StreamEvent,
 } from "./tweaks/bridge";
@@ -344,6 +345,34 @@ export async function runMaintenanceTask(
     task.terminal.write(
       `\r\n\x1b[31m${String(err)}\x1b[0m\r\n`,
     );
+    tasks.finish(task.id, -1, "error");
+  }
+  return task;
+}
+
+export async function runUnblockTask(
+  target: string,
+  recursive: boolean,
+): Promise<Task> {
+  const label = recursive ? `Unblock (recursive): ${target}` : `Unblock: ${target}`;
+  const task = tasks.start({ label, kind: "maintenance", opId: "unblock" });
+  if (!isTauri()) {
+    task.terminal.write(
+      "\x1b[33mBrowser preview — PowerShell is not available outside Tauri.\x1b[0m\r\n",
+    );
+    tasks.finish(task.id, -1, "error");
+    return task;
+  }
+  const onEvent = (e: StreamEvent) => {
+    if (e.kind === "bytes") task.terminal.write(decodeBase64(e.data));
+    else if (e.kind !== "exit") task.terminal.writeln(e.data);
+  };
+  try {
+    const { cols, rows } = task.terminal;
+    const exit = await unblockFilesStream(task.id, target, recursive, cols, rows, onEvent);
+    tasks.finish(task.id, exit);
+  } catch (err) {
+    task.terminal.write(`\r\n\x1b[31m${String(err)}\x1b[0m\r\n`);
     tasks.finish(task.id, -1, "error");
   }
   return task;

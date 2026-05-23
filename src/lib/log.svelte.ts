@@ -24,7 +24,14 @@ export type LogAction =
   | "power.unlock"
   | "onedrive.backup"
   | "onedrive.uninstall"
-  | "context_menu.toggle";
+  | "context_menu.toggle"
+  | "defender.toggle"
+  | "defender.exclusion.add"
+  | "defender.exclusion.remove"
+  | "schtasks.toggle"
+  | "schtasks.run"
+  | "schtasks.delete"
+  | "recall.wipe";
 
 export type LogEntry = {
   id: number;
@@ -131,4 +138,11 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "onedrive.backup": "OneDrive backup",
   "onedrive.uninstall": "OneDrive removed",
   "context_menu.toggle": "Shell extension toggled",
+  "defender.toggle": "Defender setting toggled",
+  "defender.exclusion.add": "Defender exclusion added",
+  "defender.exclusion.remove": "Defender exclusion removed",
+  "schtasks.toggle": "Scheduled task toggled",
+  "schtasks.run": "Scheduled task run",
+  "schtasks.delete": "Scheduled task deleted",
+  "recall.wipe": "Recall data wiped",
 };

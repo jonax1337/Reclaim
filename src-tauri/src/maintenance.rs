@@ -376,32 +376,13 @@ fn pty_send_chunk(chan: &Channel<StreamEvent>, bytes: &[u8]) -> bool {
 }
 
 #[cfg(windows)]
-#[tauri::command]
-pub async fn maintenance_run_stream(
+pub(crate) async fn run_pty_script(
     task_id: String,
-    op: String,
+    script: String,
     cols: u16,
     rows: u16,
     on_event: Channel<StreamEvent>,
 ) -> Result<i32, String> {
-    let (label, body) = op_catalog(&op).ok_or_else(|| format!("Unknown op: {op}"))?;
-    // PowerShell wrapper:
-    //   chcp 65001        — UTF-8 console code page so native tools (sfc, DISM,
-    //                       chkdsk) emit UTF-8 instead of OEM. Also affects
-    //                       child processes spawned inside.
-    //   $PSStyle.*        — enable ANSI rendering on PS7+; on Windows PS 5.1 the
-    //                       host already uses ANSI when attached to a ConPTY.
-    //   Write-Host header — colored banner so the user knows which op started.
-    //   exit $LASTEXITCODE — propagate the native tool's exit code through PS.
-    let script = format!(
-        "chcp 65001 2>&1 | Out-Null; \
-         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
-         $OutputEncoding = [System.Text.Encoding]::UTF8; \
-         Write-Host '>>> {label}' -ForegroundColor Cyan; \
-         {body}; \
-         exit $LASTEXITCODE"
-    );
-
     let safe_cols = cols.max(40);
     let safe_rows = rows.max(8);
     let chan = on_event.clone();
@@ -487,6 +468,113 @@ pub async fn maintenance_run_stream(
         progress: false,
     });
     Ok(exit_code)
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub async fn maintenance_run_stream(
+    task_id: String,
+    op: String,
+    cols: u16,
+    rows: u16,
+    on_event: Channel<StreamEvent>,
+) -> Result<i32, String> {
+    let (label, body) = op_catalog(&op).ok_or_else(|| format!("Unknown op: {op}"))?;
+    // PowerShell wrapper:
+    //   chcp 65001        — UTF-8 console code page so native tools (sfc, DISM,
+    //                       chkdsk) emit UTF-8 instead of OEM. Also affects
+    //                       child processes spawned inside.
+    //   $PSStyle.*        — enable ANSI rendering on PS7+; on Windows PS 5.1 the
+    //                       host already uses ANSI when attached to a ConPTY.
+    //   Write-Host header — colored banner so the user knows which op started.
+    //   exit $LASTEXITCODE — propagate the native tool's exit code through PS.
+    let script = format!(
+        "chcp 65001 2>&1 | Out-Null; \
+         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+         $OutputEncoding = [System.Text.Encoding]::UTF8; \
+         Write-Host '>>> {label}' -ForegroundColor Cyan; \
+         {body}; \
+         exit $LASTEXITCODE"
+    );
+    run_pty_script(task_id, script, cols, rows, on_event).await
+}
+
+/// Strict path validation for paths interpolated into the unblock PowerShell.
+#[cfg(windows)]
+fn looks_like_safe_unblock_path(p: &str) -> bool {
+    !p.is_empty()
+        && p.len() < 1024
+        && !p.contains('\n')
+        && !p.contains('\r')
+        && !p.contains('"')
+        && !p.contains('\'')
+        && !p.contains('`')
+        && !p.contains('$')
+        && !p.contains("..")
+        && p.contains(':')
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub async fn unblock_files_stream(
+    task_id: String,
+    target: String,
+    recursive: bool,
+    cols: u16,
+    rows: u16,
+    on_event: Channel<StreamEvent>,
+) -> Result<i32, String> {
+    if !looks_like_safe_unblock_path(&target) {
+        return Err("Rejected target path".into());
+    }
+    if !std::path::Path::new(&target).exists() {
+        return Err("Target does not exist".into());
+    }
+    let recurse_flag = if recursive { "-Recurse " } else { "" };
+    // The path has been validated above; no quote/newline/backtick/dollar can
+    // appear in it, so single-quoted interpolation is safe.
+    let script = format!(
+        "chcp 65001 2>&1 | Out-Null; \
+         [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; \
+         $OutputEncoding = [System.Text.Encoding]::UTF8; \
+         Write-Host '>>> Unblock-File on {target}' -ForegroundColor Cyan; \
+         $target = '{target}'; \
+         if (Test-Path -LiteralPath $target -PathType Container) {{ \
+            $items = Get-ChildItem -LiteralPath $target {recurse_flag}-File -Force -ErrorAction SilentlyContinue; \
+            $total = ($items | Measure-Object).Count; \
+            Write-Host \"Found $total files to inspect.\" -ForegroundColor DarkGray; \
+            $unblocked = 0; \
+            foreach ($f in $items) {{ \
+                $alt = Get-Item -LiteralPath $f.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue; \
+                if ($alt) {{ \
+                    try {{ Unblock-File -LiteralPath $f.FullName -ErrorAction Stop; Write-Host \"  unblocked $($f.FullName)\" -ForegroundColor Green; $unblocked++ }} \
+                    catch {{ Write-Host \"  failed $($f.FullName): $_\" -ForegroundColor Red }} \
+                }} \
+            }}; \
+            Write-Host \">>> Unblocked $unblocked file(s) out of $total.\" -ForegroundColor Cyan \
+         }} else {{ \
+            $alt = Get-Item -LiteralPath $target -Stream Zone.Identifier -ErrorAction SilentlyContinue; \
+            if ($alt) {{ \
+                try {{ Unblock-File -LiteralPath $target -ErrorAction Stop; Write-Host \"  unblocked $target\" -ForegroundColor Green }} \
+                catch {{ Write-Host \"  failed: $_\" -ForegroundColor Red }} \
+            }} else {{ Write-Host '>>> File has no Zone.Identifier — nothing to unblock.' -ForegroundColor DarkGray }} \
+         }}; \
+         exit 0"
+    );
+    run_pty_script(task_id, script, cols, rows, on_event).await
+}
+
+#[cfg(not(windows))]
+#[tauri::command]
+pub async fn unblock_files_stream(
+    _task_id: String,
+    _target: String,
+    _recursive: bool,
+    _cols: u16,
+    _rows: u16,
+    _on_event: Channel<StreamEvent>,
+) -> Result<i32, String> {
+    Err("Unblock is Windows-only.".into())
 }
 
 #[cfg(windows)]

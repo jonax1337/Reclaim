@@ -81,22 +81,29 @@ Goal of this phase: everything needed before a 1.0 release.
 
 ---
 
+## ✅ Phase 7 — System depth (v0.9.0)
+
+Five of the original "Cross-cutting future ideas" landed as a v0.9.0 batch.
+
+Shipped:
+- **Defender** (`/defender`) — Combined toggles (real-time protection, cloud-delivered protection, sample submission, PUA, network protection, controlled folder access, SmartScreen Explorer/Edge/Store) + Files & folders / Processes / Extensions exclusions editor. New `defender.rs` module wraps `Get-MpPreference` / `Set-MpPreference` / `Add-MpPreference` / `Remove-MpPreference`. Read-only Tamper Protection indicator.
+- **Scheduled tasks** (`/scheduled-tasks`) — Path-grouped browser; per-task Enable/Disable/Run/Delete; "Notable" badge on the 13 known MS telemetry tasks; Show/Hide Microsoft tasks toggle. New `schtasks.rs` module.
+- **Recall data wipe** (in `/ai`) — Status card detects the `CoreAIPlatform.00` snapshot store, shows disk use + snapshot count, offers a destructive wipe (with optional policy lock + AppX removal). New `recall.rs` module using `takeown` + `icacls` + recursive remove.
+- **Mass file unblock** (in `/maintenance`) — Pick a folder/file, optionally recurse, strip `Zone.Identifier` via `Unblock-File`. Output streams into the embedded ConPTY terminal. New `unblock_files_stream` command built on a shared `maintenance::run_pty_script` helper.
+- **Telemetry firewall** (`/firewall`) — Sentinel-grouped (`Reclaim:`) outbound Windows Firewall rules for 4 curated lists (MS telemetry programs, MS telemetry IPs, MS ads/suggestions IPs, Office telemetry IPs). Apply/Re-apply/Remove idempotent — re-apply refreshes the rule set. New `firewall.rs` module.
+
+---
+
 ## Cross-cutting future ideas (post-1.0, not committed)
 
-These could become Phase 7+ if there's demand:
+These could become Phase 8+ if there's demand:
 
-- **Defender exception manager** — toggle SmartScreen, real-time protection, cloud protection per setting.
 - **Browser tweaks** — Edge policies for hub sidebar, copilot, news feed (some already covered as tweaks).
-- **Telemetry firewall** — auto-block list of MS telemetry IPs via Windows Firewall rules (in addition to the hosts blocklists).
-- **Schtasks tree** — full scheduled-task browser like the Services route.
 - **Driver rollback** — list installed driver versions, roll back via `pnputil`.
 - **AMD / Intel driver auto-update** — same flow as the NVIDIA one in v0.8.0.
 - **Default-app override** — Edge → user-choice for PDF/PNG/HTML in one click.
-- **Recall data wipe** — if Recall was enabled previously, scrub the snapshot store.
 - **Wallpaper / Lock screen customizer**.
 - **Sound scheme picker**.
-- **Mass file unblock** — Zone.Identifier removal for downloaded files.
-- **Schtasks-grade Defender exclusions UI** — currently any registry-only.
 
 ---
 

@@ -4,15 +4,15 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.8.0.** Phases 1-5 shipped, Phase 6 partially shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.9.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Headline numbers:
 - **123 reversible tweaks** across 8 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates)
 - **63 bloatware patterns** across 7 groups
 - **46 winget apps** across 8 groups (16 recommended)
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **26 routes** in a 9-group sidebar
-- **47 Tauri commands** across 14 Rust modules
+- **29 routes** in a 9-group sidebar
+- **57 Tauri commands** across 17 Rust modules
 
 Headline features built since v0.1.0:
 - Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
@@ -22,6 +22,7 @@ Headline features built since v0.1.0:
 - Profile Builder (v0.6.0): custom profiles, `.reclaim` JSON envelope with schema versioning, import/export.
 - Polish (v0.7.0): portable mode, crash-safe activity.log mirror, auto-updater wiring.
 - OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
+- Defender combined route, Scheduled tasks browser, Recall data wipe, Mass file unblock, Telemetry firewall (v0.9.0).
 
 **Still open for v1.0.0**: i18n (DE + EN), code-signing the installer (EV cert or SignPath).
 
@@ -87,25 +88,25 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 - **`AdminBanner.svelte`** — top-of-route banner for admin-required pages in lite mode; clickable to re-launch elevated.
 - **`TerminalPanel.svelte`** — xterm widget bound to a `tasks` entry; resizes via ResizeObserver + `maintenance_pty_resize`, kill button calls `maintenance_pty_kill`.
 
-### `src/routes/` — 26 routes
+### `src/routes/` — 29 routes
 
 Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
 - **Top:** Dashboard (`/`), Profiles (`/profiles`)
 - **Clean up:** Bloatware (`/bloatware`), OneDrive (`/onedrive`), AI & Copilot (`/ai`)
 - **Install:** Apps (`/apps`)
-- **Customize:** Privacy (`/privacy`), Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
-- **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*
+- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
+- **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*, Firewall (`/firewall`)\*
 - **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
-- **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Maintenance (`/maintenance`)\*
+- **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*
 - **App:** Activity log (`/logs`), Settings (`/settings`)
 - Plus `/profile-builder` (entered from `/profiles`) and `NotFound` (`*`).
 
 \* admin required — hidden / locked in restricted mode, click-to-elevate buttons everywhere.
 
-### `src-tauri/src/` — 14 modules, 47 commands
+### `src-tauri/src/` — 17 modules, 57 commands
 
-- **`lib.rs`** — plugin init + `invoke_handler!` registry (47 commands).
+- **`lib.rs`** — plugin init + `invoke_handler!` registry (57 commands).
 - **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode detected via `portable.txt` or `data/` sibling.
 - **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current).
 - **`sysquery.rs`** — `get_hardware_info` (WMI JSON), `list_startup_apps` (Run keys + Startup folders + StartupApproved binary + `StartupFolderPackagedAppX` for UWP), `set_startup_enabled` (writes 12-byte binary `0x02`/`0x03` to StartupApproved), `list_services`, `set_service`.
@@ -115,11 +116,15 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **`driver_update.rs`** — `lookup_nvidia_driver(gpu_name)` queries the public NVIDIA series/family API for the latest driver. `download_driver(url, filename)` streams to `%DOWNLOADS%` with live progress events. `launch_installer(path)` spawns with `DETACHED_PROCESS`. `reveal_in_explorer(path)` opens Explorer `/select`.
 - **`winget.rs`** — `winget_available`, `winget_version`, `winget_list_installed` / `winget_list_upgradable` (raw text; frontend regex-matches catalog IDs to versions), `winget_install` / `winget_uninstall` / `winget_upgrade` with `-e --silent --accept-source-agreements --accept-package-agreements`. Streaming variant `winget_run_stream(op, id, scope_user, on_event)` emits live stdout/stderr events to an xterm.
 - **`network.rs`** — `read_hosts` / `write_hosts` (atomic; auto-backup to `hosts.reclaim.bak`), `has_hosts_backup` / `restore_hosts_backup`, `apply_blocklist` / `remove_blocklist` / `list_active_blocklists` (sentinel pattern `# >>> Reclaim: Name` … `# <<< Reclaim: Name`), `fetch_blocklist` (HTTP GET, parses hosts-format), `flush_dns`, `get_dns_servers` / `set_dns_servers` / `reset_dns_servers`, `set_doh_template`.
-- **`maintenance.rs`** — ConPTY-backed maintenance runner. `maintenance_run_stream(task_id, op, cols, rows, on_event)` spawns the op in a `portable-pty` session, streams output via `tauri::ipc::Channel<StreamEvent>`. `maintenance_pty_resize(task_id, cols, rows)`, `maintenance_pty_kill(task_id)`. Power-plan ops: `list_power_plans` (parses `powercfg /list` output), `set_power_plan(guid)`, `unlock_ultimate_performance` (duplicates the hidden GUID `e9a42b02-d5df-448d-aa00-03f14749eb61`), `delete_power_plan(guid)` (blocks built-in GUIDs). Plus `launch_cleanmgr`, `launch_memory_diagnostic`. GUID inputs validated; PowerShell payloads are static per operation, no string injection.
+- **`maintenance.rs`** — ConPTY-backed maintenance runner. `maintenance_run_stream(task_id, op, cols, rows, on_event)` spawns the op in a `portable-pty` session, streams output via `tauri::ipc::Channel<StreamEvent>`. `maintenance_pty_resize(task_id, cols, rows)`, `maintenance_pty_kill(task_id)`. `unblock_files_stream(task_id, target, recursive, ...)` strips `Zone.Identifier` (Mark-of-the-Web) via `Unblock-File` — path is strictly validated then interpolated into a static-template script run through the same PTY pipeline (the shared helper is `run_pty_script`). Power-plan ops: `list_power_plans` (parses `powercfg /list` output), `set_power_plan(guid)`, `unlock_ultimate_performance` (duplicates the hidden GUID `e9a42b02-d5df-448d-aa00-03f14749eb61`), `delete_power_plan(guid)` (blocks built-in GUIDs). Plus `launch_cleanmgr`, `launch_memory_diagnostic`. GUID inputs validated; PowerShell payloads are static per operation, no string injection.
 - **`onedrive.rs`** — `onedrive_detect` (process + registry + folder-redirection state), `onedrive_backup(target_dir, items)` (robocopy each source, path validation against safe roots), `onedrive_uninstall(disable_policy, remove_leftovers)` (stops process, runs `OneDriveSetup.exe /uninstall`, optionally removes leftover folders and writes the `DisableFileSyncNGSC` group policy).
 - **`context_menu.rs`** — `context_menu_list` enumerates `ContextMenuHandlers` under Files/Folders/Folder-background/Drives/AllFileObjects, dedupes by CLSID, resolves friendly names from `HKCR\CLSID\<id>`. `context_menu_toggle(clsid, disabled)` writes `HKLM\…\Shell Extensions\Blocked\<guid>`.
 - **`icons.rs`** — `get_file_icons(commands)` extracts base64-PNG icons from EXEs via `Icon.ExtractAssociatedIcon().ToBitmap()`. Uses a `ResolveCommand` helper that handles quoted paths, env-var expansion, `.lnk` target resolution, Squirrel-updater path-hop (`Update.exe` → `app-*.*.*\<Name>.exe`), and progressive whitespace trim for unquoted paths with embedded spaces (e.g. `F:\Riot Games\Riot Client\...`). `get_appx_icons(patterns)` reads `Square44x44Logo` (or fallbacks) from each installed package's `InstallLocation\AppxManifest.xml`. `resolve_commands(commands)` is the batch path resolver shared with Properties + Open File Location actions. `open_properties(command)` invokes the Shell.Application "Properties" verb.
 - **`files.rs`** — `read_text_file(path)` / `write_text_file(path, content)` for paths picked via `@tauri-apps/plugin-dialog` (`save()` / `open()`). No `tauri-plugin-fs` dep.
+- **`defender.rs`** — `defender_status` (Get-MpPreference + Tamper/SmartScreen reg reads → JSON), `defender_set_setting(setting, enabled)` (whitelisted `setting` enum maps to `Set-MpPreference` flag or specific reg write — no string interpolation from frontend), `defender_list_exclusions`, `defender_add_exclusion` / `defender_remove_exclusion` (`Add-MpPreference` / `Remove-MpPreference` with `ExclusionPath` / `ExclusionProcess` / `ExclusionExtension`, strict input validation).
+- **`schtasks.rs`** — `list_scheduled_tasks` (parses `Get-ScheduledTask | Get-ScheduledTaskInfo` to JSON), `set_scheduled_task(path, name, enabled)`, `run_scheduled_task(path, name)`, `delete_scheduled_task(path, name)`. Path + name validated (must start with `\`, no quotes/newlines).
+- **`recall.rs`** — `recall_status` detects the Copilot+ snapshot store under `%LOCALAPPDATA%\CoreAIPlatform.00` (presence, size, snapshot count, AppX state, policy state). `recall_wipe(also_remove_appx, also_set_policy)` uses `takeown` + `icacls` + recursive `Remove-Item` because the data dir is normally locked, then optionally writes `DisableAIDataAnalysis = 1` and removes the `MicrosoftWindows.Client.AIX` AppX.
+- **`firewall.rs`** — Sentinel-grouped (`Reclaim:` prefix) outbound Windows Firewall block manager. `firewall_list_blocks` returns active reclaim groups with rule + enabled counts. `firewall_apply_block(name, programs, remote_addresses)` wipes the group then re-creates one program rule per exe path + one combined `-RemoteAddress @(...)` rule per group. `firewall_remove_block(name)` deletes the group. All name/path/address inputs strictly validated before interpolation.
 
 ## Critical conventions
 

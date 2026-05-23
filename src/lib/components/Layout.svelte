@@ -26,6 +26,8 @@
     Wrench,
     Wand2,
     MousePointer2,
+    Clock,
+    Flame,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
@@ -133,6 +135,7 @@
       label: "Customize",
       items: [
         { href: "/privacy", label: "Privacy", icon: Shield },
+        { href: "/defender", label: "Defender", icon: ShieldCheck, adminOnly: true },
         { href: "/explorer", label: "Explorer", icon: FolderOpen },
         { href: "/context-menu", label: "Right-click menu", icon: MousePointer2, adminOnly: true },
         { href: "/taskbar", label: "Taskbar & Start", icon: Bell },
@@ -146,6 +149,7 @@
       items: [
         { href: "/hosts", label: "Hosts & blocklists", icon: ShieldOff, adminOnly: true },
         { href: "/network", label: "DNS & DoH", icon: NetworkIcon, adminOnly: true },
+        { href: "/firewall", label: "Firewall", icon: Flame, adminOnly: true },
       ],
     },
     {
@@ -162,6 +166,7 @@
         { href: "/specs", label: "Specs", icon: Cpu },
         { href: "/startup", label: "Startup apps", icon: Rocket },
         { href: "/services", label: "Services", icon: Cog, adminOnly: true },
+        { href: "/scheduled-tasks", label: "Scheduled tasks", icon: Clock, adminOnly: true },
         { href: "/maintenance", label: "Maintenance", icon: Wrench, adminOnly: true },
       ],
     },

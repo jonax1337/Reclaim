@@ -1,12 +1,16 @@
 mod app_info;
 mod context_menu;
+mod defender;
 mod driver_search;
 mod driver_update;
 mod files;
+mod firewall;
 mod icons;
 mod maintenance;
 mod network;
 mod onedrive;
+mod recall;
+mod schtasks;
 pub mod sysinfo;
 mod sysquery;
 mod tweaks;
@@ -94,6 +98,21 @@ pub fn run() {
             icons::resolve_commands,
             maintenance::launch_cleanmgr,
             maintenance::launch_memory_diagnostic,
+            maintenance::unblock_files_stream,
+            defender::defender_status,
+            defender::defender_set_setting,
+            defender::defender_list_exclusions,
+            defender::defender_add_exclusion,
+            defender::defender_remove_exclusion,
+            schtasks::list_scheduled_tasks,
+            schtasks::set_scheduled_task,
+            schtasks::run_scheduled_task,
+            schtasks::delete_scheduled_task,
+            recall::recall_status,
+            recall::recall_wipe,
+            firewall::firewall_list_blocks,
+            firewall::firewall_apply_block,
+            firewall::firewall_remove_block,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

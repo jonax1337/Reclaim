@@ -16,6 +16,7 @@
   import Performance from "./routes/Performance.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
+  import Firewall from "./routes/Firewall.svelte";
   import Apps from "./routes/Apps.svelte";
   import Notifications from "./routes/Notifications.svelte";
   import Maintenance from "./routes/Maintenance.svelte";
@@ -23,9 +24,11 @@
   import ProfileBuilder from "./routes/ProfileBuilder.svelte";
   import OneDrive from "./routes/OneDrive.svelte";
   import ContextMenu from "./routes/ContextMenu.svelte";
+  import Defender from "./routes/Defender.svelte";
   import Specs from "./routes/Specs.svelte";
   import Startup from "./routes/Startup.svelte";
   import Services from "./routes/Services.svelte";
+  import ScheduledTasks from "./routes/ScheduledTasks.svelte";
   import Logs from "./routes/Logs.svelte";
   import Settings from "./routes/Settings.svelte";
   import NotFound from "./routes/NotFound.svelte";
@@ -51,6 +54,7 @@
     ["/performance", Performance],
     ["/hosts", Hosts],
     ["/network", Network],
+    ["/firewall", Firewall],
     ["/apps", Apps],
     ["/notifications", Notifications],
     ["/maintenance", Maintenance],
@@ -58,12 +62,14 @@
     ["/profile-builder", ProfileBuilder],
     ["/onedrive", OneDrive],
     ["/context-menu", ContextMenu],
+    ["/defender", Defender],
     ["/updates", Updates],
     ["/windows-update", WindowsUpdate],
     ["/drivers", Drivers],
     ["/specs", Specs],
     ["/startup", Startup],
     ["/services", Services],
+    ["/scheduled-tasks", ScheduledTasks],
     ["/logs", Logs],
     ["/settings", Settings],
   ];

@@ -13,6 +13,9 @@
     Zap,
     Sparkles,
     AlertTriangle,
+    FileCheck2,
+    FolderOpen,
+    File as FileIcon,
     Trash2,
     Shield,
     ShieldCheck,
@@ -26,6 +29,7 @@
     Activity,
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
+  import { open as openDialog } from "@tauri-apps/plugin-dialog";
   import {
     isTauri,
     setPowerPlan,
@@ -38,7 +42,7 @@
   } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import { log } from "$lib/log.svelte";
-  import { tasks, runMaintenanceTask } from "$lib/tasks.svelte";
+  import { tasks, runMaintenanceTask, runUnblockTask } from "$lib/tasks.svelte";
   import { cn } from "$lib/utils";
   import { powerPlansResource } from "$lib/route-cache.svelte";
   import { invalidate } from "$lib/cache.svelte";
@@ -412,6 +416,59 @@
   function groupOps(g: OpGroup) {
     return OPS.filter((o) => o.group === g);
   }
+
+  // ---- Mass file unblock ----
+  let unblockTarget = $state("");
+  let unblockRecursive = $state(true);
+
+  const unblockRunning = $derived(tasks.hasRunning("unblock"));
+
+  async function pickUnblockFolder() {
+    try {
+      const picked = await openDialog({
+        directory: true,
+        multiple: false,
+        title: "Choose folder to unblock",
+      });
+      if (picked && typeof picked === "string") unblockTarget = picked;
+    } catch (e) {
+      toast.error("Could not open folder picker", String(e));
+    }
+  }
+
+  async function pickUnblockFile() {
+    try {
+      const picked = await openDialog({
+        directory: false,
+        multiple: false,
+        title: "Choose file to unblock",
+      });
+      if (picked && typeof picked === "string") unblockTarget = picked;
+    } catch (e) {
+      toast.error("Could not open file picker", String(e));
+    }
+  }
+
+  async function runUnblock() {
+    if (unblockRunning) {
+      tasks.panelOpen = true;
+      return;
+    }
+    const target = unblockTarget.trim();
+    if (!target) {
+      toast.error("Pick a folder or file first");
+      return;
+    }
+    log.info("maintenance.run", "Mass file unblock", `Target: ${target}`);
+    const task = await runUnblockTask(target, unblockRecursive);
+    if (task.status === "success") {
+      log.success("maintenance.run", "Mass file unblock", "Unblock finished");
+      toast.success("Unblock finished");
+    } else if (task.status === "error") {
+      log.error("maintenance.run", "Mass file unblock", `Failed (exit ${task.exitCode ?? "?"})`);
+      toast.error("Unblock failed", `Exit code ${task.exitCode ?? "?"}`);
+    }
+  }
 </script>
 
 <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -543,6 +600,68 @@
       {/if}
     </Card>
   {/each}
+
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
+    Files
+  </h2>
+  <Card class="card-inset mb-6">
+    <div class="px-5 py-4 flex items-start gap-3 border-b border-foreground/8">
+      <div class="grid place-items-center size-9 rounded-md bg-primary/15 text-primary shrink-0">
+        <FileCheck2 class="size-4" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <h3 class="text-base font-semibold">Mass file unblock</h3>
+        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Strips the <code class="font-mono text-[11px]">Zone.Identifier</code> alternate-data-stream
+          (Mark-of-the-Web) from a folder or single file. Useful for big downloads where every file
+          would otherwise trigger a SmartScreen prompt.
+        </p>
+      </div>
+      {#if unblockRunning}
+        <Badge variant="success">Running</Badge>
+      {/if}
+    </div>
+    <div class="px-5 py-4 flex flex-col gap-3">
+      <div class="flex flex-wrap gap-2">
+        <input
+          type="text"
+          bind:value={unblockTarget}
+          placeholder="C:\Users\You\Downloads\extracted-archive"
+          class="flex-1 min-w-0 h-9 px-3 rounded-md border border-input bg-card text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
+          disabled={unblockRunning}
+        />
+        <Button variant="outline" size="sm" onclick={pickUnblockFolder} disabled={unblockRunning}>
+          <FolderOpen />
+          Folder
+        </Button>
+        <Button variant="outline" size="sm" onclick={pickUnblockFile} disabled={unblockRunning}>
+          <FileIcon />
+          File
+        </Button>
+      </div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+        <input
+          type="checkbox"
+          bind:checked={unblockRecursive}
+          disabled={unblockRunning}
+          class="size-4 rounded border-input"
+        />
+        <span>Recurse into subfolders (folder targets only)</span>
+      </label>
+      <div class="flex justify-end">
+        {#if unblockRunning}
+          <Button size="sm" variant="outline" onclick={() => (tasks.panelOpen = true)}>
+            Show output
+          </Button>
+        {:else}
+          <Button size="sm" onclick={runUnblock}>
+            <Play />
+            Unblock
+          </Button>
+        {/if}
+      </div>
+    </div>
+  </Card>
 
   <div class="flex items-center justify-between mb-2 mt-6">
     <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">

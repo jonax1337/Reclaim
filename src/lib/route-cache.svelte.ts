@@ -23,6 +23,11 @@ import {
   listActiveBlocklists,
   getDnsServers,
   contextMenuList,
+  defenderStatus,
+  defenderListExclusions,
+  listScheduledTasks,
+  recallStatus,
+  firewallListBlocks,
   onedriveDetect,
   wingetAvailable,
   wingetVersion,
@@ -39,6 +44,11 @@ import {
   type HostsBlock,
   type AdapterDns,
   type ContextMenuEntry,
+  type DefenderStatus,
+  type DefenderExclusions,
+  type ScheduledTask,
+  type RecallStatus,
+  type FirewallBlock,
   type OneDriveStatus,
   type SystemInfo,
   type WingetVersion,
@@ -233,6 +243,42 @@ export function dnsResource(): Resource<AdapterDns[]> {
 export const K_CTXMENU = "context-menu.list";
 export function contextMenuResource(): Resource<ContextMenuEntry[]> {
   return cachedResource<ContextMenuEntry[]>(K_CTXMENU, contextMenuList, { ttl: MEDIUM });
+}
+
+// ─── Defender ────────────────────────────────────────────────────────────────
+
+export const K_DEFENDER_STATUS = "defender.status";
+export const K_DEFENDER_EXCLUSIONS = "defender.exclusions";
+export function defenderStatusResource(): Resource<DefenderStatus> {
+  return cachedResource<DefenderStatus>(K_DEFENDER_STATUS, defenderStatus, { ttl: SHORT });
+}
+export function defenderExclusionsResource(): Resource<DefenderExclusions> {
+  return cachedResource<DefenderExclusions>(K_DEFENDER_EXCLUSIONS, defenderListExclusions, {
+    ttl: SHORT,
+  });
+}
+
+// ─── Scheduled tasks ─────────────────────────────────────────────────────────
+
+export const K_SCHTASKS = "schtasks.list";
+export function scheduledTasksResource(): Resource<ScheduledTask[]> {
+  return cachedResource<ScheduledTask[]>(K_SCHTASKS, listScheduledTasks, { ttl: MEDIUM });
+}
+
+// ─── Recall ──────────────────────────────────────────────────────────────────
+
+export const K_RECALL_STATUS = "recall.status";
+export function recallStatusResource(): Resource<RecallStatus> {
+  return cachedResource<RecallStatus>(K_RECALL_STATUS, recallStatus, { ttl: SHORT });
+}
+
+// ─── Firewall blocks ─────────────────────────────────────────────────────────
+
+export const K_FIREWALL_BLOCKS = "firewall.blocks";
+export function firewallBlocksResource(): Resource<FirewallBlock[]> {
+  return cachedResource<FirewallBlock[]>(K_FIREWALL_BLOCKS, firewallListBlocks, {
+    ttl: SHORT,
+  });
 }
 
 // ─── OneDrive ────────────────────────────────────────────────────────────────

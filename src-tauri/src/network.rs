@@ -249,7 +249,7 @@ pub async fn fetch_blocklist(url: String) -> Result<Vec<String>, String> {
             .build()
             .map_err(|e| format!("HTTP client build: {e}"))?
             .get(&url2)
-            .header("User-Agent", "Reclaim/0.7 (https://github.com/jonax1337/reclaim)")
+            .header("User-Agent", "Reclaim/0.9 (https://github.com/jonax1337/reclaim)")
             .send()
             .await
             .map_err(|e| format!("HTTP error: {e}"))?;

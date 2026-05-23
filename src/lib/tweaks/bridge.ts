@@ -376,6 +376,37 @@ export async function resetDnsServers(adapter: string): Promise<void> {
   await invoke("reset_dns_servers", { adapter });
 }
 
+export type FirewallBlock = {
+  name: string;
+  ruleCount: number;
+  enabledCount: number;
+};
+
+export async function firewallListBlocks(): Promise<FirewallBlock[]> {
+  const raw = await invoke<
+    Array<{ name: string; rule_count: number; enabled_count: number }>
+  >("firewall_list_blocks");
+  return raw.map((r) => ({
+    name: r.name,
+    ruleCount: r.rule_count,
+    enabledCount: r.enabled_count,
+  }));
+}
+
+export async function firewallApplyBlock(
+  name: string,
+  programs: string[],
+  remoteAddresses: string[],
+): Promise<number> {
+  return invoke<number>("firewall_apply_block", {
+    apply: { name, programs, remote_addresses: remoteAddresses },
+  });
+}
+
+export async function firewallRemoveBlock(name: string): Promise<void> {
+  await invoke("firewall_remove_block", { name });
+}
+
 export async function setDohTemplate(
   serverIp: string,
   template: string,
@@ -485,6 +516,26 @@ export async function maintenanceRunStream(
   return invoke<number>("maintenance_run_stream", {
     taskId,
     op,
+    cols,
+    rows,
+    onEvent: channel,
+  });
+}
+
+export async function unblockFilesStream(
+  taskId: string,
+  target: string,
+  recursive: boolean,
+  cols: number,
+  rows: number,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("unblock_files_stream", {
+    taskId,
+    target,
+    recursive,
     cols,
     rows,
     onEvent: channel,
@@ -650,6 +701,192 @@ export async function launchCleanmgr(): Promise<void> {
 
 export async function launchMemoryDiagnostic(): Promise<void> {
   await invoke("launch_memory_diagnostic");
+}
+
+export type DefenderStatus = {
+  realtimeProtection: boolean;
+  cloudProtection: boolean;
+  sampleSubmission: boolean;
+  puaProtection: boolean;
+  networkProtection: boolean;
+  controlledFolderAccess: boolean;
+  tamperProtection: boolean;
+  smartscreenExplorer: boolean;
+  smartscreenEdge: boolean;
+  smartscreenStore: boolean;
+  serviceRunning: boolean;
+  managedByPolicy: boolean;
+};
+
+export type DefenderSetting =
+  | "realtime_protection"
+  | "cloud_protection"
+  | "sample_submission"
+  | "pua_protection"
+  | "network_protection"
+  | "controlled_folder_access"
+  | "smartscreen_explorer"
+  | "smartscreen_edge"
+  | "smartscreen_store";
+
+export type DefenderExclusionKind = "path" | "process" | "extension";
+
+export type DefenderExclusions = {
+  paths: string[];
+  processes: string[];
+  extensions: string[];
+};
+
+export async function defenderStatus(): Promise<DefenderStatus> {
+  const raw = await invoke<{
+    realtime_protection: boolean;
+    cloud_protection: boolean;
+    sample_submission: boolean;
+    pua_protection: boolean;
+    network_protection: boolean;
+    controlled_folder_access: boolean;
+    tamper_protection: boolean;
+    smartscreen_explorer: boolean;
+    smartscreen_edge: boolean;
+    smartscreen_store: boolean;
+    service_running: boolean;
+    managed_by_policy: boolean;
+  }>("defender_status");
+  return {
+    realtimeProtection: raw.realtime_protection,
+    cloudProtection: raw.cloud_protection,
+    sampleSubmission: raw.sample_submission,
+    puaProtection: raw.pua_protection,
+    networkProtection: raw.network_protection,
+    controlledFolderAccess: raw.controlled_folder_access,
+    tamperProtection: raw.tamper_protection,
+    smartscreenExplorer: raw.smartscreen_explorer,
+    smartscreenEdge: raw.smartscreen_edge,
+    smartscreenStore: raw.smartscreen_store,
+    serviceRunning: raw.service_running,
+    managedByPolicy: raw.managed_by_policy,
+  };
+}
+
+export async function defenderSetSetting(
+  setting: DefenderSetting,
+  enabled: boolean,
+): Promise<void> {
+  await invoke("defender_set_setting", { setting, enabled });
+}
+
+export async function defenderListExclusions(): Promise<DefenderExclusions> {
+  return invoke<DefenderExclusions>("defender_list_exclusions");
+}
+
+export async function defenderAddExclusion(
+  kind: DefenderExclusionKind,
+  value: string,
+): Promise<void> {
+  await invoke("defender_add_exclusion", { req: { kind, value } });
+}
+
+export async function defenderRemoveExclusion(
+  kind: DefenderExclusionKind,
+  value: string,
+): Promise<void> {
+  await invoke("defender_remove_exclusion", { req: { kind, value } });
+}
+
+export type ScheduledTask = {
+  path: string;
+  name: string;
+  state: string;
+  author: string;
+  description: string;
+  lastRun: string | null;
+  lastResult: number;
+  nextRun: string | null;
+  triggers: string;
+  actions: string;
+};
+
+export async function listScheduledTasks(): Promise<ScheduledTask[]> {
+  const raw = await invoke<
+    Array<{
+      path: string;
+      name: string;
+      state: string;
+      author: string;
+      description: string;
+      last_run: string | null;
+      last_result: number;
+      next_run: string | null;
+      triggers: string;
+      actions: string;
+    }>
+  >("list_scheduled_tasks");
+  return raw.map((t) => ({
+    path: t.path,
+    name: t.name,
+    state: t.state,
+    author: t.author,
+    description: t.description,
+    lastRun: t.last_run,
+    lastResult: t.last_result,
+    nextRun: t.next_run,
+    triggers: t.triggers,
+    actions: t.actions,
+  }));
+}
+
+export async function setScheduledTask(
+  path: string,
+  name: string,
+  enabled: boolean,
+): Promise<void> {
+  await invoke("set_scheduled_task", { task: { path, name }, enabled });
+}
+
+export async function runScheduledTask(path: string, name: string): Promise<void> {
+  await invoke("run_scheduled_task", { task: { path, name } });
+}
+
+export async function deleteScheduledTask(path: string, name: string): Promise<void> {
+  await invoke("delete_scheduled_task", { task: { path, name } });
+}
+
+export type RecallStatus = {
+  dataPresent: boolean;
+  dataPath: string | null;
+  sizeBytes: number;
+  snapshotCount: number;
+  appxInstalled: boolean;
+  policyDisabled: boolean;
+};
+
+export async function recallStatus(): Promise<RecallStatus> {
+  const raw = await invoke<{
+    data_present: boolean;
+    data_path: string | null;
+    size_bytes: number;
+    snapshot_count: number;
+    appx_installed: boolean;
+    policy_disabled: boolean;
+  }>("recall_status");
+  return {
+    dataPresent: raw.data_present,
+    dataPath: raw.data_path,
+    sizeBytes: raw.size_bytes,
+    snapshotCount: raw.snapshot_count,
+    appxInstalled: raw.appx_installed,
+    policyDisabled: raw.policy_disabled,
+  };
+}
+
+export async function recallWipe(
+  alsoRemoveAppx: boolean,
+  alsoSetPolicy: boolean,
+): Promise<PsResult> {
+  return invoke<PsResult>("recall_wipe", {
+    alsoRemoveAppx,
+    alsoSetPolicy,
+  });
 }
 
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
