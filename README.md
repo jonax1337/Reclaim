@@ -23,6 +23,21 @@ Why a PowerShell one-liner instead of "download the .exe"? Reclaim is unsigned a
 
 Manual download is also fine — grab the asset you want from [Releases](https://github.com/jonax1337/reclaim/releases/latest).
 
+## Headless / CLI mode
+
+The same `reclaim.exe` works as a sysadmin tool from `cmd` / PowerShell when called with `--` flags. Designed for unattended deployment (MDT / Intune / autounattend `<FirstLogonCommands>` / gold images):
+
+```powershell
+reclaim.exe --apply-profile basics --silent
+reclaim.exe --apply-tweak telemetry-off,advertising-id-off
+reclaim.exe --remove-bloat "*Spotify*,Microsoft.BingNews"
+reclaim.exe --import-profile gold-image.reclaim --apply --include-bloatware --silent
+reclaim.exe --export-state --json > state.json
+reclaim.exe --help                              # full reference
+```
+
+Same binary, same catalog, same activity-log mirror. No second .exe to ship.
+
 ## What it does
 
 **151 reversible tweaks** across 10 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:

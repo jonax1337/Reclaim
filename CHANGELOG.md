@@ -2,6 +2,34 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.14.0
+
+### Added
+
+- **CLI mode.** The same `reclaim.exe` that launches the GUI now drives every tweak / profile / bloatware operation from argv when invoked with `--`-style flags. Designed for sysadmin and gold-image scenarios (MDT / Intune / first-logon) where the Tauri window is dead weight. New flags:
+  - `--list-profiles`, `--list-tweaks [--category <c>]`, `--list-bloatware` — print the catalog (optionally as `--json`).
+  - `--apply-profile <id> [--include-bloatware]` — apply every tweak in a built-in profile (`basics`, `gaming`, `privacy-max`, `performance`).
+  - `--apply-tweak <id1>[,id2,…]` / `--revert-tweak …` / `--check-tweak …` — single-tweak operations.
+  - `--remove-bloat <pattern1>[,p2,…]` — AppX wildcard removal (`'*Spotify*'`, `Microsoft.BingNews`, …) for both current-user and provisioning.
+  - `--import-profile <file.reclaim> [--apply] [--include-bloatware]` — load a custom `.reclaim` envelope (same JSON the GUI exports), validate it, optionally execute.
+  - `--export-state [--json]` — dump every tweak's current on/off state for compliance auditing.
+  - `--silent` / `-q`, `--json`, `--yes` / `-y` are global modifiers.
+- **Catalog export pipeline.** New `pnpm catalog:export` (also runs automatically before `pnpm tauri:build`) bundles the TS catalog (`src/lib/tweaks/{catalog,bloatware,profiles}.ts` + `src/lib/apps/catalog.ts`) via esbuild and dumps it to `src-tauri/data/*.json`. The CLI binary `include_str!`s those files so headless and GUI mode share the exact same tweak / bloatware / profile data — no drift possible.
+- **`install.ps1` — same-version detection + silent install + terminal progress bar.**
+  - Now detects existing installs across `HKLM`, `HKLM\Wow6432Node`, and `HKCU` uninstall keys, and exits cleanly with a clear "Reclaim vX.Y.Z is already installed — nothing to do." message instead of silently re-running the installer. Opt-out via `$env:RECLAIM_FORCE='1'` for a forced reinstall.
+  - New `$env:RECLAIM_SILENT='1'` runs the NSIS installer with `/S` (or MSI with `/qn /norestart`) — no installer wizard, just the terminal. Combine with `$env:RECLAIM_MODE='install'` for fully unattended provisioning. Honored by `install` and `msi`; ignored for `portable` (nothing to silence).
+  - Replaces IWR's slow default progress bar with an in-line `[========     ] 42%  3.2 / 7.6 MB @ 4.5 MB/s` style display that works in plain `cmd.exe`, Conhost, and Windows Terminal alike. Buffered to ~120 ms ticks so fast connections don't melt the terminal.
+  - While the silent installer runs, a small `|/-\` spinner with "Installing Reclaim vX.Y.Z" keeps the terminal alive instead of dead air; the post-install uninstall-key recheck confirms success.
+  - New `$env:RECLAIM_NO_LAUNCH='1'` skips the "Launch Reclaim now?" prompt after a portable download (so the script can be chained from another script).
+
+### Internal
+
+- New Rust module `src-tauri/src/cli.rs` (~700 LOC). Reuses the existing `tweaks::run_ps` / registry primitives — the new `reg_write_sync` / `reg_delete_value_sync` / `reg_read_sync` helpers were factored out of the existing `#[tauri::command]` wrappers so both worlds share one implementation.
+- `main.rs` dispatches into CLI when any `--`-flag is present besides `--no-elevate`; otherwise the existing GUI elevate path runs unchanged.
+- Console attachment via `AttachConsole(ATTACH_PARENT_PROCESS)` so the GUI-subsystem binary writes back to the spawning `cmd` / `pwsh` terminal — no second `reclaim-cli.exe` to ship.
+- Activity log mirroring works the same as GUI: CLI writes JSON-lines to `%APPDATA%/Reclaim/activity.log` so subsequent GUI sessions see headless changes in the Activity Log route.
+- `install.ps1` em-dashes inside string literals were replaced with ASCII hyphens to work around Windows PowerShell 5.1's CP1252 default decoding of byte `0x94` (RIGHT DOUBLE QUOTATION MARK) which would otherwise prematurely terminate the string. Comments still use em-dashes — PS skips comments entirely so the bug is invisible there.
+
 ## v0.13.1
 
 ### Fixed

@@ -7,20 +7,31 @@
     portable build. Bypasses Edge's "publisher unknown" download prompt
     because the .exe arrives via PowerShell, not via the browser.
 
+    Env-var overrides (all optional, all string '1' / mode-name to opt in):
+      $env:RECLAIM_MODE      install | portable | msi   Skip the interactive picker.
+      $env:RECLAIM_SILENT    '1'                        Run the installer silently — no NSIS wizard,
+                                                        no MSI UI. Terminal output only. Honored for
+                                                        the 'install' and 'msi' modes.
+      $env:RECLAIM_FORCE     '1'                        Reinstall even if the latest version is already
+                                                        installed. Without this, the script exits cleanly
+                                                        when the installed version matches the release.
+      $env:RECLAIM_NO_LAUNCH '1'                        After a portable download, don't auto-launch.
+
 .EXAMPLE
     irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
 
 .EXAMPLE
-    # Non-interactive — pick the mode up front:
-    $env:RECLAIM_MODE = 'portable'; irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
+    # Non-interactive, silent install — useful for autounattend.xml /
+    # FirstLogonCommands or scripted provisioning:
+    $env:RECLAIM_MODE='install'; $env:RECLAIM_SILENT='1'; irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
 
-    # Valid RECLAIM_MODE values: install | portable | msi
 .LINK
     https://github.com/jonax1337/reclaim
 #>
 
 $ErrorActionPreference = 'Stop'
 # IWR's default progress bar repaints constantly and slows downloads ~10×.
+# We render our own (see Invoke-Download) below.
 $ProgressPreference = 'SilentlyContinue'
 
 # Cross-platform sanity: $IsLinux/$IsMacOS exist on PS 7+; on Windows PS 5.1
@@ -29,6 +40,10 @@ if ($IsLinux -or $IsMacOS) {
     Write-Host "Reclaim is Windows-only." -ForegroundColor Red
     return
 }
+
+$IsSilent  = $env:RECLAIM_SILENT -eq '1'
+$IsForce   = $env:RECLAIM_FORCE  -eq '1'
+$NoLaunch  = $env:RECLAIM_NO_LAUNCH -eq '1'
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -49,11 +64,106 @@ function Get-InstalledReclaim {
     try {
         Get-ItemProperty `
             'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*', `
+            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*', `
             'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' `
             -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -like 'Reclaim*' } |
             Select-Object -First 1
     } catch { $null }
+}
+
+function Format-Bytes($n) {
+    if ($null -eq $n -or $n -le 0) { return '? MB' }
+    return ('{0:N1} MB' -f ($n / 1MB))
+}
+
+# Stream a download to disk with a real progress bar — character-only so it
+# works in plain cmd.exe, conhost, and Windows Terminal alike. Buffered every
+# ~120 ms so it doesn't melt the terminal on fast connections.
+function Invoke-Download {
+    param(
+        [Parameter(Mandatory)] [string] $Url,
+        [Parameter(Mandatory)] [string] $OutFile,
+        [string] $Label = 'Downloading'
+    )
+
+    Add-Type -AssemblyName System.Net.Http -ErrorAction SilentlyContinue
+
+    $handler = New-Object System.Net.Http.HttpClientHandler
+    $handler.AutomaticDecompression = [System.Net.DecompressionMethods]::GZip -bor [System.Net.DecompressionMethods]::Deflate
+    $client  = New-Object System.Net.Http.HttpClient($handler)
+    $client.DefaultRequestHeaders.UserAgent.ParseAdd('Reclaim-Installer') | Out-Null
+    $client.Timeout = [TimeSpan]::FromMinutes(10)
+
+    try {
+        $resp = $client.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+        if (-not $resp.IsSuccessStatusCode) {
+            throw "HTTP $([int]$resp.StatusCode) $($resp.ReasonPhrase)"
+        }
+        $total      = $resp.Content.Headers.ContentLength
+        $stream     = $resp.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+        $fs         = [System.IO.File]::Create($OutFile)
+        $buffer     = New-Object byte[] 131072
+        $totalRead  = [long]0
+        $lastTick   = 0
+        $started    = [Environment]::TickCount
+        $barWidth   = 28
+
+        try {
+            while (($read = $stream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                $fs.Write($buffer, 0, $read)
+                $totalRead += $read
+                $now = [Environment]::TickCount
+                if ($now - $lastTick -gt 120) {
+                    $lastTick = $now
+                    $elapsed  = [Math]::Max(1, ($now - $started) / 1000)
+                    $speedMb  = ($totalRead / 1MB) / $elapsed
+                    if ($total) {
+                        $pct  = [Math]::Min(100, [Math]::Round(($totalRead / $total) * 100))
+                        $fill = [Math]::Floor($barWidth * ($pct / 100))
+                        $bar  = ('=' * $fill) + (' ' * ($barWidth - $fill))
+                        $line = "  $Label  [{0}] {1,3}%  {2} / {3}  @ {4:N1} MB/s   " -f `
+                            $bar, $pct, (Format-Bytes $totalRead), (Format-Bytes $total), $speedMb
+                    } else {
+                        $line = "  $Label  {0} downloaded @ {1:N1} MB/s   " -f (Format-Bytes $totalRead), $speedMb
+                    }
+                    Write-Host "`r$line" -NoNewline
+                }
+            }
+            # Final 100% line + newline so subsequent output isn't on the same row.
+            if ($total) {
+                $bar  = '=' * $barWidth
+                $line = "  $Label  [{0}] 100%  {1} / {1}                  " -f $bar, (Format-Bytes $total)
+            } else {
+                $line = "  $Label  {0} downloaded                       " -f (Format-Bytes $totalRead)
+            }
+            Write-Host "`r$line"
+        } finally {
+            $fs.Dispose()
+            $stream.Dispose()
+        }
+    } finally {
+        $client.Dispose()
+        $handler.Dispose()
+    }
+}
+
+# Tail the live "Reclaim*" uninstall registry entry, so the silent installer
+# (NSIS /S) gives the user a visible "Installing..." beat instead of dead air.
+# Spinner advances every ~250 ms while the installer process is alive.
+function Wait-ForInstaller {
+    param([System.Diagnostics.Process] $Proc, [string] $Label)
+    $spin = @('|', '/', '-', [char]92)
+    $i = 0
+    while (-not $Proc.HasExited) {
+        $sym = $spin[$i % $spin.Count]
+        Write-Host "`r  $Label $sym" -NoNewline -ForegroundColor White
+        Start-Sleep -Milliseconds 250
+        $i++
+    }
+    # Clear the spinner line.
+    Write-Host "`r$(' ' * (4 + $Label.Length + 2))" -NoNewline
+    Write-Host "`r" -NoNewline
 }
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -78,10 +188,20 @@ try {
 $version = $release.tag_name -replace '^v', ''
 Write-Step "Latest version: v$version" 'Green'
 
-if ($installed -and $installed.DisplayVersion -eq $version) {
+# Same-version short-circuit. Opt-out via $env:RECLAIM_FORCE='1'.
+if ($installed -and $installed.DisplayVersion -eq $version -and -not $IsForce) {
     Write-Host ""
-    Write-Step "You already have v$version installed." 'Green'
-    Write-Step "Continue to reinstall / switch to portable, or Ctrl+C to cancel." 'DarkGray'
+    Write-Step "Reclaim v$version is already installed - nothing to do." 'Green'
+    if ($installed.InstallLocation) {
+        Write-Step "Install location: $($installed.InstallLocation)" 'DarkGray'
+    }
+    Write-Step "Set `$env:RECLAIM_FORCE='1' and re-run to reinstall." 'DarkGray'
+    Write-Host ""
+    return
+}
+
+if ($installed -and $installed.DisplayVersion -eq $version -and $IsForce) {
+    Write-Step "RECLAIM_FORCE=1 - proceeding with reinstall of v$version." 'DarkYellow'
 }
 Write-Host ""
 
@@ -112,8 +232,13 @@ if ($mode) {
         return
     }
     $mode = $mode.ToLower()
-    Write-Step "Mode (from RECLAIM_MODE): $mode" 'DarkGray'
+    $modeLabel = if ($IsSilent) { "$mode (silent)" } else { $mode }
+    Write-Step "Mode (from RECLAIM_MODE): $modeLabel" 'DarkGray'
 } else {
+    if ($IsSilent) {
+        Write-Step "ERROR: RECLAIM_SILENT=1 requires RECLAIM_MODE (install | msi)." 'Red'
+        return
+    }
     $options = @()
     if ($nsis)     { $options += [pscustomobject]@{ Key='1'; Label='Installer (NSIS, recommended)';      Asset=$nsis;     Mode='install'  } }
     if ($portable) { $options += [pscustomobject]@{ Key='2'; Label='Portable (single .exe, no install)'; Asset=$portable; Mode='portable' } }
@@ -143,13 +268,16 @@ if ($mode) {
     $asset = $selected.Asset
 }
 
-# Download to temp.
+# 'portable' has no installer to silence — friendly message rather than fail.
+if ($IsSilent -and $mode -eq 'portable') {
+    Write-Step "RECLAIM_SILENT is ignored for portable mode (no installer to silence)." 'DarkGray'
+}
+
+# Download to temp with progress bar.
 $dest = Join-Path $env:TEMP $asset.name
-$sizeMb = [Math]::Round($asset.size / 1MB, 1)
 Write-Host ""
-Write-Step "Downloading $($asset.name) ($sizeMb MB)..." 'White'
 try {
-    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $dest -UseBasicParsing
+    Invoke-Download -Url $asset.browser_download_url -OutFile $dest -Label "Downloading $($asset.name)"
 } catch {
     Write-Step "ERROR: Download failed: $($_.Exception.Message)" 'Red'
     return
@@ -161,28 +289,70 @@ try {
 # prompt we're trying to avoid.
 try { Unblock-File -Path $dest -ErrorAction SilentlyContinue } catch {}
 
-Write-Step "Downloaded -> $dest" 'Green'
+Write-Step "Saved -> $dest" 'Green'
 Write-Host ""
 
 switch ($mode) {
     'install' {
-        Write-Step "Starting installer (UAC prompt incoming)..." 'White'
-        try {
-            Start-Process -FilePath $dest -Verb RunAs -Wait
-            Write-Host ""
-            Write-Step "Done. Reclaim is in your Start menu." 'Green'
-        } catch {
-            Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+        if ($IsSilent) {
+            # NSIS supports /S for fully silent install. UAC still triggers if
+            # the elevation hasn't been granted yet — that's by design.
+            Write-Step "Running NSIS installer silently (UAC prompt incoming)..." 'White'
+            try {
+                $proc = Start-Process -FilePath $dest -ArgumentList '/S' -Verb RunAs -PassThru -WindowStyle Hidden
+                Wait-ForInstaller -Proc $proc -Label "Installing Reclaim v$version"
+                if ($proc.ExitCode -ne 0) {
+                    Write-Step "Installer exited with code $($proc.ExitCode)." 'Yellow'
+                } else {
+                    $post = Get-InstalledReclaim
+                    if ($post -and $post.DisplayVersion -eq $version) {
+                        Write-Step "Installed Reclaim v$version." 'Green'
+                        if ($post.InstallLocation) {
+                            Write-Step "Location: $($post.InstallLocation)" 'DarkGray'
+                        }
+                    } else {
+                        Write-Step "Installer finished, but uninstall key wasn't updated yet." 'DarkYellow'
+                    }
+                }
+            } catch {
+                Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+            }
+        } else {
+            Write-Step "Starting installer (UAC prompt incoming)..." 'White'
+            try {
+                Start-Process -FilePath $dest -Verb RunAs -Wait
+                Write-Host ""
+                Write-Step "Done. Reclaim is in your Start menu." 'Green'
+            } catch {
+                Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+            }
         }
     }
     'msi' {
-        Write-Step "Starting MSI installer (UAC prompt incoming)..." 'White'
-        try {
-            Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i', "`"$dest`"" -Verb RunAs -Wait
-            Write-Host ""
-            Write-Step "Done. Reclaim is in your Start menu." 'Green'
-        } catch {
-            Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+        if ($IsSilent) {
+            Write-Step "Running MSI installer silently (UAC prompt incoming)..." 'White'
+            try {
+                $proc = Start-Process -FilePath 'msiexec.exe' `
+                    -ArgumentList '/i', "`"$dest`"", '/qn', '/norestart' `
+                    -Verb RunAs -PassThru
+                Wait-ForInstaller -Proc $proc -Label "Installing Reclaim v$version"
+                if ($proc.ExitCode -ne 0) {
+                    Write-Step "msiexec exited with code $($proc.ExitCode)." 'Yellow'
+                } else {
+                    Write-Step "Installed Reclaim v$version (MSI)." 'Green'
+                }
+            } catch {
+                Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+            }
+        } else {
+            Write-Step "Starting MSI installer (UAC prompt incoming)..." 'White'
+            try {
+                Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i', "`"$dest`"" -Verb RunAs -Wait
+                Write-Host ""
+                Write-Step "Done. Reclaim is in your Start menu." 'Green'
+            } catch {
+                Write-Step "Installer cancelled or failed: $($_.Exception.Message)" 'Yellow'
+            }
         }
     }
     'portable' {
@@ -195,12 +365,20 @@ switch ($mode) {
         Write-Step "Portable binary placed at: $final" 'Green'
         Write-Host ""
 
-        $launch = Read-Host '  Launch Reclaim now? [Y/n]'
-        if ($launch -notin 'n', 'N') {
-            Start-Process -FilePath $final
-            Write-Step "Launched." 'Green'
+        if ($NoLaunch) {
+            Write-Step "RECLAIM_NO_LAUNCH=1 - skipping launch. Run later with: $final" 'DarkGray'
         } else {
-            Write-Step "Run it later with: $final" 'DarkGray'
+            $shouldLaunch = $true
+            if (-not $IsSilent -and -not $env:RECLAIM_MODE) {
+                $launch = Read-Host '  Launch Reclaim now? [Y/n]'
+                $shouldLaunch = ($launch -notin 'n', 'N')
+            }
+            if ($shouldLaunch) {
+                Start-Process -FilePath $final
+                Write-Step "Launched." 'Green'
+            } else {
+                Write-Step "Run it later with: $final" 'DarkGray'
+            }
         }
     }
 }

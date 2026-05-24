@@ -1,6 +1,6 @@
 {
   "name": "reclaim",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Reclaim Your Windows — Win11 debloat & privacy tool",
   "type": "module",
   "scripts": {
@@ -8,10 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "catalog:export": "node scripts/export-catalog.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
-    "tauri:build:portable": "tauri build --no-bundle --features portable"
+    "tauri:build": "pnpm catalog:export && tauri build",
+    "tauri:build:portable": "pnpm catalog:export && tauri build --no-bundle --features portable"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
@@ -37,6 +38,7 @@
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2.1.0",
+    "esbuild": "^0.28.0",
     "svelte": "^5.16.0",
     "svelte-check": "^4.1.1",
     "tailwindcss": "^4.0.0",

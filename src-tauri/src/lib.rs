@@ -1,5 +1,7 @@
 mod activation;
 mod app_info;
+#[cfg(windows)]
+pub mod cli;
 mod context_menu;
 mod defender;
 mod driver_packages;

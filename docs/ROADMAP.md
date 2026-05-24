@@ -127,11 +127,24 @@ Shipped:
 
 ---
 
+## ✅ Phase 12 — CLI mode + installer polish (v0.14.0)
+
+Pulled forward from [`PLAN.md`](PLAN.md) item #2 — closes Win11Debloat's last remaining differentiator (scriptable / unattended deployment).
+
+Shipped:
+- **CLI mode** — Same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--revert-tweak`, `--check-tweak`, `--remove-bloat`, `--import-profile <.reclaim>`, `--export-state`, `--list-profiles`, `--list-tweaks`, `--list-bloatware`. `--silent` / `--json` global modifiers. New `src-tauri/src/cli.rs` dispatcher; `AttachConsole(ATTACH_PARENT_PROCESS)` so the GUI-subsystem binary writes back to the spawning terminal. Activity log mirroring identical to GUI.
+- **Catalog export pipeline** — `pnpm catalog:export` (auto-run before `pnpm tauri:build`) bundles `src/lib/tweaks/{catalog,bloatware,profiles}.ts` + `src/lib/apps/catalog.ts` via esbuild and dumps to `src-tauri/data/*.json`; CLI `include_str!`s those so GUI and CLI share one source of truth.
+- **`install.ps1` polish** — Same-version detection (clean exit when latest is already installed; opt-out via `$env:RECLAIM_FORCE`), terminal progress bar for the download, silent install mode via `$env:RECLAIM_SILENT='1'` (NSIS `/S`, MSI `/qn /norestart`) with spinner while the installer runs, `$env:RECLAIM_NO_LAUNCH='1'` to suppress the portable post-download launch prompt.
+
+---
+
 ## Cross-cutting future ideas (post-1.0, not committed)
 
 - **Default-app override** — Edge → user-choice for PDF/PNG/HTML in one click. Tried during v0.10.0 but pulled; the SetUserFTA-style hash approach is fragile and the ms-settings deep-link variant didn't add enough value over just opening Settings.
 - **Wallpaper / Lock screen customizer** — Tried during v0.10.0 but pulled; not enough value over just Settings → Personalization.
 - **Sound scheme picker** — Switch the Windows sound scheme (Default / No sounds / custom).
+
+For larger post-v1.0 work captured out of the May 2026 market analysis (persistence service, CLI mode, i18n, apps catalog expansion, deeper tweak categories, etc.) see [`PLAN.md`](PLAN.md).
 
 ---
 

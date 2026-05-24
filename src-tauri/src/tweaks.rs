@@ -305,6 +305,11 @@ pub async fn reg_read(locator: RegLocator) -> Result<Option<serde_json::Value>, 
     Ok(read_one(&locator))
 }
 
+#[cfg(windows)]
+pub(crate) fn reg_read_sync(locator: &RegLocator) -> Option<serde_json::Value> {
+    read_one(locator)
+}
+
 /// Bulk-read variant. Marked async so Tauri runs it on the tokio runtime
 /// instead of the IPC main thread, then off-loads the actual (blocking)
 /// registry I/O to a spawn_blocking worker. Eliminates the per-tweak-state
@@ -328,8 +333,7 @@ pub async fn reg_read_many(
 }
 
 #[cfg(windows)]
-#[tauri::command]
-pub async fn reg_write(value: RegValue) -> Result<(), String> {
+pub(crate) fn reg_write_sync(value: &RegValue) -> Result<(), String> {
     use winreg::enums::*;
     let root = open_hive(&value.hive, true)?;
     let (key, _disp) = root
@@ -360,7 +364,12 @@ pub async fn reg_write(value: RegValue) -> Result<(), String> {
 
 #[cfg(windows)]
 #[tauri::command]
-pub async fn reg_delete_value(locator: RegLocator) -> Result<(), String> {
+pub async fn reg_write(value: RegValue) -> Result<(), String> {
+    reg_write_sync(&value)
+}
+
+#[cfg(windows)]
+pub(crate) fn reg_delete_value_sync(locator: &RegLocator) -> Result<(), String> {
     use winreg::enums::*;
     let root = open_hive(&locator.hive, true)?;
     let key = root
@@ -368,6 +377,12 @@ pub async fn reg_delete_value(locator: RegLocator) -> Result<(), String> {
         .map_err(|e| format!("Open key failed: {}", e))?;
     key.delete_value(&locator.name)
         .map_err(|e| format!("Delete value failed: {}", e))
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub async fn reg_delete_value(locator: RegLocator) -> Result<(), String> {
+    reg_delete_value_sync(&locator)
 }
 
 #[cfg(not(windows))]
