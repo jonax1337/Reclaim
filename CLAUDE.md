@@ -4,15 +4,15 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.15.2.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher), Phase 10 (Security hardening + real portable build), Phase 11 (Install media builder), Phase 12 (CLI mode), Phase 13 (Persistence service + tray companion) and Phase 13b (SYSTEM-context admin persistence + auto-track UX) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
+**v0.16.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher), Phase 10 (Security hardening + real portable build), Phase 11 (Install media builder), Phase 12 (CLI mode), Phase 13 (Persistence service + tray companion), Phase 13b (SYSTEM-context admin persistence + auto-track UX) and Phase 14 (Developer tab + Memory + Gaming categories) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
 
 Headline numbers:
-- **167 reversible tweaks** across 11 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security)
+- **180 reversible tweaks** across 13 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security, memory, gaming)
 - **147 bloatware patterns** across 8 groups (incl. OEM bloat for HP / Lenovo / Dell)
 - **67 winget apps** across 8 groups
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **33 routes** in a 10-group sidebar
-- **108 Tauri commands** across 24 Rust modules
+- **36 routes** in an 11-group sidebar (new: `/memory`, `/gaming`, `/developer`)
+- **112 Tauri commands** across 25 Rust modules
 - **CLI mode**: the same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile <file.reclaim>`, `--export-state`, `--admin-only` etc. for headless / gold-image / SYSTEM-task use.
 - **Tray companion**: lives in the system notification area, optionally autostarts with Windows (no UAC prompt at boot), re-applies HKCU drift after Windows updates, pushes WU + NVIDIA-driver toasts.
 - **SYSTEM persistence**: per-profile opt-in scheduled task (`\Reclaim\Persist-<id>`) runs as SYSTEM, re-applies HKLM + shell tweaks at logon + on the configured interval without ever prompting UAC.
@@ -34,8 +34,9 @@ Headline features built since v0.1.0:
 - Persistence service + tray companion: system-tray icon, optional autostart, hide-to-tray on close, single-instance lock, background timer (Tokio interval, 6h default). HKCU drift detection + re-apply per persisted profile (Strict / Update-only modes), Windows-Update + NVIDIA-driver push notifications (24h throttled, battery-aware). Settings → Background Service section ties it all together (v0.15.0).
 - SYSTEM-context admin persistence + close-to-tray polish: per-profile opt-in scheduled task installed under `\Reclaim\Persist-<id>` runs `reclaim.exe --apply-profile <id> --admin-only` as SYSTEM at logon + interval — closes the v0.15.0 "HKLM-deferred" gap. Titlebar X now calls `win.hide()` directly when keep-in-tray is on (bypasses a Tauri 2 IPC-close bug on Windows where `prevent_close()` is ignored). Autostart no longer triggers UAC at boot. `RunEvent::ExitRequested → prevent_exit()` keeps the runtime alive if anything destroys the window externally (v0.15.1).
 - Auto-track persistence UX: dropped the per-profile "Keep applied" picker entirely. Single "Auto-persist active tweaks" toggle that auto-adds on `applyTweak`, auto-removes on `revertTweak`. Single SYSTEM task `\Reclaim\Persist-Current` with every tracked admin-id embedded in the action args, re-installed (with `-Force`) whenever the tracked set or interval changes. v0.15.1 → v0.15.2 migration resolves any leftover `persistedProfiles` in `service.json` to flat tweak ids and tears down old `\Reclaim\Persist-<profile-id>` tasks (v0.15.2).
+- Developer tab + Memory + Gaming categories: new `/developer` route under its own sidebar group (live state of WSL / VirtualMachinePlatform / HypervisorPlatform / Hyper-V / Sandbox via `Get-WindowsOptionalFeature`, enable/disable streamed through `run_pty_script`, read-only WSL distros list, Dev Drive support card). New `memory` tweak category (`/memory`, 5 tweaks — RAM compression, SysMain, Prefetch, Page Combining, ClearPageFileAtShutdown). New `gaming` tweak category (`/gaming`, 8 tweaks — Game Mode, MMCSS SystemResponsiveness, MMCSS Games priority block, Win32PrioritySeparation, ForegroundLockTimeout, NetworkThrottlingIndex, TCP ACK + NoDelay on all interfaces, HPET off). Gaming + Performance built-in profiles enriched with the relevant new tweaks. Dashboard surfaces all three new routes (v0.16.0).
 
-**Still open for v1.0.0**: i18n (DE + EN). Code-signing is no longer planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
+**Still open for v1.0.0**: nothing language-related — English-only is the shipping stance and i18n is **not** a v1.0.0 blocker. What remains before v1.0.0 is feature/catalog depth + a polish pass (see [`docs/PLAN.md`](docs/PLAN.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md)). Code-signing is also not planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 
 ## Stack
 
@@ -152,7 +153,7 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 
 1. **Tweak is data, not code.** New tweak = one entry in `catalog.ts`. Logic stays in executor.
 2. **Svelte 5 runes only**: `$state`, `$derived`, `$effect`, `$props`. No `export let`, no legacy stores in components.
-3. **English UI strings, English code comments.** No German UI text anywhere (until Phase 6 i18n lands).
+3. **English UI strings, English code comments.** No German UI text anywhere — the app ships English-only by design.
 4. **No comments except when WHY is non-obvious.** Don't narrate what code does.
 5. **Reversibility is contract.** Every tweak either supplies `revert: TweakOp[]` or has `defaultValue` on every reg op so the fallback revert can restore. Shell-based tweaks MUST supply explicit `revert`.
 6. **Admin detection per tweak**: any `RegOp` with `hive: "HKLM"` OR any `ShellOp` → `tweakRequiresAdmin == true`. Lite-mode filters these out.
@@ -277,7 +278,7 @@ base64 = "0.22"
 - Don't add a tweak that doesn't have either `revert` or full `defaultValue` coverage.
 - Don't store sensitive data in localStorage. The activity log is fine; never write tokens or registry secrets there.
 - Don't disable the auto-elevate prompt — denial is tracked in sessionStorage so it doesn't re-prompt that session.
-- Don't use German strings anywhere in the UI (until Phase 6 i18n).
+- Don't use German strings anywhere in the UI — the app is English-only.
 - Don't write to HKLM without checking `admin.elevated` (the executor will fail silently, but you'd skip the UX feedback).
 - Don't `gap-6` on a list card — use `gap-0 py-0`.
 - Don't run long PowerShell ops with a spinner. Wire `TerminalPanel` + `tasks` + a streaming Rust command.

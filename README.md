@@ -245,7 +245,7 @@ Grouped in the sidebar as: Top · Clean up · Install · Customize · Network ·
 
 ## Roadmap
 
-Phases 1-5, 7 (System depth), 8 (Customize & drivers), 9 (Licensing launcher), 10 (Security hardening + portable build), 11 (Install media builder), 12 (CLI mode) and 13 (Persistence service + tray companion, incl. SYSTEM-context admin persistence) are shipped. Phase 6 (polish + i18n) is partially complete — DE + EN translations are the last v1.0.0 blocker. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0 and [`docs/PLAN.md`](docs/PLAN.md) for post-v1.0 ideas. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
+Phases 1-5, 7 (System depth), 8 (Customize & drivers), 9 (Licensing launcher), 10 (Security hardening + portable build), 11 (Install media builder), 12 (CLI mode) and 13 (Persistence service + tray companion, incl. SYSTEM-context admin persistence) are shipped. There are no technical blockers left for v1.0.0 — the app ships English-only by design (i18n is not a blocker), so what remains is a polish + bugfix pass plus optional catalog/feature depth. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0 and [`docs/PLAN.md`](docs/PLAN.md) for post-v1.0 ideas. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
 
 ## Inspirations
 

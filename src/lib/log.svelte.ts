@@ -45,7 +45,8 @@ export type LogAction =
   | "persistence.migrate"
   | "notification.sent"
   | "winupdate.found"
-  | "driver.update.found";
+  | "driver.update.found"
+  | "dev-feature";
 
 export type LogEntry = {
   id: number;
@@ -173,4 +174,5 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "notification.sent": "Notification sent",
   "winupdate.found": "Windows updates available",
   "driver.update.found": "Driver update available",
+  "dev-feature": "Windows feature toggled",
 };

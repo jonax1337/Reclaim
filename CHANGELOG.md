@@ -2,6 +2,32 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.16.0
+
+User-facing feature batch — two new tweak categories, one new sidebar group, dashboard surfaces them. Catalog grew from **167 → 180 tweaks** (+13). No infra rework, no schema changes; the auto-persist set keeps tracking the new tweaks the same way it did the old ones.
+
+### Added
+
+- **Memory & caching (`/memory`)** — new tweak category and route under **Customize**. 5 entries: Disable RAM compression (`Disable-MMAgent -MemoryCompression`, opt-in, warning on <8 GB systems), Disable SysMain / Superfetch (service stop + disable, recommended on SSDs), Disable Prefetch + Superfetch hints (HKLM `PrefetchParameters` 0/0), Enable RAM page combining (`Enable-MMAgent -PageCombining` — restore button), Clear pagefile on shutdown (security trade-off — slower shutdown). All admin.
+- **Gaming (`/gaming`)** — new tweak category and route under **Customize**. 8 entries: Enable Game Mode (`HKCU\Software\Microsoft\GameBar`), Reserve all CPU for multimedia/games (`SystemResponsiveness=0`), Boost MMCSS Games task scheduling (4 values under `…\SystemProfile\Tasks\Games`), Strongly favor foreground app for CPU (`Win32PrioritySeparation=0x26`), Disable foreground-lock timeout (`ForegroundLockTimeout=0`), Disable network throttling (`NetworkThrottlingIndex=0xFFFFFFFF`), Low-latency TCP ACK + NoDelay on all interfaces (shell, enumerates `Tcpip\Parameters\Interfaces\*` and writes `TcpAckFrequency=1` + `TCPNoDelay=1`), Disable HPET (`bcdedit /set useplatformclock false` + `disabledynamictick yes` + `useplatformtick yes`, system restart). Five marked `recommended: true`, the latency / HPET / throttling ones are opt-in with explicit warnings.
+- **Developer (`/developer`)** — brand-new sidebar group with one route. Shows the live state of five Windows optional features (WSL, VirtualMachinePlatform, HypervisorPlatform, Hyper-V, Windows Sandbox) via `Get-WindowsOptionalFeature -Online`, grouped into Linux on Windows / Virtualization / Sandbox sections. Enable / Disable goes through `Enable-WindowsOptionalFeature` / `Disable-WindowsOptionalFeature` via a streamed PTY (uses the same `run_pty_script` helper as Maintenance). Below the features: a read-only WSL distros list (parsed from `wsl --list --verbose`, handles WSL's UTF-16 stdout) and a Dev Drive support card (gates on build ≥ 22621). New Rust module `dev_features.rs` + 4 commands.
+- **Built-in profile updates.**
+  - **Gaming** profile gains `game-mode-on`, `system-responsiveness-gaming`, `mmcss-gaming-priority`, `cpu-priority-foreground-boost`, `foreground-lock-timeout-off`, `sysmain-off` (12 → 18 tweaks). Description updated.
+  - **Performance** profile gains `sysmain-off`, `prefetch-off` (17 → 19 tweaks). Description updated.
+  - **Privacy Maximum** and **Reclaim Basics** unchanged (Basics auto-picks up the new `recommended: true` tweaks: `sysmain-off`, `game-mode-on`, `system-responsiveness-gaming`, `mmcss-gaming-priority`, `cpu-priority-foreground-boost`, `foreground-lock-timeout-off`).
+- **Dashboard surface** for the three new routes — Memory, Gaming and Developer get their own category cards with icons (MemoryStick / Gamepad2 / Code2) and counts.
+
+### Internal
+
+- `src-tauri/src/dev_features.rs` (~250 LOC) wraps DISM (`Get-WindowsOptionalFeature`, `Enable-WindowsOptionalFeature -NoRestart -All`, `Disable-WindowsOptionalFeature -NoRestart`), `wsl --list --verbose` and the build-number Dev Drive check. Static feature allow-list (5 entries) — `set_optional_feature_stream` rejects anything not in it, plus a paranoid `[A-Za-z0-9_-]` re-check before string interpolation. Streaming goes through `maintenance::run_pty_script`, so output lands in the global terminal panel like every other long op.
+- 4 new Tauri commands (`list_optional_features`, `set_optional_feature_stream`, `list_wsl_distros`, `dev_drive_info`). Total now 112 across 25 modules.
+- 1 new bridge helper (`runDevFeatureTask`) in `tasks.svelte.ts` — mirrors `runMaintenanceTask` / `runUnblockTask` / `runIsoBuildTask`.
+- New routes: `Memory.svelte`, `Gaming.svelte`, `Developer.svelte`. Memory + Gaming are thin `<TweakSection>` wrappers; Developer is a custom page with status cards + enable/disable PTY-streaming buttons.
+
+### Notes for v1.0.0
+
+i18n (DE + EN) was removed as a v1.0.0 blocker — English-only is the shipping stance. See `docs/PLAN.md` and `docs/ROADMAP.md`. v1.0.0 now gates on a polish + bugfix pass; further depth (apps catalog → 150, mass non-GPU driver updates) is candidate work for v0.17.0 / v0.18.0.
+
 ## v0.15.2
 
 UX revamp of the persistence service: the per-profile "Keep this profile applied" toggles are gone. Reclaim now auto-tracks whatever tweaks you've actually turned on — applying a tweak adds it to the persistence set, reverting removes it. No profile picker for persistence anywhere.
@@ -278,10 +304,10 @@ This fix lives in the v0.12.1 frontend. Older clients still ship the broken beha
 - **Auto-updater** — `tauri-plugin-updater` plugin wired in (Cargo + Rust init + JS dep). Settings page has a "Check for updates" button. Falls back to opening the GitHub releases page in the browser when the updater isn't configured.
 - New Rust module: `src-tauri/src/app_info.rs`.
 
-### Open for v1.0.0
+### Open for v1.0.0 (as of v0.7.0)
 
-- i18n (DE + EN locales).
-- Code-signing the installer (EV cert or SignPath).
+- i18n (DE + EN locales). *Later dropped from v1.0.0 scope — see docs/PLAN.md; the app ships English-only.*
+- Code-signing the installer (EV cert or SignPath). *Later dropped — see v0.11.0 entry.*
 
 ## v0.6.0 — Phase 5: Profile Builder + Import/Export
 

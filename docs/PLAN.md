@@ -1,6 +1,6 @@
 # Reclaim — Post-v1.0 Feature Plan
 
-Proposed-but-not-committed work, captured out of the May 2026 market analysis vs. Win11Debloat, ChrisTitusTech/winutil, O&O ShutUp10++, Sophia Script, Talon, Privatezilla, Optimizer and Tiny11Builder. None of these are scheduled for v1.0.0 — v1.0.0 still gates on i18n (DE + EN). This file collects what would extend Reclaim's lead in its niche ("native GUI + live-state + deterministic revert + cross-domain scope") after that.
+Proposed-but-not-committed work, captured out of the May 2026 market analysis vs. Win11Debloat, ChrisTitusTech/winutil, O&O ShutUp10++, Sophia Script, Talon, Privatezilla, Optimizer and Tiny11Builder. None of these are required for v1.0.0 — there are no technical blockers left for the 1.0 release; what remains is a polish + bugfix pass. This file collects what would extend Reclaim's lead in its niche ("native GUI + live-state + deterministic revert + cross-domain scope") either as part of one of the last pre-1.0 minors or post-v1.0.
 
 For shipped work see [`../CHANGELOG.md`](../CHANGELOG.md). For the original phased plan see [`ROADMAP.md`](ROADMAP.md).
 
@@ -13,27 +13,11 @@ For shipped work see [`../CHANGELOG.md`](../CHANGELOG.md). For the original phas
 
 ---
 
-## Killer features (new USPs)
-
-These are the items that would change Reclaim's competitive position — not just "more of the same" but features no GUI competitor currently has, or that close a single specific gap to a specific tool.
-
-### 1. i18n (DE + EN)
-
-**What.** Localize all UI strings to German and English. Use `svelte-i18n` or a tiny custom rune-based store. Move ~600 hardcoded strings into `src/lib/i18n/{de,en}.ts` keyed translation tables. Language picker in Settings, autodetect from Windows display language on first launch.
-
-**Why it matters.** Listed as the **only** v1.0.0 blocker in CLAUDE.md. O&O ShutUp10 ships in ~30 languages, Optimizer had 24. Reclaim being English-only is the single biggest adoption blocker in DACH (Reclaim's primary geography given the author + Zettel lineage).
-
-**Scope.** Medium. The string count is the work — ~600 user-facing strings across 33 routes + UI components. Per-tweak title/description (~167 × 2 = 334 strings) is the bulk. Frontend wiring is mechanical.
-
-**Competitive impact.** Doesn't add competitive surface area, but blocks every DACH adoption conversation. Required for v1.0.0.
-
----
-
 ## Scope expansions (more of what we already do)
 
 These are "make existing categories bigger / deeper" — not new USPs but addressing specific gaps in the market-analysis table where competitors clearly out-scoped us.
 
-### 2. Apps catalog → 150-200 entries
+### 1. Apps catalog → 150-200 entries
 
 **Current.** 67 winget apps across 8 groups, 16 recommended.
 
@@ -45,7 +29,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 3. Tweaks → 200
+### 2. Tweaks → 200
 
 **Current.** 167 across 11 categories.
 
@@ -60,7 +44,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 4. Mass driver updates (non-GPU)
+### 3. Mass driver updates (non-GPU)
 
 **Current.** GPU only (NVIDIA / AMD / Intel) — vendor-page auto-find + NVIDIA streaming download.
 
@@ -72,7 +56,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 5. Granular gaming tweaks
+### 4. Granular gaming tweaks
 
 **Current.** Performance category has 20 entries — enough for the "low-hanging" gaming wins (Game DVR, Game Bar, background apps, mouse accel, Game DVR background recording, Visual Effects best-performance, High Performance plan).
 
@@ -84,7 +68,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 6. Developer features tab
+### 5. Developer features tab
 
 **Current.** Nothing. WSL/Hyper-V/Sandbox toggles live in Windows Settings only.
 
@@ -98,8 +82,13 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ## Where these fit relative to v1.0.0
 
-- **Required for v1.0.0:** i18n (#1 above). Nothing else.
-- **Post-v1.0.0:** Scope expansions (#2-#6). All "more of the same" and don't change positioning, just depth.
+- **Required for v1.0.0:** nothing. There are no technical blockers; v1.0.0 ships when the polish + bugfix pass on the existing 33 routes is done.
+- **Candidates for the last pre-1.0 minors (e.g. v0.16.0 / v0.17.0):** any of #1-#5. Pick the ones that close the most visible scope gaps vs. Win11Debloat / WinUtil first.
+- **Post-v1.0.0:** the remainder. All "more of the same" and don't change positioning, just depth.
+
+### Explicitly NOT a v1.0.0 blocker
+
+- **i18n (DE + EN).** English-only is the shipping stance. May happen post-v1.0 as a nice-to-have (some inspiration: O&O ShutUp10 ships ~30 languages, Optimizer had 24), but it does **not** gate 1.0.
 
 ## Where these would NOT go
 

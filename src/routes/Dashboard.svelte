@@ -17,6 +17,9 @@
     Gauge,
     Globe,
     Lock,
+    MemoryStick,
+    Gamepad2,
+    Code2,
   } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import {
@@ -36,6 +39,8 @@
     NOTIFICATION_TWEAKS,
     BROWSER_TWEAKS,
     SECURITY_TWEAKS,
+    MEMORY_TWEAKS,
+    GAMING_TWEAKS,
   } from "$lib/tweaks/catalog";
   import { BLOATWARE } from "$lib/tweaks/bloatware";
   import { getTweakState, applyTweak, type TweakState } from "$lib/tweaks/executor";
@@ -180,6 +185,20 @@
       count: PERFORMANCE_TWEAKS.length,
     },
     {
+      href: "/memory",
+      icon: MemoryStick,
+      label: "Memory & caching",
+      desc: "Compression, SysMain, Prefetch",
+      count: MEMORY_TWEAKS.length,
+    },
+    {
+      href: "/gaming",
+      icon: Gamepad2,
+      label: "Gaming",
+      desc: "MMCSS, low-latency TCP, HPET",
+      count: GAMING_TWEAKS.length,
+    },
+    {
       href: "/updates",
       icon: RefreshCw,
       label: "Updates",
@@ -192,6 +211,13 @@
       label: "Security hardening",
       desc: "LSA, ASR rules, CFA",
       count: SECURITY_TWEAKS.length,
+    },
+    {
+      href: "/developer",
+      icon: Code2,
+      label: "Developer",
+      desc: "WSL, Hyper-V, Sandbox",
+      count: 5,
     },
   ];
 

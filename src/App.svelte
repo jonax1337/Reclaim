@@ -15,6 +15,9 @@
   import WindowsUpdate from "./routes/WindowsUpdate.svelte";
   import Drivers from "./routes/Drivers.svelte";
   import Performance from "./routes/Performance.svelte";
+  import Memory from "./routes/Memory.svelte";
+  import Gaming from "./routes/Gaming.svelte";
+  import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
   import Firewall from "./routes/Firewall.svelte";
@@ -63,6 +66,9 @@
     ["/search", Search],
     ["/taskbar", Taskbar],
     ["/performance", Performance],
+    ["/memory", Memory],
+    ["/gaming", Gaming],
+    ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],
     ["/firewall", Firewall],

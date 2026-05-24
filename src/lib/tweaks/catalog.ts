@@ -11,7 +11,9 @@ export type TweakCategory =
   | "performance"
   | "notifications"
   | "browser"
-  | "security";
+  | "security"
+  | "memory"
+  | "gaming";
 
 export type RegOp = {
   kind: "reg";
@@ -2944,6 +2946,228 @@ export const SECURITY_TWEAKS: Tweak[] = [
   }),
 ];
 
+const memMgmt = "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management";
+const prefetchParams = `${memMgmt}\\PrefetchParameters`;
+
+export const MEMORY_TWEAKS: Tweak[] = [
+  {
+    id: "memory-compression-off",
+    category: "memory",
+    title: "Disable RAM compression",
+    description:
+      "Stops Windows from compressing in-memory pages before paging them out. On systems with 16+ GB RAM this trims a small amount of CPU overhead at the cost of slightly more disk paging.",
+    warning:
+      "Do not disable on machines with less than 8 GB RAM — paging overhead will spike. Compression is a net win on most modern systems; only flip this off if you have measured a benefit.",
+    apply: [{ kind: "shell", script: "Disable-MMAgent -MemoryCompression" }],
+    revert: [{ kind: "shell", script: "Enable-MMAgent -MemoryCompression" }],
+  },
+  {
+    id: "sysmain-off",
+    category: "memory",
+    title: "Disable SysMain (Superfetch)",
+    description:
+      "Stops the SysMain service that pre-loads frequently used apps into RAM. On SSDs and NVMe drives SysMain provides no measurable benefit and wastes background I/O.",
+    recommended: true,
+    warning:
+      "Re-enable if you boot from a spinning HDD — SysMain measurably speeds up app launches on slow disks.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name SysMain -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name SysMain -StartupType Automatic -ErrorAction SilentlyContinue; Start-Service -Name SysMain -ErrorAction SilentlyContinue",
+      },
+    ],
+  },
+  {
+    id: "prefetch-off",
+    category: "memory",
+    title: "Disable Prefetch and Superfetch hints",
+    description:
+      "Turns off the kernel's Prefetch and Superfetch boot/app hint files (.pf in C:\\Windows\\Prefetch). Complements disabling SysMain — same idea, different layer. Saves a few MB and a tiny amount of background I/O.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: prefetchParams, name: "EnablePrefetcher", type: "DWORD", value: 0, defaultValue: 3 },
+      { kind: "reg", hive: "HKLM", path: prefetchParams, name: "EnableSuperfetch", type: "DWORD", value: 0, defaultValue: 3 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: prefetchParams, name: "EnablePrefetcher", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "page-combining-on",
+    category: "memory",
+    title: "Enable RAM page combining",
+    description:
+      "Re-enables the kernel's page combining feature (dedupes identical RAM pages, saves a few percent of RAM on busy systems). On by default on Windows 11 Pro and Home — only use this if someone has previously disabled it.",
+    apply: [{ kind: "shell", script: "Enable-MMAgent -PageCombining" }],
+    revert: [{ kind: "shell", script: "Disable-MMAgent -PageCombining" }],
+  },
+  {
+    id: "clear-pagefile-shutdown-on",
+    category: "memory",
+    title: "Clear pagefile on shutdown",
+    description:
+      "Wipes pagefile.sys when the system shuts down so swapped-out application data (passwords, decrypted documents, session tokens) doesn't survive to the next boot. Security trade-off — adds 30 s to several minutes of shutdown time depending on pagefile size.",
+    warning:
+      "Significantly slows down shutdown. Only worth it on shared / mobile machines where someone could pull the disk after power-off.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: memMgmt, name: "ClearPageFileAtShutdown", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: memMgmt, name: "ClearPageFileAtShutdown", type: "DWORD", value: 1 },
+    ],
+  },
+];
+
+const mmSysProfile = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile";
+const mmGamesTask = `${mmSysProfile}\\Tasks\\Games`;
+const priorityControl = "SYSTEM\\CurrentControlSet\\Control\\PriorityControl";
+
+export const GAMING_TWEAKS: Tweak[] = [
+  {
+    id: "game-mode-on",
+    category: "gaming",
+    title: "Enable Game Mode",
+    description:
+      "Asks the scheduler to prioritize the foreground game over background work (Windows Update, indexing, etc.) and stops some notifications during play. On by default — toggle here if you turned it off and want it back.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AutoGameModeEnabled", type: "DWORD", value: 1, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AllowAutoGameMode", type: "DWORD", value: 1, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AutoGameModeEnabled", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "system-responsiveness-gaming",
+    category: "gaming",
+    title: "Reserve all CPU for multimedia / games",
+    description:
+      "Sets MMCSS SystemResponsiveness to 0, telling Windows to dedicate the full CPU to multimedia/game threads when they're foreground (default reserves 20 % for background work).",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: mmSysProfile, name: "SystemResponsiveness", type: "DWORD", value: 0, defaultValue: 20 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: mmSysProfile, name: "SystemResponsiveness", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "mmcss-gaming-priority",
+    category: "gaming",
+    title: "Boost MMCSS Games task scheduling",
+    description:
+      "Raises the priority of the MMCSS 'Games' task profile — higher CPU priority, high scheduling category, high SFIO priority. Applies to anything registered as a game with the Multimedia Class Scheduler.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: mmGamesTask, name: "GPU Priority", type: "DWORD", value: 8, defaultValue: 8 },
+      { kind: "reg", hive: "HKLM", path: mmGamesTask, name: "Priority", type: "DWORD", value: 6, defaultValue: 2 },
+      { kind: "reg", hive: "HKLM", path: mmGamesTask, name: "Scheduling Category", type: "SZ", value: "High", defaultValue: "Medium" },
+      { kind: "reg", hive: "HKLM", path: mmGamesTask, name: "SFIO Priority", type: "SZ", value: "High", defaultValue: "Normal" },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: mmGamesTask, name: "Priority", type: "DWORD", value: 6 },
+    ],
+  },
+  {
+    id: "cpu-priority-foreground-boost",
+    category: "gaming",
+    title: "Strongly favor foreground app for CPU",
+    description:
+      "Sets Win32PrioritySeparation to 0x26 — short, variable quantum with a 3:1 boost in favor of the foreground process. Default on Win11 Pro is 0x2 (long, fixed quantum, no boost).",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: priorityControl, name: "Win32PrioritySeparation", type: "DWORD", value: 0x26, defaultValue: 0x2 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: priorityControl, name: "Win32PrioritySeparation", type: "DWORD", value: 0x26 },
+    ],
+  },
+  {
+    id: "foreground-lock-timeout-off",
+    category: "gaming",
+    title: "Disable foreground-lock timeout",
+    description:
+      "Stops Windows from blocking apps that try to grab the foreground while you're playing — fixes 'alt-tabbed and the game lost focus permanently' annoyances.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Desktop", name: "ForegroundLockTimeout", type: "DWORD", value: 0, defaultValue: 0x30D40 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Desktop", name: "ForegroundLockTimeout", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "network-throttling-off",
+    category: "gaming",
+    title: "Disable network throttling",
+    description:
+      "Removes the MMCSS network packet throttle that limits non-multimedia traffic to ~10 packets/ms while multimedia is playing. Improves throughput for game servers + voice chat at the cost of occasional audio glitching under heavy load.",
+    warning:
+      "Side effect: voice apps may stutter briefly when downloads peak. Revert if you notice voice artifacts.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: mmSysProfile, name: "NetworkThrottlingIndex", type: "DWORD", value: 0xffffffff, defaultValue: 10 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: mmSysProfile, name: "NetworkThrottlingIndex", type: "DWORD", value: 0xffffffff },
+    ],
+  },
+  {
+    id: "tcp-ack-and-no-delay",
+    category: "gaming",
+    title: "Low-latency TCP: ACK + NoDelay on all interfaces",
+    description:
+      "Sets TcpAckFrequency=1 and TCPNoDelay=1 on every TCP/IP interface. Disables Nagle's algorithm and delayed-ACK coalescing so latency-sensitive game packets ship immediately instead of waiting for batching.",
+    warning:
+      "Increases packet count and slightly raises CPU load on heavy connections. Revert if you see throughput regressions on large transfers.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { New-ItemProperty -Path $_.PSPath -Name TcpAckFrequency -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $_.PSPath -Name TCPNoDelay -PropertyType DWord -Value 1 -Force | Out-Null }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { Remove-ItemProperty -Path $_.PSPath -Name TcpAckFrequency -ErrorAction SilentlyContinue; Remove-ItemProperty -Path $_.PSPath -Name TCPNoDelay -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "hpet-off",
+    category: "gaming",
+    title: "Disable HPET (use platform clock = off)",
+    description:
+      "Tells the bootloader to skip the High Precision Event Timer. On some hardware (older Intel chipsets, certain Ryzen boards) HPET adds 1-2 % latency vs the platform's invariant TSC. Almost always neutral on modern systems.",
+    requiresRestart: "system",
+    warning:
+      "Boot-time setting — requires a reboot. If a game has stuttering or audio drops after the next boot, revert this. Some motherboards refuse the change at boot and just keep HPET on (no harm done).",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "bcdedit /set useplatformclock false | Out-Null; bcdedit /set disabledynamictick yes | Out-Null; bcdedit /set useplatformtick yes | Out-Null",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "bcdedit /deletevalue useplatformclock | Out-Null; bcdedit /deletevalue disabledynamictick | Out-Null; bcdedit /deletevalue useplatformtick | Out-Null",
+      },
+    ],
+  },
+];
+
 export const ALL_TWEAKS: Tweak[] = [
   ...PRIVACY_TWEAKS,
   ...AI_TWEAKS,
@@ -2955,6 +3179,8 @@ export const ALL_TWEAKS: Tweak[] = [
   ...NOTIFICATION_TWEAKS,
   ...BROWSER_TWEAKS,
   ...SECURITY_TWEAKS,
+  ...MEMORY_TWEAKS,
+  ...GAMING_TWEAKS,
 ];
 
 export function getTweaksByCategory(category: TweakCategory): Tweak[] {

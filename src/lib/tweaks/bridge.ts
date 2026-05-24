@@ -1158,6 +1158,76 @@ export async function persistenceCleanupLegacyTasks(): Promise<number> {
   return invoke<number>("persistence_cleanup_legacy_tasks");
 }
 
+/* ───────────────────────── Developer features (Block A) ───────────────────── */
+
+export type DevFeature = {
+  name: string;
+  displayName: string;
+  category: "wsl" | "hyperv" | "sandbox" | string;
+  description: string;
+  state: "Enabled" | "Disabled" | "EnablePending" | "DisablePending" | "Unknown" | string;
+};
+
+export type WslDistro = {
+  name: string;
+  state: string;
+  version: number;
+  default: boolean;
+};
+
+export type DevDriveInfo = {
+  supported: boolean;
+  build: number;
+  note: string;
+};
+
+export async function listOptionalFeatures(): Promise<DevFeature[]> {
+  const raw = await invoke<
+    Array<{
+      name: string;
+      display_name: string;
+      category: string;
+      description: string;
+      state: string;
+    }>
+  >("list_optional_features");
+  return raw.map((f) => ({
+    name: f.name,
+    displayName: f.display_name,
+    category: f.category,
+    description: f.description,
+    state: f.state,
+  }));
+}
+
+export async function setOptionalFeatureStream(
+  taskId: string,
+  name: string,
+  enable: boolean,
+  cols: number,
+  rows: number,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("set_optional_feature_stream", {
+    taskId,
+    name,
+    enable,
+    cols,
+    rows,
+    onEvent: channel,
+  });
+}
+
+export async function listWslDistros(): Promise<WslDistro[]> {
+  return invoke<WslDistro[]>("list_wsl_distros");
+}
+
+export async function devDriveInfo(): Promise<DevDriveInfo> {
+  return invoke<DevDriveInfo>("dev_drive_info");
+}
+
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
   const r = await invoke<{
     ok: boolean;

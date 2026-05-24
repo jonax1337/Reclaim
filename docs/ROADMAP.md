@@ -76,7 +76,9 @@ Goal of this phase: everything needed before a 1.0 release.
 
 ### Still open for v1.0.0
 
-- **i18n** — DE + EN locales, custom ~50-line `t()` store, refactor every `.svelte` hardcoded string.
+- Polish pass + bugfix sweep across the 33 routes once feature work freezes.
+- Catalog / feature depth as captured in [`PLAN.md`](PLAN.md) (apps catalog expansion, tweak catalog → 200, mass driver updates, developer-features tab, granular gaming tweaks).
+- ~~**i18n (DE + EN)**~~ — Dropped from v1.0.0 scope. English-only UI is the shipping stance. May happen post-v1.0 as a nice-to-have, but it does not block 1.0.
 - ~~**Code-signing the installer**~~ — Dropped from v1.0.0 scope. The v0.11.0 activation launcher embeds the `get.activated.win` URL in the binary, which likely closes both the winget-pkgs reviewer path and the SignPath Foundation eligibility path. Distribution will be GitHub Releases only, unsigned, with the SmartScreen first-run warning that comes with that.
 
 ---
@@ -144,7 +146,7 @@ Shipped:
 - **Wallpaper / Lock screen customizer** — Tried during v0.10.0 but pulled; not enough value over just Settings → Personalization.
 - **Sound scheme picker** — Switch the Windows sound scheme (Default / No sounds / custom).
 
-For larger post-v1.0 work captured out of the May 2026 market analysis (persistence service, CLI mode, i18n, apps catalog expansion, deeper tweak categories, etc.) see [`PLAN.md`](PLAN.md).
+For larger post-v1.0 work captured out of the May 2026 market analysis (persistence service, CLI mode, apps catalog expansion, deeper tweak categories, etc.) see [`PLAN.md`](PLAN.md).
 
 ---
 
@@ -157,4 +159,4 @@ For larger post-v1.0 work captured out of the May 2026 market analysis (persiste
 5. **Every external URL → through `tauri-plugin-opener.openUrl`.**
 6. **Update `CLAUDE.md` "Current state" after each phase.**
 7. **Bump version in `package.json`, `tauri.conf.json`, `src-tauri/Cargo.toml` (all three).**
-8. **No German UI strings** — pending Phase 6 i18n.
+8. **No German UI strings** — the app is English-only by design.

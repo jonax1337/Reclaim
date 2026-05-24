@@ -4,6 +4,7 @@ mod app_info;
 pub mod cli;
 mod context_menu;
 mod defender;
+mod dev_features;
 mod driver_packages;
 mod driver_search;
 mod driver_update;
@@ -234,6 +235,10 @@ pub fn run() {
             persistence::persistence_task_status,
             persistence::persistence_run_task_now,
             persistence::persistence_cleanup_legacy_tasks,
+            dev_features::list_optional_features,
+            dev_features::set_optional_feature_stream,
+            dev_features::list_wsl_distros,
+            dev_features::dev_drive_info,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

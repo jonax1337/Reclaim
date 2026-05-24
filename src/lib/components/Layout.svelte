@@ -32,6 +32,9 @@
     KeyRound,
     Lock,
     Disc3,
+    MemoryStick,
+    Gamepad2,
+    Code2,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
@@ -151,6 +154,8 @@
         { href: "/search", label: "Search", icon: Search },
         { href: "/notifications", label: "Notifications", icon: BellRing },
         { href: "/performance", label: "Performance", icon: Gauge },
+        { href: "/memory", label: "Memory & caching", icon: MemoryStick, adminOnly: true },
+        { href: "/gaming", label: "Gaming", icon: Gamepad2, adminOnly: true },
       ],
     },
     {
@@ -167,6 +172,12 @@
         { href: "/windows-update", label: "Windows Update", icon: HardDriveDownload },
         { href: "/drivers", label: "Drivers", icon: MonitorSmartphone },
         { href: "/updates", label: "Update settings", icon: RefreshCw },
+      ],
+    },
+    {
+      label: "Developer",
+      items: [
+        { href: "/developer", label: "Windows features", icon: Code2, adminOnly: true },
       ],
     },
     {

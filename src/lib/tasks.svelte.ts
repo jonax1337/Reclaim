@@ -7,6 +7,7 @@ import {
   maintenancePtyKill,
   maintenancePtyResize,
   maintenanceRunStream,
+  setOptionalFeatureStream,
   unblockFilesStream,
   type MaintenanceOp,
   type StreamEvent,
@@ -404,6 +405,46 @@ export async function runIsoBuildTask(
       inputIso,
       outputIso,
       autounattendXml,
+      cols,
+      rows,
+      onEvent,
+    );
+    tasks.finish(task.id, exit);
+  } catch (err) {
+    task.terminal.write(`\r\n\x1b[31m${String(err)}\x1b[0m\r\n`);
+    tasks.finish(task.id, -1, "error");
+  }
+  return task;
+}
+
+export async function runDevFeatureTask(
+  featureName: string,
+  displayName: string,
+  enable: boolean,
+): Promise<Task> {
+  const verb = enable ? "Enable" : "Disable";
+  const task = tasks.start({
+    label: `${verb} ${displayName}`,
+    kind: "maintenance",
+    opId: `dev-feature:${featureName}:${enable ? "on" : "off"}`,
+  });
+  if (!isTauri()) {
+    task.terminal.write(
+      "\x1b[33mBrowser preview — PowerShell is not available outside Tauri.\x1b[0m\r\n",
+    );
+    tasks.finish(task.id, -1, "error");
+    return task;
+  }
+  const onEvent = (e: StreamEvent) => {
+    if (e.kind === "bytes") task.terminal.write(decodeBase64(e.data));
+    else if (e.kind !== "exit") task.terminal.writeln(e.data);
+  };
+  try {
+    const { cols, rows } = task.terminal;
+    const exit = await setOptionalFeatureStream(
+      task.id,
+      featureName,
+      enable,
       cols,
       rows,
       onEvent,

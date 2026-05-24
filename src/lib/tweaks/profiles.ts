@@ -61,7 +61,7 @@ export const PROFILES: Profile[] = [
     name: "Gaming",
     tagline: "Free up resources for games",
     description:
-      "Disables Game DVR background recording, background apps, telemetry and Cortana — everything that competes with your GPU and CPU during gameplay.",
+      "Disables Game DVR background recording, background apps, telemetry and Cortana — everything that competes with your GPU and CPU during gameplay. Adds MMCSS gaming scheduling, foreground-priority boost and a couple of safe latency tweaks on top.",
     gradient: "bolt",
     tweakIds: [
       "game-dvr-off",
@@ -76,6 +76,12 @@ export const PROFILES: Profile[] = [
       "power-plan-high-performance",
       "visual-effects-best-performance",
       "auto-restart-presentation-off",
+      "game-mode-on",
+      "system-responsiveness-gaming",
+      "mmcss-gaming-priority",
+      "cpu-priority-foreground-boost",
+      "foreground-lock-timeout-off",
+      "sysmain-off",
     ],
   },
   {
@@ -143,7 +149,7 @@ export const PROFILES: Profile[] = [
     name: "Performance",
     tagline: "Free up RAM & disk",
     description:
-      "Disables background apps, Storage Sense, Fast Startup, Game DVR and hibernation — reclaims gigabytes of RAM and disk space.",
+      "Disables background apps, Storage Sense, Fast Startup, Game DVR, SysMain (Superfetch) and hibernation — reclaims gigabytes of RAM and disk space. Trims a few extra background services that buy nothing on modern SSDs.",
     gradient: "gauge",
     tweakIds: [
       "background-apps-off",
@@ -163,6 +169,8 @@ export const PROFILES: Profile[] = [
       "menu-show-delay-zero",
       "visual-effects-best-performance",
       "ipv6-teredo-off",
+      "sysmain-off",
+      "prefetch-off",
     ],
   },
   {
