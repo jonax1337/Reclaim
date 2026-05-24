@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Switch, toast } from "$lib/ui";
+  import { Card, Button, Badge, Switch, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -120,36 +120,33 @@
   const thirdPartyCount = $derived(entries.filter((e) => !isSystemEntry(e)).length);
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Right-click menu</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Enumerating shell extensions…
-      {:else if admin.checked && !admin.elevated}
-        Listing shell extensions needs administrator rights.
-      {:else if isTauri()}
-        <span class="font-medium text-foreground tabular-nums">{thirdPartyCount}</span>
-        third-party
-        + <span class="text-foreground">{totalCount - thirdPartyCount}</span> system entries
-        {#if disabledCount > 0}
-          · <span class="text-foreground">{disabledCount}</span> blocked
-        {/if}
-      {:else}
-        Browser preview — shell extension queries need the built app.
-      {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button variant="outline" onclick={() => (showSystem = !showSystem)} disabled={loading}>
-      {showSystem ? "Hide system" : "Show system"}
-    </Button>
-    <Button variant="outline" onclick={reload} disabled={loading}>
-      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  </div>
-</header>
+<PageHeader title="Right-click menu">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button variant="outline" onclick={() => (showSystem = !showSystem)} disabled={loading}>
+        {showSystem ? "Hide system" : "Show system"}
+      </Button>
+      <Button variant="outline" onclick={reload} disabled={loading}>
+        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+        Refresh
+      </Button>
+    </div>
+  {/snippet}
+  {#if loading}
+    Enumerating shell extensions…
+  {:else if admin.checked && !admin.elevated}
+    Listing shell extensions needs administrator rights.
+  {:else if isTauri()}
+    <span class="font-medium text-foreground tabular-nums">{thirdPartyCount}</span>
+    third-party
+    + <span class="text-foreground">{totalCount - thirdPartyCount}</span> system entries
+    {#if disabledCount > 0}
+      · <span class="text-foreground">{disabledCount}</span> blocked
+    {/if}
+  {:else}
+    Browser preview — shell extension queries need the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

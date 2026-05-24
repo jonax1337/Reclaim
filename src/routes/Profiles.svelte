@@ -1,6 +1,6 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
-  import { Card, Button, Badge, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Plus,
     Upload,
@@ -150,24 +150,23 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-center justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Profiles</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Built-in presets plus your own — exportable as JSON for sharing.
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button variant="outline" onclick={doImport}>
-      <Upload />
-      Import…
-    </Button>
-    <Button onclick={startNew}>
-      <Plus />
-      New profile
-    </Button>
-  </div>
-</header>
+<PageHeader
+  title="Profiles"
+  description="Built-in presets plus your own — exportable as JSON for sharing."
+>
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button variant="outline" onclick={doImport}>
+        <Upload />
+        Import…
+      </Button>
+      <Button onclick={startNew}>
+        <Plus />
+        New profile
+      </Button>
+    </div>
+  {/snippet}
+</PageHeader>
 
 <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
   Built-in

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -103,19 +103,17 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Windows activation</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Current license status, plus a one-click launcher for the open-source MAS activation
-      script. Reclaim does not bundle the script — it runs directly from the upstream URL.
-    </p>
-  </div>
-  <Button variant="outline" onclick={reload} disabled={loading}>
-    <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-    Refresh
-  </Button>
-</header>
+<PageHeader
+  title="Windows activation"
+  description="Current license status, plus a one-click launcher for the open-source MAS activation script. Reclaim does not bundle the script — it runs directly from the upstream URL."
+>
+  {#snippet actions()}
+    <Button variant="outline" onclick={reload} disabled={loading}>
+      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+      Refresh
+    </Button>
+  {/snippet}
+</PageHeader>
 
 <!-- Disclaimer banner -->
 <div

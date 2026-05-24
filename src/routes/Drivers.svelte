@@ -12,6 +12,7 @@
     BulkActionBar,
     Checkbox,
     Dialog,
+    PageHeader,
     toast,
   } from "$lib/ui";
   import {
@@ -584,18 +585,17 @@
   });
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Graphics drivers</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      NVIDIA: direct API lookup + download + launch — no GeForce Experience, no browser detour.
-    </p>
-  </div>
-  <Button variant="outline" onclick={load} disabled={loading}>
-    <RefreshCw class={loading ? "animate-spin" : ""} />
-    Refresh
-  </Button>
-</header>
+<PageHeader
+  title="Graphics drivers"
+  description="NVIDIA: direct API lookup + download + launch — no GeForce Experience, no browser detour."
+>
+  {#snippet actions()}
+    <Button variant="outline" onclick={load} disabled={loading}>
+      <RefreshCw class={loading ? "animate-spin" : ""} />
+      Refresh
+    </Button>
+  {/snippet}
+</PageHeader>
 
 {#if !isTauri()}
   <Card class="card-inset">

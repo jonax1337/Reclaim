@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Switch, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Switch, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -300,23 +300,18 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Defender</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Microsoft Defender protection settings, SmartScreen, and scan exclusions.
-      {#if refreshing}
-        · <span class="text-muted-foreground/70">refreshing…</span>
-      {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
+<PageHeader title="Defender">
+  {#snippet actions()}
     <Button variant="outline" onclick={reload} disabled={loading || !canFetch}>
       <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
       Refresh
     </Button>
-  </div>
-</header>
+  {/snippet}
+  Microsoft Defender protection settings, SmartScreen, and scan exclusions.
+  {#if refreshing}
+    · <span class="text-muted-foreground/70">refreshing…</span>
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

@@ -15,7 +15,7 @@
     Cpu,
     HardDrive,
   } from "@lucide/svelte";
-  import { Card, Button, Badge, toast } from "$lib/ui";
+  import { Card, Button, Badge, PageHeader, toast } from "$lib/ui";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import { admin } from "$lib/admin.svelte";
   import {
@@ -171,14 +171,10 @@
   ];
 </script>
 
-<header class="mb-6">
-  <h1 class="text-3xl font-semibold tracking-tight">Developer</h1>
-  <p class="text-sm text-muted-foreground mt-1">
-    Windows optional features that ship disabled by default — WSL, Hyper-V, the third-party
-    hypervisor API and Windows Sandbox. Backed by DISM; a reboot is usually required after
-    a change.
-  </p>
-</header>
+<PageHeader
+  title="Developer"
+  description="Windows optional features that ship disabled by default — WSL, Hyper-V, the third-party hypervisor API and Windows Sandbox. Backed by DISM; a reboot is usually required after a change."
+/>
 
 <AdminBanner
   description="Enabling or disabling Windows features goes through DISM and requires administrator rights. Reading the current state also requires elevation."

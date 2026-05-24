@@ -152,14 +152,6 @@ fn xml_escape(input: &str) -> String {
     out
 }
 
-/// Escape a value for safe use inside a PowerShell single-quoted string. PS
-/// single-quoted strings escape `'` by doubling: `'it''s ok'`. They do NOT
-/// interpret `$`, `` ` ``, or backslashes specially — so this is the safest
-/// shell-quoting style for arbitrary input.
-fn ps_single_quote(input: &str) -> String {
-    input.replace('\'', "''")
-}
-
 fn atomic_write(path: &Path, content: &[u8]) -> std::io::Result<()> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
@@ -396,36 +388,28 @@ fn pass_specialize(c: &UnattendConfig) -> String {
     if c.disable_cortana {
         priv_cmds.push("reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search /v AllowCortana /t REG_DWORD /d 0 /f".into());
     }
-    // Provisioned-AppX removals run in specialize too: this pass runs as
-    // SYSTEM with full elevation, so `Remove-AppxProvisionedPackage -Online`
-    // actually succeeds. Doing the same in FirstLogonCommands would silently
-    // fail because that runs in the new user's filtered (medium-IL) token.
-    let appx_cmds: Vec<String> = c
-        .debloat_appx_patterns
-        .iter()
-        .filter(|p| !p.is_empty())
-        .map(|p| {
-            let safe = ps_single_quote(p);
-            // Single-line, single-quoted PowerShell — embedded `'` already
-            // doubled by ps_single_quote. We keep it as a `powershell -Command`
-            // one-liner so the unattend stays self-contained.
-            let ps = format!(
-                "Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like '{safe}' }} | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue"
-            );
-            format!("powershell -NoProfile -ExecutionPolicy Bypass -Command \"{ps}\"")
-        })
-        .collect();
+    // AppX removals are NOT emitted into specialize anymore — calling
+    // `Remove-AppxProvisionedPackage -Online` during specialize can corrupt
+    // Sysprep state (any non-zero exit kills the pass and triggers a "computer
+    // was restarted unexpectedly" loop on the next boot). Instead we drop a
+    // `setupcomplete.cmd` into C:\Windows\Setup\Scripts\ from specialize:
+    // Windows Setup runs that file as SYSTEM after oobeSystem completes —
+    // outside Sysprep's window, where AppX removals are safe.
+    let setupcomplete_cmd = if c.debloat_appx_patterns.iter().any(|p| !p.is_empty()) {
+        Some(write_setupcomplete_command(&c.debloat_appx_patterns))
+    } else {
+        None
+    };
 
-    if !priv_cmds.is_empty() || !appx_cmds.is_empty() {
+    if !priv_cmds.is_empty() || setupcomplete_cmd.is_some() {
         s.push_str("      <RunSynchronous>\n");
         let mut o = 1usize;
         for cmd in priv_cmds.iter() {
             s.push_str(&run_sync_cmd(o, &xml_escape(&format!("cmd /c {cmd}"))));
             o += 1;
         }
-        for cmd in appx_cmds.iter() {
-            s.push_str(&run_sync_cmd(o, &xml_escape(cmd)));
-            o += 1;
+        if let Some(write_cmd) = setupcomplete_cmd {
+            s.push_str(&run_sync_cmd(o, &xml_escape(&write_cmd)));
         }
         s.push_str("      </RunSynchronous>\n");
     }
@@ -450,6 +434,92 @@ fn run_sync_cmd(order: usize, path_xml: &str) -> String {
         </RunSynchronousCommand>
 "#
     )
+}
+
+/// Build the `cmd /c …` command that, when run in the specialize pass, drops
+/// our setupcomplete.cmd onto C:\Windows\Setup\Scripts\. Windows Setup
+/// automatically executes that file as SYSTEM after the oobeSystem pass
+/// completes and before the first user logon screen — the supported place
+/// for post-install cleanup that can't run during Sysprep.
+///
+/// The script content is base64-encoded so it can travel through XML, PS,
+/// and CMD layers without any escaping conflicts (script body contains
+/// `<`, `>`, `&`, `|`, `"`, `'` and newlines).
+fn write_setupcomplete_command(patterns: &[String]) -> String {
+    let script = build_setupcomplete_script(patterns);
+    let encoded = base64_encode(script.as_bytes());
+    // One-liner PowerShell: ensure the target directory exists, then atomic
+    // file write via .NET (avoids Out-File BOM / encoding quirks).
+    let ps = format!(
+        "$d='C:\\Windows\\Setup\\Scripts'; \
+         if(-not(Test-Path $d)){{New-Item -Path $d -ItemType Directory -Force | Out-Null}}; \
+         [IO.File]::WriteAllText((Join-Path $d 'setupcomplete.cmd'), \
+         [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{encoded}')))"
+    );
+    format!("cmd /c powershell -NoProfile -ExecutionPolicy Bypass -Command \"{ps}\"")
+}
+
+/// The actual setupcomplete.cmd body. One PowerShell line per AppX pattern,
+/// each writing to a log file under C:\Windows\Setup\Scripts\ so the user
+/// can audit what got removed (and what didn't).
+fn build_setupcomplete_script(patterns: &[String]) -> String {
+    let mut out = String::new();
+    out.push_str("@echo off\r\n");
+    out.push_str("setlocal\r\n");
+    out.push_str("set LOG=C:\\Windows\\Setup\\Scripts\\setupcomplete.log\r\n");
+    out.push_str("echo === Reclaim setupcomplete.cmd started %date% %time% === >> \"%LOG%\"\r\n");
+    for pat in patterns.iter().filter(|p| !p.is_empty()) {
+        // CMD escape for `'` inside double-quoted PS payload: the PS script is
+        // already single-quoted internally so we double the single quote. The
+        // result is then surrounded by `"…"` for CMD's -Command parsing.
+        let safe = pat.replace('\'', "''").replace('"', "");
+        out.push_str(&format!(
+            "echo [appx] {pat} >> \"%LOG%\"\r\n\
+             powershell -NoProfile -Command \
+             \"Get-AppxProvisionedPackage -Online | \
+             Where-Object {{ $_.DisplayName -like '{safe}' }} | \
+             Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue\" \
+             >> \"%LOG%\" 2>&1\r\n"
+        ));
+    }
+    out.push_str("echo === Reclaim setupcomplete.cmd finished %date% %time% === >> \"%LOG%\"\r\n");
+    out.push_str("exit /b 0\r\n");
+    out
+}
+
+/// Plain-vanilla base64 encoder (URL-unsafe / standard alphabet, with padding).
+/// Avoids dragging the `base64` crate in just for this one call.
+fn base64_encode(input: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(((input.len() + 2) / 3) * 4);
+    let mut i = 0;
+    while i + 3 <= input.len() {
+        let b0 = input[i] as u32;
+        let b1 = input[i + 1] as u32;
+        let b2 = input[i + 2] as u32;
+        let n = (b0 << 16) | (b1 << 8) | b2;
+        out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
+        out.push(ALPHABET[(n & 0x3F) as usize] as char);
+        i += 3;
+    }
+    let rem = input.len() - i;
+    if rem == 1 {
+        let n = (input[i] as u32) << 16;
+        out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        out.push('=');
+        out.push('=');
+    } else if rem == 2 {
+        let n = ((input[i] as u32) << 16) | ((input[i + 1] as u32) << 8);
+        out.push(ALPHABET[((n >> 18) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 12) & 0x3F) as usize] as char);
+        out.push(ALPHABET[((n >> 6) & 0x3F) as usize] as char);
+        out.push('=');
+    }
+    out
 }
 
 // ── oobeSystem pass: OOBE config + user account + FirstLogonCommands ─────────
@@ -502,9 +572,16 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
     s.push_str("      </OOBE>\n");
 
     // Local account
+    // Local account: only emit if a non-empty password was supplied. Windows
+    // 11 24H2+ LSA refuses to create local accounts with blank passwords —
+    // emitting an empty <Value></Value> aborts the oobeSystem pass with the
+    // "computer was restarted unexpectedly" reboot loop. Without the block
+    // Setup falls back to its own account-creation screen (one extra OOBE
+    // step, but reliable).
     let password_value = c.password.clone().unwrap_or_default();
-    s.push_str(&format!(
-        r#"
+    if !password_value.is_empty() {
+        s.push_str(&format!(
+            r#"
       <UserAccounts>
         <LocalAccounts>
           <LocalAccount wcm:action="add">
@@ -519,14 +596,15 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
         </LocalAccounts>
       </UserAccounts>
 "#,
-        name = xml_escape(&c.username),
-        pw = xml_escape(&password_value),
-    ));
+            name = xml_escape(&c.username),
+            pw = xml_escape(&password_value),
+        ));
 
-    // Autologon (optional)
-    if c.autologon {
-        s.push_str(&format!(
-            r#"      <AutoLogon>
+        // AutoLogon only makes sense when a real password exists: with an
+        // empty password 24H2+ silently disables autologon anyway.
+        if c.autologon {
+            s.push_str(&format!(
+                r#"      <AutoLogon>
         <Enabled>true</Enabled>
         <LogonCount>1</LogonCount>
         <Username>{name}</Username>
@@ -536,9 +614,10 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
         </Password>
       </AutoLogon>
 "#,
-            name = xml_escape(&c.username),
-            pw = xml_escape(&password_value),
-        ));
+                name = xml_escape(&c.username),
+                pw = xml_escape(&password_value),
+            ));
+        }
     }
 
     // FirstLogonCommands: debloat AppX + apply registry tweaks

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, BulkActionBar, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, BulkActionBar, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -209,31 +209,28 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Windows Update</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if !isTauri()}
-        Browser preview — Windows Update queries need the built app.
-      {:else if loading}
-        Scanning Microsoft Update servers…
-      {:else if lastScanned}
-        <span class="font-medium text-foreground tabular-nums">{updates.length}</span>
-        update{updates.length === 1 ? "" : "s"} found · last scan {formatScanTime(lastScanned)}
+<PageHeader title="Windows Update">
+  {#snippet actions()}
+    <Button onclick={scan} disabled={loading || refreshing || installing} variant="outline">
+      {#if loading || refreshing}
+        <Loader2 class="animate-spin" />
       {:else}
-        Click 'Check for updates' to scan.
+        <RefreshCw />
       {/if}
-    </p>
-  </div>
-  <Button onclick={scan} disabled={loading || refreshing || installing} variant="outline">
-    {#if loading || refreshing}
-      <Loader2 class="animate-spin" />
-    {:else}
-      <RefreshCw />
-    {/if}
-    Check for updates
-  </Button>
-</header>
+      Check for updates
+    </Button>
+  {/snippet}
+  {#if !isTauri()}
+    Browser preview — Windows Update queries need the built app.
+  {:else if loading}
+    Scanning Microsoft Update servers…
+  {:else if lastScanned}
+    <span class="font-medium text-foreground tabular-nums">{updates.length}</span>
+    update{updates.length === 1 ? "" : "s"} found · last scan {formatScanTime(lastScanned)}
+  {:else}
+    Click 'Check for updates' to scan.
+  {/if}
+</PageHeader>
 
 <AdminBanner
   title="Installing updates needs administrator"

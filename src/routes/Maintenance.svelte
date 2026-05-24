@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -471,20 +471,15 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">System maintenance</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if !isTauri()}
-        Browser preview — maintenance ops need the built app.
-      {:else if admin.checked && !admin.elevated}
-        Maintenance operations need administrator rights.
-      {:else}
-        Run several at once — output streams into the terminal panel at the bottom.
-      {/if}
-    </p>
-  </div>
-</header>
+<PageHeader title="System maintenance">
+  {#if !isTauri()}
+    Browser preview — maintenance ops need the built app.
+  {:else if admin.checked && !admin.elevated}
+    Maintenance operations need administrator rights.
+  {:else}
+    Run several at once — output streams into the terminal panel at the bottom.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

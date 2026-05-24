@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -144,19 +144,17 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">OneDrive removal</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Back up your personal folders first, then uninstall OneDrive cleanly — sidebar entry,
-      leftover folders, optional policy block to prevent re-install.
-    </p>
-  </div>
-  <Button variant="outline" onclick={reload} disabled={loading}>
-    <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-    Refresh
-  </Button>
-</header>
+<PageHeader
+  title="OneDrive removal"
+  description="Back up your personal folders first, then uninstall OneDrive cleanly — sidebar entry, leftover folders, optional policy block to prevent re-install."
+>
+  {#snippet actions()}
+    <Button variant="outline" onclick={reload} disabled={loading}>
+      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+      Refresh
+    </Button>
+  {/snippet}
+</PageHeader>
 
 <AdminBanner
   title="Admin needed for full removal"

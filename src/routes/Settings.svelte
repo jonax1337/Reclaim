@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, toast } from "$lib/ui";
+  import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, PageHeader, toast } from "$lib/ui";
   import { Sun, Moon, Monitor, History, RotateCcw, Info, ArrowDownToLine, Loader2, FolderOpen } from "@lucide/svelte";
   import BackgroundServiceCard from "$lib/components/BackgroundServiceCard.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
@@ -122,10 +122,7 @@
   }
 </script>
 
-<header class="mb-6">
-  <h1 class="text-3xl font-semibold tracking-tight">Settings</h1>
-  <p class="text-sm text-muted-foreground mt-1">Appearance, system actions and info.</p>
-</header>
+<PageHeader title="Settings" description="Appearance, system actions and info." />
 
 <div class="flex flex-col gap-6">
   <Card>

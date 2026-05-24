@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -173,34 +173,31 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">DNS & DoH</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Querying network adapters…
-      {:else if isTauri() && admin.elevated}
-        Pick an encrypted DNS provider, or set per-adapter overrides.
-      {:else if isTauri()}
-        DNS configuration needs administrator rights.
-      {:else}
-        Browser preview — DNS configuration needs the built app.
+<PageHeader title="DNS & DoH">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      {#if isTauri() && admin.elevated}
+        <Button variant="outline" onclick={doFlush} disabled={loading}>
+          <PlugZap />
+          Flush cache
+        </Button>
+        <Button variant="outline" onclick={reload} disabled={loading}>
+          <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+          Refresh
+        </Button>
       {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    {#if isTauri() && admin.elevated}
-      <Button variant="outline" onclick={doFlush} disabled={loading}>
-        <PlugZap />
-        Flush cache
-      </Button>
-      <Button variant="outline" onclick={reload} disabled={loading}>
-        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-        Refresh
-      </Button>
-    {/if}
-  </div>
-</header>
+    </div>
+  {/snippet}
+  {#if loading}
+    Querying network adapters…
+  {:else if isTauri() && admin.elevated}
+    Pick an encrypted DNS provider, or set per-adapter overrides.
+  {:else if isTauri()}
+    DNS configuration needs administrator rights.
+  {:else}
+    Browser preview — DNS configuration needs the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

@@ -5,6 +5,7 @@
     Badge,
     Switch,
     Dialog,
+    PageHeader,
     toast,
   } from "$lib/ui";
   import {
@@ -166,44 +167,41 @@
   const activeCount = $derived(active.length);
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Hosts & blocklists</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Reading hosts file…
-      {:else if isTauri() && admin.elevated}
-        <span class="font-medium text-foreground tabular-nums">{activeCount}</span>
-        Reclaim block{activeCount === 1 ? "" : "s"} active. Backup
-        {#if backupExists}available{:else}not present yet{/if}.
-      {:else if isTauri()}
-        Editing the hosts file needs administrator rights.
-      {:else}
-        Browser preview — hosts editing needs the built app.
+<PageHeader title="Hosts & blocklists">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      {#if isTauri() && admin.elevated}
+        <Button variant="outline" onclick={openEditor} disabled={loading}>
+          <FileText />
+          Raw editor
+        </Button>
+        <Button
+          variant="outline"
+          onclick={() => (restoreConfirmOpen = true)}
+          disabled={!backupExists || loading}
+        >
+          <Undo2 />
+          Restore backup
+        </Button>
+        <Button variant="outline" onclick={reload} disabled={loading}>
+          <RefreshCw class={loading ? "animate-spin" : ""} />
+          Refresh
+        </Button>
       {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    {#if isTauri() && admin.elevated}
-      <Button variant="outline" onclick={openEditor} disabled={loading}>
-        <FileText />
-        Raw editor
-      </Button>
-      <Button
-        variant="outline"
-        onclick={() => (restoreConfirmOpen = true)}
-        disabled={!backupExists || loading}
-      >
-        <Undo2 />
-        Restore backup
-      </Button>
-      <Button variant="outline" onclick={reload} disabled={loading}>
-        <RefreshCw class={loading ? "animate-spin" : ""} />
-        Refresh
-      </Button>
-    {/if}
-  </div>
-</header>
+    </div>
+  {/snippet}
+  {#if loading}
+    Reading hosts file…
+  {:else if isTauri() && admin.elevated}
+    <span class="font-medium text-foreground tabular-nums">{activeCount}</span>
+    Reclaim block{activeCount === 1 ? "" : "s"} active. Backup
+    {#if backupExists}available{:else}not present yet{/if}.
+  {:else if isTauri()}
+    Editing the hosts file needs administrator rights.
+  {:else}
+    Browser preview — hosts editing needs the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

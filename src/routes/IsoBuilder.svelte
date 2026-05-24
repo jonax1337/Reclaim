@@ -8,6 +8,7 @@
     Switch,
     Select,
     Dialog,
+    PageHeader,
     toast,
   } from "$lib/ui";
   import {
@@ -474,27 +475,24 @@
   ]);
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Install media</h1>
-    <p class="text-sm text-muted-foreground mt-1 max-w-2xl">
-      Configure a Windows 11 unattended install. The generated
-      <code class="px-1 rounded bg-foreground/10 font-mono text-[12px]">autounattend.xml</code>
-      runs your selected Reclaim profile during first logon — debloat and
-      registry tweaks become part of the install itself.
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button variant="outline" onclick={generatePreview} disabled={generating || !isTauri()}>
-      {#if generating}<Loader2 class="size-4 animate-spin" />{:else}<Eye class="size-4" />{/if}
-      Preview XML
-    </Button>
-    <Button onclick={saveXml} disabled={saving || !isTauri()}>
-      {#if saving}<Loader2 class="size-4 animate-spin" />{:else}<Save class="size-4" />{/if}
-      Save autounattend.xml
-    </Button>
-  </div>
-</header>
+<PageHeader title="Install media">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button variant="outline" onclick={generatePreview} disabled={generating || !isTauri()}>
+        {#if generating}<Loader2 class="size-4 animate-spin" />{:else}<Eye class="size-4" />{/if}
+        Preview XML
+      </Button>
+      <Button onclick={saveXml} disabled={saving || !isTauri()}>
+        {#if saving}<Loader2 class="size-4 animate-spin" />{:else}<Save class="size-4" />{/if}
+        Save autounattend.xml
+      </Button>
+    </div>
+  {/snippet}
+  Configure a Windows 11 unattended install. The generated
+  <code class="px-1 rounded bg-foreground/10 font-mono text-[12px]">autounattend.xml</code>
+  runs your selected Reclaim profile during first logon — debloat and registry tweaks become
+  part of the install itself.
+</PageHeader>
 
 <!-- ─── Reclaim profile (debloat source) ─────────────────────────────────── -->
 <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
@@ -618,9 +616,20 @@
       <input type="text" bind:value={username} placeholder="User" class={fieldClass} />
     </label>
     <label class={labelClass}>
-      <span class={labelTextClass}>Password (empty = no password)</span>
-      <input type="text" bind:value={password} placeholder="(leave empty for none)" class={fieldClass} />
+      <span class={labelTextClass}>Password (recommended)</span>
+      <input type="text" bind:value={password} placeholder="Set a password" class={fieldClass} />
     </label>
+
+    {#if password === ""}
+      <div class="md:col-span-2 flex items-start gap-3 px-3 py-2.5 rounded-md border bg-amber-500/10 border-amber-500/30">
+        <AlertTriangle class="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div class="text-xs text-foreground/90 leading-relaxed">
+          <strong>No password set.</strong> Windows 11 24H2+ refuses to create local accounts with a
+          blank password — Setup will skip the unattended account block and show its own account-creation
+          screen instead. Set a password here to keep the flow fully unattended.
+        </div>
+      </div>
+    {/if}
 
     <label class={labelClass}>
       <span class={labelTextClass}>Computer name</span>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -68,20 +68,19 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">AI &amp; Copilot</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Disable Copilot, Recall, Click to Do and AI features in Edge.
-    </p>
-  </div>
-  {#if canFetch}
-    <Button variant="outline" onclick={reload} disabled={loading}>
-      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-      Refresh Recall status
-    </Button>
-  {/if}
-</header>
+<PageHeader
+  title="AI & Copilot"
+  description="Disable Copilot, Recall, Click to Do and AI features in Edge."
+>
+  {#snippet actions()}
+    {#if canFetch}
+      <Button variant="outline" onclick={reload} disabled={loading}>
+        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+        Refresh Recall status
+      </Button>
+    {/if}
+  {/snippet}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

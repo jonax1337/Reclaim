@@ -6,6 +6,7 @@
     Checkbox,
     BulkActionBar,
     Dialog,
+    PageHeader,
     toast,
   } from "$lib/ui";
   import {
@@ -300,44 +301,41 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Apps</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Querying winget…
-      {:else if !isTauri()}
-        Browser preview — installing apps requires the built app.
-      {:else if !wingetReady}
-        winget not available on this system.
-      {:else}
-        <span class="font-medium text-foreground tabular-nums">{installedCount}</span> of
-        {UNIQUE_APPS.length} catalogued apps installed
-        {#if upgradableCount > 0}
-          · <span class="text-foreground">{upgradableCount}</span> upgradable
-        {/if}
-        {#if wingetVer}
-          · winget {wingetVer}
-        {/if}
-        {#if refreshing}
-          · <span class="text-muted-foreground/70">refreshing…</span>
-        {/if}
+<PageHeader title="Apps">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      {#if isTauri() && wingetReady}
+        <Button variant="outline" onclick={selectRecommended} disabled={bulkBusy || loading}>
+          <Sparkles />
+          Select recommended
+        </Button>
       {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    {#if isTauri() && wingetReady}
-      <Button variant="outline" onclick={selectRecommended} disabled={bulkBusy || loading}>
-        <Sparkles />
-        Select recommended
+      <Button variant="outline" onclick={refreshWinget} disabled={loading || refreshing}>
+        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+        Refresh
       </Button>
+    </div>
+  {/snippet}
+  {#if loading}
+    Querying winget…
+  {:else if !isTauri()}
+    Browser preview — installing apps requires the built app.
+  {:else if !wingetReady}
+    winget not available on this system.
+  {:else}
+    <span class="font-medium text-foreground tabular-nums">{installedCount}</span> of
+    {UNIQUE_APPS.length} catalogued apps installed
+    {#if upgradableCount > 0}
+      · <span class="text-foreground">{upgradableCount}</span> upgradable
     {/if}
-    <Button variant="outline" onclick={refreshWinget} disabled={loading || refreshing}>
-      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  </div>
-</header>
+    {#if wingetVer}
+      · winget {wingetVer}
+    {/if}
+    {#if refreshing}
+      · <span class="text-muted-foreground/70">refreshing…</span>
+    {/if}
+  {/if}
+</PageHeader>
 
 {#if !isTauri()}
   <Card class="card-inset">

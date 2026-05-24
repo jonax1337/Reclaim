@@ -12,4 +12,5 @@ export * as Select from "./select/index";
 export { default as Titlebar } from "./Titlebar.svelte";
 export { default as Toaster } from "./Toaster.svelte";
 export { default as BulkActionBar } from "./BulkActionBar.svelte";
+export { default as PageHeader } from "./PageHeader.svelte";
 export { toast } from "./toast.svelte";

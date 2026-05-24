@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, toast } from "$lib/ui";
+  import { Card, Button, Badge, PageHeader, toast } from "$lib/ui";
   import { Trash2, Info, CheckCircle2, AlertCircle, XCircle, ChevronDown, ChevronRight, Download } from "@lucide/svelte";
   import { log, ACTION_LABELS, type LogEntry, type LogLevel } from "$lib/log.svelte";
   import { isTauri, readActivityLog } from "$lib/tweaks/bridge";
@@ -136,32 +136,31 @@
   });
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Activity log</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Every tweak, removal and system action — last {log.entries.length === 500 ? "500" : log.entries.length} events.
-    </p>
-  </div>
-  <div class="flex gap-2">
-    <Button
-      variant="outline"
-      onclick={exportLog}
-      disabled={exporting || log.entries.length === 0}
-    >
-      <Download />
-      Export…
-    </Button>
-    <Button
-      variant="outline"
-      onclick={() => log.clear()}
-      disabled={log.entries.length === 0}
-    >
-      <Trash2 />
-      Clear log
-    </Button>
-  </div>
-</header>
+<PageHeader title="Activity log">
+  {#snippet actions()}
+    <div class="flex gap-2">
+      <Button
+        variant="outline"
+        onclick={exportLog}
+        disabled={exporting || log.entries.length === 0}
+      >
+        <Download />
+        Export…
+      </Button>
+      <Button
+        variant="outline"
+        onclick={() => log.clear()}
+        disabled={log.entries.length === 0}
+      >
+        <Trash2 />
+        Clear log
+      </Button>
+    </div>
+  {/snippet}
+  Every tweak, removal and system action — last {log.entries.length === 500
+    ? "500"
+    : log.entries.length} events.
+</PageHeader>
 
 <div class="flex flex-wrap gap-2 mb-4">
   {#each [

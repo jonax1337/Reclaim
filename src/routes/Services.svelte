@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Card, Button, Badge, toast, Dialog } from "$lib/ui";
+  import { Card, Button, Badge, toast, Dialog, PageHeader } from "$lib/ui";
   import { Loader2, RefreshCw, Search, AlertTriangle, Cog } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import {
@@ -161,37 +161,35 @@
   );
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Services</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Querying services…
-      {:else if isTauri()}
-        {#if showAll}
-          Showing all <span class="font-medium text-foreground tabular-nums">{services.length}</span> services
-        {:else}
-          Showing <span class="font-medium text-foreground tabular-nums">{notableCount}</span>
-          notable services — toggle 'Show all' for the full list of {services.length}.
-        {/if}
-        {#if refreshing}
-          · <span class="text-muted-foreground/70">refreshing…</span>
-        {/if}
-      {:else}
-        Browser preview — service queries require the built app.
-      {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button variant="outline" onclick={() => (showAll = !showAll)} disabled={loading}>
-      {showAll ? "Show notable only" : "Show all"}
-    </Button>
-    <Button variant="outline" onclick={reload} disabled={loading || !canFetch}>
-      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  </div>
-</header>
+<PageHeader title="Services">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button variant="outline" onclick={() => (showAll = !showAll)} disabled={loading}>
+        {showAll ? "Show notable only" : "Show all"}
+      </Button>
+      <Button variant="outline" onclick={reload} disabled={loading || !canFetch}>
+        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+        Refresh
+      </Button>
+    </div>
+  {/snippet}
+  {#if loading}
+    Querying services…
+  {:else if isTauri()}
+    {#if showAll}
+      Showing all
+      <span class="font-medium text-foreground tabular-nums">{services.length}</span> services
+    {:else}
+      Showing <span class="font-medium text-foreground tabular-nums">{notableCount}</span>
+      notable services — toggle 'Show all' for the full list of {services.length}.
+    {/if}
+    {#if refreshing}
+      · <span class="text-muted-foreground/70">refreshing…</span>
+    {/if}
+  {:else}
+    Browser preview — service queries require the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

@@ -2,6 +2,27 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.18.1
+
+Hotfix on top of v0.18.0: the unattended Win11 install crashed at the end with "Der Computer wurde unerwartet neu gestartet" / "Windows konnte die Installation nicht abschließen" between the `specialize` and `oobeSystem` passes. Two root causes — both fixed — plus a unified design-system pass across every route and an OneDrive sidebar-icon trim.
+
+### Fixed
+
+- **AppX-Removals moved out of the `specialize` pass into a Windows-Setup `setupcomplete.cmd`.** `Remove-AppxProvisionedPackage -Online` in `specialize` corrupted Sysprep state when any pattern returned a non-zero exit — common with the Privacy Maximum profile's ~30 AppX patterns. We now write `C:\Windows\Setup\Scripts\setupcomplete.cmd` (base64-encoded into a single PowerShell `[IO.File]::WriteAllText` call in `specialize`) and let Windows Setup execute it as SYSTEM after `oobeSystem` completes — outside Sysprep's window, where the removals are safe. The script logs to `C:\Windows\Setup\Scripts\setupcomplete.log` for post-install audit.
+- **Blank-password local account block is now skipped.** Win11 24H2+ LSA refuses to create local accounts with blank passwords; emitting `<Value></Value>` with `<PlainText>true</PlainText>` aborted the `oobeSystem` pass and triggered the same "unexpected restart" loop. When `password` is empty we drop the whole `<UserAccounts>` block — Setup falls back to its own account-creation screen, which works fine. UI banner in the Install-Media page warns about this whenever the password field is empty.
+- **OneDrive sidebar icon** was minimally clipped on the left because of an over-scaled internal transform (`scale(1.12)`). Dropped to `scale(1.05)` — sits cleanly inside the viewBox now, still optically balanced against Lucide icons.
+
+### Changed
+
+- **Unified design system.** Every route now uses the new `PageHeader` component (consistent title + description + actions layout); content sections share the same `card-inset` rhythm. See `docs/DESIGN_SYSTEM.md` for the rules and the per-route audit. No functional changes, purely visual consistency.
+- **Install Media password field copy** changed from "Password (empty = no password)" + placeholder "(leave empty for none)" to "Password (recommended)" + placeholder "Set a password". The old copy made blank-password sound like a deliberate option; on 24H2+ it isn't.
+
+### Internal
+
+- New `src/lib/ui/PageHeader.svelte` component (~25 LoC) — slot-based, takes title/description/actions snippets.
+- `unattend.rs` gained a small inline base64 encoder (~30 LoC, std-only) so the existing `base64` crate dependency doesn't leak in here; the helper is local to the setupcomplete.cmd write.
+- `ps_single_quote` helper removed (no longer used — the only call site moved to base64-encoded payload).
+
 ## v0.18.0
 
 USB-stick flasher + Install-Media correctness pass + live Windows Update progress. The "Install media" page now writes bootable USB sticks end-to-end (no Rufus needed), the generated autounattend.xml actually completes the install on real hardware again (six install-breakers fixed), and `/windows-update` streams per-update download + install percent through an xterm instead of a generic spinner.

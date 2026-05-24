@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Switch, Badge, toast } from "$lib/ui";
+  import { Card, Button, Switch, Badge, PageHeader, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -193,28 +193,25 @@
   const enabledCount = $derived(apps.filter((a) => a.enabled).length);
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Startup apps</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Scanning autostart entries…
-      {:else if isTauri()}
-        <span class="font-medium text-foreground tabular-nums">{enabledCount}</span>
-        of {apps.length} enabled · sources: registry Run keys + Startup folders
-        {#if appsRes.revalidating}
-          · <span class="text-muted-foreground/70">refreshing…</span>
-        {/if}
-      {:else}
-        Browser preview — startup queries require the built app.
-      {/if}
-    </p>
-  </div>
-  <Button variant="outline" onclick={reload} disabled={loading}>
-    <RefreshCw class={loading || appsRes.revalidating ? "animate-spin" : ""} />
-    Refresh
-  </Button>
-</header>
+<PageHeader title="Startup apps">
+  {#snippet actions()}
+    <Button variant="outline" onclick={reload} disabled={loading}>
+      <RefreshCw class={loading || appsRes.revalidating ? "animate-spin" : ""} />
+      Refresh
+    </Button>
+  {/snippet}
+  {#if loading}
+    Scanning autostart entries…
+  {:else if isTauri()}
+    <span class="font-medium text-foreground tabular-nums">{enabledCount}</span>
+    of {apps.length} enabled · sources: registry Run keys + Startup folders
+    {#if appsRes.revalidating}
+      · <span class="text-muted-foreground/70">refreshing…</span>
+    {/if}
+  {:else}
+    Browser preview — startup queries require the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && !loading}
   <div class="mb-4 relative">

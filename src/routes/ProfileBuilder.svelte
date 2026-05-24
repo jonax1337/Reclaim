@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { push } from "svelte-spa-router";
-  import { Card, Button, Badge, Checkbox, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, PageHeader, toast } from "$lib/ui";
   import {
     ArrowLeft,
     Save,
@@ -151,8 +151,11 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
+<PageHeader
+  title={isEdit ? "Edit profile" : "New profile"}
+  description="Pick the tweaks and bloatware patterns this profile should apply. Saved locally — export to JSON to share."
+>
+  {#snippet above()}
     <button
       type="button"
       onclick={cancel}
@@ -161,26 +164,21 @@
       <ArrowLeft class="size-3" />
       Back to profiles
     </button>
-    <h1 class="text-3xl font-semibold tracking-tight">
-      {isEdit ? "Edit profile" : "New profile"}
-    </h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      Pick the tweaks and bloatware patterns this profile should apply. Saved locally —
-      export to JSON to share.
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button variant="outline" onclick={selectRecommended}>
-      <Sparkles />
-      Add all recommended
-    </Button>
-    <Button variant="outline" onclick={cancel}>Cancel</Button>
-    <Button onclick={save}>
-      <Save />
-      Save
-    </Button>
-  </div>
-</header>
+  {/snippet}
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button variant="outline" onclick={selectRecommended}>
+        <Sparkles />
+        Add all recommended
+      </Button>
+      <Button variant="outline" onclick={cancel}>Cancel</Button>
+      <Button onclick={save}>
+        <Save />
+        Save
+      </Button>
+    </div>
+  {/snippet}
+</PageHeader>
 
 <Card class="card-inset mb-6">
   <div class="px-5 py-5 grid grid-cols-1 md:grid-cols-2 gap-4">

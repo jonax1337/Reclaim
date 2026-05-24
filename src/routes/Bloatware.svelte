@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, BulkActionBar, Dialog, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, BulkActionBar, Dialog, PageHeader, toast } from "$lib/ui";
   import { Loader2, Trash2, RefreshCw, Sparkles, AlertTriangle, Search, Package } from "@lucide/svelte";
   import { isTauri, removeAppx, type AppxPackage } from "$lib/tweaks/bridge";
   import { BLOATWARE, GROUP_LABELS, type BloatwareEntry } from "$lib/tweaks/bloatware";
@@ -132,23 +132,20 @@
   );
 </script>
 
-<header class="mb-6">
-  <h1 class="text-3xl font-semibold tracking-tight">Bloatware</h1>
-  <p class="text-sm text-muted-foreground mt-1">
-    {#if loading}
-      Scanning installed apps…
-    {:else if isTauri()}
-      <span class="font-medium text-foreground tabular-nums">{installedCount}</span>
-      installed bloatware {installedCount === 1 ? "app" : "apps"} found
-      · <span class="text-foreground">{recommendedInstalled}</span> recommended to remove
-      {#if installedRes.revalidating}
-        · <span class="text-muted-foreground/70">refreshing…</span>
-      {/if}
-    {:else}
-      Browser preview — app detection requires the built app.
+<PageHeader title="Bloatware">
+  {#if loading}
+    Scanning installed apps…
+  {:else if isTauri()}
+    <span class="font-medium text-foreground tabular-nums">{installedCount}</span>
+    installed bloatware {installedCount === 1 ? "app" : "apps"} found
+    · <span class="text-foreground">{recommendedInstalled}</span> recommended to remove
+    {#if installedRes.revalidating}
+      · <span class="text-muted-foreground/70">refreshing…</span>
     {/if}
-  </p>
-</header>
+  {:else}
+    Browser preview — app detection requires the built app.
+  {/if}
+</PageHeader>
 
 <div class="flex flex-wrap items-center gap-2 mb-4">
   <div class="flex-1 min-w-[12rem] relative">

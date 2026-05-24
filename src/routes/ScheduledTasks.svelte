@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, toast, Dialog } from "$lib/ui";
+  import { Card, Button, Badge, toast, Dialog, PageHeader } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -243,45 +243,42 @@
   }
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">Scheduled tasks</h1>
-    <p class="text-sm text-muted-foreground mt-1">
-      {#if loading}
-        Querying tasks…
-      {:else if isTauri()}
-        {#if hideMicrosoft && !filter}
-          Showing <span class="font-medium text-foreground tabular-nums">{shownCount}</span>
-          of {totalCount} tasks
-          {#if notableInList > 0}
-            · <span class="text-warning">{notableInList} notable</span>
-          {/if}
-        {:else}
-          Showing <span class="font-medium text-foreground tabular-nums">{shownCount}</span>
-          of {totalCount} tasks
-        {/if}
-        {#if refreshing}
-          · <span class="text-muted-foreground/70">refreshing…</span>
-        {/if}
-      {:else}
-        Browser preview — scheduled task queries require the built app.
+<PageHeader title="Scheduled tasks">
+  {#snippet actions()}
+    <div class="flex items-center gap-2">
+      <Button
+        variant="outline"
+        onclick={() => (hideMicrosoft = !hideMicrosoft)}
+        disabled={loading}
+      >
+        {hideMicrosoft ? "Show Microsoft tasks" : "Hide Microsoft tasks"}
+      </Button>
+      <Button variant="outline" onclick={reload} disabled={loading || !canFetch}>
+        <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+        Refresh
+      </Button>
+    </div>
+  {/snippet}
+  {#if loading}
+    Querying tasks…
+  {:else if isTauri()}
+    {#if hideMicrosoft && !filter}
+      Showing <span class="font-medium text-foreground tabular-nums">{shownCount}</span>
+      of {totalCount} tasks
+      {#if notableInList > 0}
+        · <span class="text-warning">{notableInList} notable</span>
       {/if}
-    </p>
-  </div>
-  <div class="flex items-center gap-2">
-    <Button
-      variant="outline"
-      onclick={() => (hideMicrosoft = !hideMicrosoft)}
-      disabled={loading}
-    >
-      {hideMicrosoft ? "Show Microsoft tasks" : "Hide Microsoft tasks"}
-    </Button>
-    <Button variant="outline" onclick={reload} disabled={loading || !canFetch}>
-      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  </div>
-</header>
+    {:else}
+      Showing <span class="font-medium text-foreground tabular-nums">{shownCount}</span>
+      of {totalCount} tasks
+    {/if}
+    {#if refreshing}
+      · <span class="text-muted-foreground/70">refreshing…</span>
+    {/if}
+  {:else}
+    Browser preview — scheduled task queries require the built app.
+  {/if}
+</PageHeader>
 
 {#if isTauri() && admin.checked && !admin.elevated}
   <AdminBanner

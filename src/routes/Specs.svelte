@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, CardContent, CardHeader, CardTitle, Button } from "$lib/ui";
+  import { Card, CardContent, CardHeader, CardTitle, Button, PageHeader } from "$lib/ui";
   import { Cpu, MonitorSmartphone, MemoryStick, HardDrive, CircuitBoard, RefreshCw, Loader2 } from "@lucide/svelte";
   import { isTauri, type SystemInfo } from "$lib/tweaks/bridge";
   import { hardwareResource, systemInfoResource } from "$lib/route-cache.svelte";
@@ -118,16 +118,14 @@
   );
 </script>
 
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 class="text-3xl font-semibold tracking-tight">System specs</h1>
-    <p class="text-sm text-muted-foreground mt-1">CPU, GPU, RAM, storage and firmware.</p>
-  </div>
-  <Button variant="outline" onclick={load} disabled={loading}>
-    <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
-    Refresh
-  </Button>
-</header>
+<PageHeader title="System specs" description="CPU, GPU, RAM, storage and firmware.">
+  {#snippet actions()}
+    <Button variant="outline" onclick={load} disabled={loading}>
+      <RefreshCw class={loading || refreshing ? "animate-spin" : ""} />
+      Refresh
+    </Button>
+  {/snippet}
+</PageHeader>
 
 {#if !isTauri()}
   <Card class="card-inset">
