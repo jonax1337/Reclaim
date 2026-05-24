@@ -70,7 +70,11 @@ export const APPS: AppEntry[] = [
   { id: "Google.Chrome", name: "Google Chrome", description: "Google's Chromium browser.", group: "browsers", icon: "google-chrome" },
   { id: "Vivaldi.Vivaldi", name: "Vivaldi", description: "Highly customizable Chromium browser.", group: "browsers", icon: "vivaldi" },
   { id: "LibreWolf.LibreWolf", name: "LibreWolf", description: "Privacy-hardened Firefox fork.", group: "browsers", icon: "librewolf" },
+  { id: "Floorp.Floorp", name: "Floorp", description: "Japanese Firefox fork focused on customization.", group: "browsers", icon: "floorp" },
   { id: "TheTorProject.TorBrowser", name: "Tor Browser", description: "Anonymous browsing over the Tor network.", group: "browsers", icon: "selfhst:tor-browser" },
+  { id: "Opera.Opera", name: "Opera", description: "Chromium browser with built-in VPN and messengers.", group: "browsers", icon: "opera" },
+  { id: "Opera.OperaGX", name: "Opera GX", description: "Opera variant marketed at gamers with RAM/CPU limiters.", group: "browsers", icon: "simple:opera" },
+  { id: "eloston.ungoogled-chromium", name: "Ungoogled Chromium", description: "Chromium with every Google service integration stripped out.", group: "browsers", icon: "chromium" },
 
   // communication
   { id: "Discord.Discord", name: "Discord", description: "Voice, video, and text chat for communities.", group: "communication", icon: "discord" },
@@ -80,6 +84,10 @@ export const APPS: AppEntry[] = [
   { id: "Zoom.Zoom", name: "Zoom", description: "Video meetings.", group: "communication", icon: "zoom" },
   { id: "Element.Element", name: "Element", description: "Matrix client — decentralized chat.", group: "communication", icon: "element" },
   { id: "Mozilla.Thunderbird", name: "Thunderbird", description: "Mozilla's email + calendar client.", group: "communication", icon: "thunderbird" },
+  { id: "WhatsApp.WhatsApp", name: "WhatsApp Desktop", description: "Meta's messenger — native Windows client.", group: "communication", icon: "whatsapp" },
+  { id: "Microsoft.Teams.Free", name: "Microsoft Teams (Free)", description: "Microsoft Teams consumer edition.", group: "communication", icon: "microsoft-teams" },
+  { id: "Microsoft.Skype", name: "Skype", description: "Microsoft's legacy voice + video calling app.", group: "communication", icon: "skype" },
+  { id: "OxenPrivacyTech.Session", name: "Session", description: "Decentralized E2EE messenger with no phone number.", group: "communication", icon: "simple:session" },
 
   // dev
   { id: "Microsoft.VisualStudioCode", name: "VS Code", description: "Microsoft's open-source code editor.", group: "dev", recommended: true, homepage: "https://code.visualstudio.com", icon: "visual-studio-code" },
@@ -96,6 +104,14 @@ export const APPS: AppEntry[] = [
   { id: "Postman.Postman", name: "Postman", description: "API development environment.", group: "dev", icon: "postman" },
   { id: "SublimeHQ.SublimeText.4", name: "Sublime Text 4", description: "Lightweight, fast text editor.", group: "dev", icon: "simple:sublimetext" },
   { id: "Notepad++.Notepad++", name: "Notepad++", description: "Classic Windows text/code editor.", group: "dev", icon: "selfhst:notepad-plus-plus" },
+  { id: "JetBrains.IntelliJIDEA.Community", name: "IntelliJ IDEA Community", description: "Free JetBrains JVM IDE.", group: "dev", icon: "intellij" },
+  { id: "Google.AndroidStudio", name: "Android Studio", description: "Official Android development IDE.", group: "dev", icon: "simple:androidstudio" },
+  { id: "Anysphere.Cursor", name: "Cursor", description: "AI-first VS Code fork.", group: "dev", icon: "simple:cursor" },
+  { id: "Zed.Zed", name: "Zed", description: "High-performance multiplayer code editor from the Atom team.", group: "dev", icon: "simple:zedindustries" },
+  { id: "Oven-sh.Bun", name: "Bun", description: "Fast JavaScript runtime + bundler + test runner.", group: "dev", icon: "simple:bun" },
+  { id: "DenoLand.Deno", name: "Deno", description: "Secure JavaScript / TypeScript runtime.", group: "dev", icon: "deno" },
+  { id: "Kong.Insomnia", name: "Insomnia", description: "REST + GraphQL + gRPC API client.", group: "dev", icon: "simple:insomnia" },
+  { id: "Axosoft.GitKraken", name: "GitKraken", description: "Git GUI with commit graph + conflict tools.", group: "dev", icon: "simple:gitkraken" },
 
   // system tools
   { id: "7zip.7zip", name: "7-Zip", description: "Open-source archive utility.", group: "system", recommended: true, icon: "7zip" },
@@ -109,6 +125,11 @@ export const APPS: AppEntry[] = [
   { id: "Microsoft.Sysinternals.ProcessExplorer", name: "Process Explorer", description: "Sysinternals task manager replacement.", group: "system", icon: "favicon:learn.microsoft.com" },
   { id: "REALiX.HWiNFO", name: "HWiNFO", description: "Deep hardware monitoring + sensor data.", group: "system", icon: "favicon:hwinfo.com" },
   { id: "CrystalDewWorld.CrystalDiskInfo", name: "CrystalDiskInfo", description: "SMART health for HDDs/SSDs.", group: "system", icon: "favicon:crystalmark.info" },
+  { id: "BleachBit.BleachBit", name: "BleachBit", description: "CCleaner replacement — wipe temp / cache / logs across hundreds of apps.", group: "system", icon: "https://raw.githubusercontent.com/bleachbit/bleachbit/master/bleachbit.png" },
+  { id: "Microsoft.Sysinternals.Autoruns", name: "Autoruns", description: "Sysinternals startup auditor — every entry point Windows knows about.", group: "system", icon: "favicon:learn.microsoft.com" },
+  { id: "SystemInformer.SystemInformer", name: "System Informer", description: "Open-source Process Hacker successor — deeper than Task Manager.", group: "system", icon: "https://raw.githubusercontent.com/winsiderss/systeminformer/master/tools/msix/Square44x44Logo.png" },
+  { id: "Snipaste.Snipaste", name: "Snipaste", description: "Screenshot + sticky-note tool with pixel-precision cropping.", group: "system", icon: "favicon:snipaste.com" },
+  { id: "File-New-Project.EarTrumpet", name: "EarTrumpet", description: "Per-app volume mixer in the system tray.", group: "system", icon: "https://raw.githubusercontent.com/File-New-Project/EarTrumpet/master/EarTrumpet.Package/Assets/Square150x150Logo.scale-400.png" },
 
   // media
   { id: "VideoLAN.VLC", name: "VLC", description: "Plays anything.", group: "media", recommended: true, icon: "simple:vlcmediaplayer" },
@@ -120,6 +141,12 @@ export const APPS: AppEntry[] = [
   { id: "GIMP.GIMP", name: "GIMP", description: "Free image editor.", group: "media", icon: "gimp" },
   { id: "Inkscape.Inkscape", name: "Inkscape", description: "Vector graphics editor.", group: "media", icon: "selfhst:inkscape" },
   { id: "BlenderFoundation.Blender", name: "Blender", description: "3D modeling, animation, rendering.", group: "media", icon: "blender" },
+  { id: "PeterPawlowski.foobar2000", name: "foobar2000", description: "Minimalist audio player obsessed with playback quality.", group: "media", icon: "simple:foobar2000" },
+  { id: "MusicBee.MusicBee", name: "MusicBee", description: "Feature-rich music library + player.", group: "media", icon: "favicon:getmusicbee.com" },
+  { id: "clsid2.mpc-hc", name: "MPC-HC", description: "Lightweight Media Player Classic Home Cinema (revived).", group: "media", icon: "favicon:mpc-hc.org" },
+  { id: "KDE.Krita", name: "Krita", description: "Free digital painting app — built for illustrators.", group: "media", icon: "simple:krita" },
+  { id: "dotPDNLLC.paintdotnet", name: "Paint.NET", description: "Free image editor — friendlier than GIMP, more than MS Paint.", group: "media", icon: "favicon:getpaint.net" },
+  { id: "Skillbrains.Lightshot", name: "Lightshot", description: "Quick screenshot tool with overlay annotations.", group: "media", icon: "favicon:app.prntscr.com" },
 
   // office
   { id: "TheDocumentFoundation.LibreOffice", name: "LibreOffice", description: "Free office suite (Writer, Calc, Impress, …).", group: "office", icon: "libreoffice" },
@@ -128,6 +155,10 @@ export const APPS: AppEntry[] = [
   { id: "Notion.Notion", name: "Notion", description: "Notes, wikis, project management.", group: "office", icon: "notion" },
   { id: "Joplin.Joplin", name: "Joplin", description: "Open-source notes with E2EE sync.", group: "office", icon: "joplin" },
   { id: "Logseq.Logseq", name: "Logseq", description: "Local-first outliner / knowledge graph.", group: "office", icon: "logseq" },
+  { id: "calibre.calibre", name: "Calibre", description: "E-book library manager + converter.", group: "office", icon: "calibre" },
+  { id: "SumatraPDF.SumatraPDF", name: "Sumatra PDF", description: "Tiny, fast PDF / EPUB / CBZ viewer.", group: "office", icon: "https://raw.githubusercontent.com/sumatrapdfreader/sumatrapdf/master/appx/SumatraPDF_StoreLogo_150x150.png" },
+  { id: "Adobe.Acrobat.Reader.64-bit", name: "Adobe Acrobat Reader", description: "Adobe's official PDF viewer.", group: "office", icon: "selfhst:adobe-acrobat" },
+  { id: "JGraph.Draw", name: "draw.io", description: "Free desktop diagram editor (BPMN, flowcharts, network maps).", group: "office", icon: "draw-io" },
 
   // gaming
   { id: "Valve.Steam", name: "Steam", description: "Valve's game store + launcher.", group: "gaming", icon: "steam" },
@@ -137,6 +168,10 @@ export const APPS: AppEntry[] = [
   { id: "Heroic.HeroicGamesLauncher", name: "Heroic Launcher", description: "Open Epic/GOG/Amazon launcher.", group: "gaming", icon: "simple:heroicgameslauncher" },
   { id: "Guinpin.MSIAfterburner", name: "MSI Afterburner", description: "GPU overclocking + monitoring overlay.", group: "gaming", icon: "simple:msi" },
   { id: "Discord.Discord", name: "Discord", description: "Voice + text chat (duplicates listed under Communication).", group: "gaming", icon: "discord" },
+  { id: "Playnite.Playnite", name: "Playnite", description: "Unified library + launcher for Steam / Epic / GOG / Xbox / Origin.", group: "gaming", icon: "https://raw.githubusercontent.com/JosefNemec/Playnite/master/media/playnite-logo-default.svg" },
+  { id: "Blizzard.BattleNet", name: "Battle.net", description: "Blizzard / Activision launcher.", group: "gaming", icon: "simple:battledotnet" },
+  { id: "Ubisoft.Connect", name: "Ubisoft Connect", description: "Ubisoft games launcher.", group: "gaming", icon: "simple:ubisoft" },
+  { id: "Libretro.RetroArch", name: "RetroArch", description: "Multi-system retro emulator front-end.", group: "gaming", icon: "simple:retroarch" },
 
   // utilities
   { id: "qBittorrent.qBittorrent", name: "qBittorrent", description: "Lightweight, ad-free BitTorrent client.", group: "utilities", icon: "qbittorrent" },
@@ -147,6 +182,10 @@ export const APPS: AppEntry[] = [
   { id: "WinSCP.WinSCP", name: "WinSCP", description: "SCP / SFTP / FTP client.", group: "utilities", icon: "favicon:winscp.net" },
   { id: "PuTTY.PuTTY", name: "PuTTY", description: "SSH / serial client.", group: "utilities", icon: "putty" },
   { id: "Mullvad.MullvadVPN", name: "Mullvad VPN", description: "Privacy-focused VPN client.", group: "utilities", icon: "mullvad-vpn" },
+  { id: "Malwarebytes.Malwarebytes", name: "Malwarebytes", description: "Anti-malware scanner — complements Defender.", group: "utilities", icon: "simple:malwarebytes" },
+  { id: "Cryptomator.Cryptomator", name: "Cryptomator", description: "Client-side encryption for cloud storage folders.", group: "utilities", icon: "cryptomator" },
+  { id: "IDRIX.VeraCrypt", name: "VeraCrypt", description: "On-the-fly encrypted volumes (TrueCrypt successor).", group: "utilities", icon: "favicon:veracrypt.fr" },
+  { id: "WiresharkFoundation.Wireshark", name: "Wireshark", description: "Industry-standard packet analyzer.", group: "utilities", icon: "simple:wireshark" },
 ];
 
 // Deduplicate by id — gaming group references some IDs already in other groups.

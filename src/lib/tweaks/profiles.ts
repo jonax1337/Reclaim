@@ -89,7 +89,7 @@ export const PROFILES: Profile[] = [
     name: "Privacy Maximum",
     tagline: "Lock down telemetry & tracking",
     description:
-      "Turns off every telemetry, AI snapshot, ad ID, location and feedback hook. Kills the DiagTrack service and the matching scheduled tasks.",
+      "Turns off every telemetry, AI snapshot, ad ID, location and feedback hook. Kills the DiagTrack service and the matching scheduled tasks. Also blocks nearby sharing, Office cloud content, lock-screen Spotlight and the Win11 'restore my apps on sign-in' feature.",
     gradient: "lock",
     tweakIds: [
       "telemetry-off",
@@ -142,6 +142,10 @@ export const PROFILES: Profile[] = [
       "tips-tricks-off",
       "welcome-experience-off",
       "app-suggestions-start-off",
+      "nearby-share-off",
+      "office-content-download-off",
+      "spotlight-lockscreen-off",
+      "restart-apps-on-signin-off",
     ],
   },
   {
@@ -171,6 +175,10 @@ export const PROFILES: Profile[] = [
       "ipv6-teredo-off",
       "sysmain-off",
       "prefetch-off",
+      "maps-broker-off",
+      "retail-demo-off",
+      "wmp-network-sharing-off",
+      "dmwap-push-off",
     ],
   },
   {

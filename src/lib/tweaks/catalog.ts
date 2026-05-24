@@ -838,6 +838,62 @@ export const PRIVACY_TWEAKS: Tweak[] = [
       { kind: "reg", hive: "HKLM", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Wpad", name: "WpadOverride", type: "DWORD", value: 1 },
     ],
   },
+  {
+    id: "nearby-share-off",
+    category: "privacy",
+    title: "Disable Nearby Sharing",
+    description:
+      "Stops the Windows Connected Devices Platform from advertising your PC to nearby Bluetooth + Wi-Fi devices. Closes a low-traffic but always-on discovery channel.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\CDP", name: "CdpSessionUserAuthzPolicy", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\CDP", name: "NearShareChannelUserAuthzPolicy", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\CDP", name: "RomeSdkChannelUserAuthzPolicy", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\CDP", name: "NearShareChannelUserAuthzPolicy", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "office-content-download-off",
+    category: "privacy",
+    title: "Block Office cloud content downloads",
+    description:
+      "Stops Office (Word / Excel / PowerPoint / Outlook) from downloading templates, icons, fonts and other content from Microsoft's online services. Affects the whole Office 2016+ family.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Internet", name: "UseOnlineContent", type: "DWORD", value: 0, defaultValue: 2 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Policies\\Microsoft\\Office\\16.0\\Common\\Internet", name: "UseOnlineContent", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "spotlight-lockscreen-off",
+    category: "privacy",
+    title: "Disable Windows Spotlight on lock screen",
+    description:
+      "Stops the lock screen from fetching Bing rotating wallpapers and 'Did you know?' overlays from Microsoft. Falls back to a static image you pick. Complements the desktop spotlight toggle.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\CloudContent", name: "DisableWindowsSpotlightOnLockScreen", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\CloudContent", name: "DisableWindowsSpotlightOnLockScreen", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "store-auto-update-off",
+    category: "privacy",
+    title: "Block Microsoft Store auto-updates",
+    description:
+      "Stops the Store from silently updating installed UWP apps in the background. You can still update manually from the Store UI when you want.",
+    warning:
+      "UWP apps will drift out of date — re-enable periodically or update from the Store manually.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\WindowsStore", name: "AutoDownload", type: "DWORD", value: 2, defaultValue: 4 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\WindowsStore", name: "AutoDownload", type: "DWORD", value: 2 },
+    ],
+  },
 ];
 
 export const AI_TWEAKS: Tweak[] = [
@@ -1532,6 +1588,60 @@ export const EXPLORER_TWEAKS: Tweak[] = [
     ],
     check: [
       { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Explorer", name: "HideRecommendedSection", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "balloon-tips-off",
+    category: "explorer",
+    title: "Disable balloon tips",
+    description:
+      "Stops Explorer from popping the small 'tip' balloons over icons and taskbar items (the ones that used to suggest pinning Edge or trying out Microsoft 365).",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "EnableBalloonTips", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "EnableBalloonTips", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "explorer-checkboxes-on",
+    category: "explorer",
+    title: "Enable file checkboxes in Explorer",
+    description:
+      "Shows a checkbox next to each file/folder on hover so multi-select works with single clicks (handy on laptops without a precise touchpad).",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "AutoCheckSelect", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "AutoCheckSelect", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "search-app-background-off",
+    category: "explorer",
+    title: "Disable Search app background tracking",
+    description:
+      "Stops the Windows Search app from running its background discovery + ranking tasks while you're not using search. Saves a small amount of CPU on idle.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Search", name: "BackgroundAppGlobalToggle", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Search", name: "BackgroundAppGlobalToggle", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "restart-apps-on-signin-off",
+    category: "explorer",
+    title: "Don't auto-restart apps after sign-in",
+    description:
+      "Disables the Windows 11 'restore my apps on sign-in' feature that re-launches whatever was open when you signed out. Fewer surprise windows on boot.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "RestartApps", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: explorerAdv, name: "RestartApps", type: "DWORD", value: 0 },
     ],
   },
 ];
@@ -2513,6 +2623,116 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
     apply: [{ kind: "shell", script: "Set-Service -Name 'WSearch' -StartupType Disabled; Stop-Service -Name 'WSearch' -Force -ErrorAction SilentlyContinue" }],
     revert: [{ kind: "shell", script: "Set-Service -Name 'WSearch' -StartupType Automatic; Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue" }],
   },
+  {
+    id: "maps-broker-off",
+    category: "performance",
+    title: "Disable MapsBroker service",
+    description:
+      "Stops the 'Downloaded Maps Manager' service that downloads + updates offline maps for the built-in Maps app. Useless unless you actively use the Maps UWP app.",
+    recommended: true,
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'MapsBroker' -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name 'MapsBroker' -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'MapsBroker' -StartupType Manual -ErrorAction SilentlyContinue",
+      },
+    ],
+  },
+  {
+    id: "retail-demo-off",
+    category: "performance",
+    title: "Disable RetailDemo service",
+    description:
+      "Stops the Retail Demo service used by store-display PCs to reset themselves. Has no purpose on a normal user system.",
+    recommended: true,
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'RetailDemo' -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name 'RetailDemo' -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'RetailDemo' -StartupType Manual -ErrorAction SilentlyContinue",
+      },
+    ],
+  },
+  {
+    id: "xbox-services-off",
+    category: "performance",
+    title: "Disable Xbox Live services",
+    description:
+      "Stops the three Xbox Live services (XblAuthManager / XblGameSave / XboxNetApiSvc). Useless unless you use Xbox Game Pass, Xbox cloud saves or play Microsoft Store-signed multiplayer titles. The accessory service (XboxGipSvc) is left alone so controllers keep working.",
+    warning:
+      "Microsoft Store games that gate on Xbox sign-in (some Game Pass titles) will refuse to launch until you revert.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "@('XblAuthManager','XblGameSave','XboxNetApiSvc') | ForEach-Object { Set-Service -Name $_ -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name $_ -Force -ErrorAction SilentlyContinue }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "@('XblAuthManager','XblGameSave','XboxNetApiSvc') | ForEach-Object { Set-Service -Name $_ -StartupType Manual -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "wmp-network-sharing-off",
+    category: "performance",
+    title: "Disable Windows Media Player network sharing",
+    description:
+      "Stops the WMP Network Sharing Service (WMPNetworkSvc) that advertises your media library to UPnP / DLNA devices on your LAN. Useless unless you stream from WMP to a TV.",
+    recommended: true,
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'WMPNetworkSvc' -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name 'WMPNetworkSvc' -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'WMPNetworkSvc' -StartupType Manual -ErrorAction SilentlyContinue",
+      },
+    ],
+  },
+  {
+    id: "dmwap-push-off",
+    category: "performance",
+    title: "Disable WAP Push Message routing service",
+    description:
+      "Disables dmwappushservice — the Device Management Wireless Application Protocol push routing service that ferries enterprise MDM messages from cellular networks. Pointless on non-managed desktops; also feeds the telemetry pipeline.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'dmwappushservice' -StartupType Disabled -ErrorAction SilentlyContinue; Stop-Service -Name 'dmwappushservice' -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-Service -Name 'dmwappushservice' -StartupType Manual -ErrorAction SilentlyContinue",
+      },
+    ],
+  },
 ];
 
 const pushNotifKey = "Software\\Microsoft\\Windows\\CurrentVersion\\PushNotifications";
@@ -2597,6 +2817,34 @@ export const NOTIFICATION_TWEAKS: Tweak[] = [
       "Hides Defender's periodic summary toasts. Active threat alerts still appear.",
     apply: [
       { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows Defender Security Center\\Notifications", name: "DisableEnhancedNotifications", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+  },
+  {
+    id: "startup-impact-toast-off",
+    category: "notifications",
+    title: "Hide 'Apps slowing startup' toast",
+    description:
+      "Stops Windows from popping the periodic 'Some apps are slowing down your startup' toast that suggests you disable startup entries. The startup-apps page is still accessible from Task Manager.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", name: "StartupNotify", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer", name: "StartupNotify", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "low-disk-warning-off",
+    category: "notifications",
+    title: "Disable low disk space warnings",
+    description:
+      "Suppresses the 'You're running out of space on Drive X' system-tray warnings. Watch your disk usage manually instead — useful for people who deliberately run drives near full.",
+    warning:
+      "You will not be warned when a drive nears 100 % full. Keep an eye on disk free space yourself.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", name: "NoLowDiskSpaceChecks", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer", name: "NoLowDiskSpaceChecks", type: "DWORD", value: 1 },
     ],
   },
 ];
@@ -2944,6 +3192,81 @@ export const SECURITY_TWEAKS: Tweak[] = [
       "Blocks known-vulnerable signed drivers from loading. Defeats 'bring-your-own-driver' kernel attacks.",
     warning: "May block some legitimate kernel-level tools (older anti-cheat, hardware monitoring) that rely on outdated signed drivers.",
   }),
+  {
+    id: "smb1-off",
+    category: "security",
+    title: "Disable SMB1 protocol (server + client)",
+    description:
+      "Disables the SMB version 1 file-sharing protocol on both server (incoming) and client (outgoing) ends. SMB1 is the protocol that WannaCry and NotPetya weaponized — Microsoft has been removing it by default since 2019. On Win11 24H2 it's already gone; this tweak is idempotent.",
+    recommended: true,
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Set-SmbServerConfiguration -EnableSMB1Protocol $false -Force -ErrorAction SilentlyContinue; Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Set-SmbServerConfiguration -EnableSMB1Protocol $true -Force -ErrorAction SilentlyContinue; Enable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -NoRestart -All -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+  },
+  {
+    id: "remote-assistance-off",
+    category: "security",
+    title: "Disable Remote Assistance",
+    description:
+      "Blocks incoming Remote Assistance requests entirely. Closes one of the older built-in remote-control surfaces.",
+    recommended: true,
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance", name: "fAllowToGetHelp", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Remote Assistance", name: "fAllowToGetHelp", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "remote-desktop-off",
+    category: "security",
+    title: "Disable Remote Desktop",
+    description:
+      "Sets fDenyTSConnections=1, blocking incoming RDP sessions. Recommended on personal machines that never need to be reached remotely.",
+    recommended: true,
+    warning:
+      "If you actually use RDP to reach this PC, leave this off — there is no other way in once disabled.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Terminal Server", name: "fDenyTSConnections", type: "DWORD", value: 1, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Terminal Server", name: "fDenyTSConnections", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "netbios-off",
+    category: "security",
+    title: "Disable NetBIOS over TCP/IP",
+    description:
+      "Sets NetbiosOptions=2 on every TCP/IP adapter. Disables the legacy NetBIOS name-resolution layer (NBT-NS) that's a known credential-spoofing vector on hostile LANs (Responder, Inveigh, etc.).",
+    warning:
+      "Breaks legacy file shares that rely on NetBIOS browser names instead of DNS / mDNS. Modern Windows shares use SMB-over-DNS and are unaffected.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces' | ForEach-Object { Set-ItemProperty -Path $_.PSPath -Name NetbiosOptions -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces' | ForEach-Object { Set-ItemProperty -Path $_.PSPath -Name NetbiosOptions -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
 ];
 
 const memMgmt = "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management";
@@ -3021,6 +3344,22 @@ export const MEMORY_TWEAKS: Tweak[] = [
     ],
     check: [
       { kind: "reg", hive: "HKLM", path: memMgmt, name: "ClearPageFileAtShutdown", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "paging-executive-off",
+    category: "memory",
+    title: "Keep kernel resident in RAM (disable paging executive)",
+    description:
+      "Sets DisablePagingExecutive=1, telling the memory manager never to page out kernel-mode drivers or kernel data structures to pagefile.sys. Slightly snappier under memory pressure on RAM-rich systems.",
+    requiresRestart: "system",
+    warning:
+      "Only worth it on systems with 16 GB+ RAM that rarely hit memory pressure. On low-RAM systems it just wastes the headroom the pager would have used.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: memMgmt, name: "DisablePagingExecutive", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: memMgmt, name: "DisablePagingExecutive", type: "DWORD", value: 1 },
     ],
   },
 ];

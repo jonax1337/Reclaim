@@ -2,7 +2,18 @@
   import { onMount, onDestroy } from "svelte";
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-  import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Dialog, toast } from "$lib/ui";
+  import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Button,
+    Badge,
+    BulkActionBar,
+    Checkbox,
+    Dialog,
+    toast,
+  } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -26,11 +37,15 @@
     openDriverSearch,
     listDriverPackages,
     deleteDriverPackage,
+    searchWindowsUpdates,
+    installWindowsUpdates,
     type NvidiaDriverInfo,
     type DriverPackage,
+    type WuUpdate,
   } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
+  import { cn } from "$lib/utils";
   import { log } from "$lib/log.svelte";
   import {
     hardwareResource,
@@ -467,6 +482,106 @@
     packageClass;
     if (packagesLoaded) void loadPackages();
   });
+
+  // ---- Mass driver updates via Windows Update Driver Catalog ----
+  let driverUpdates = $state<WuUpdate[]>([]);
+  let driverUpdatesLoading = $state(false);
+  let driverUpdatesScanned = $state(false);
+  let driverUpdatesInstalling = $state(false);
+  let driverUpdateSelected = $state<Set<string>>(new Set());
+
+  async function scanDriverUpdates() {
+    if (!isTauri() || driverUpdatesLoading) return;
+    driverUpdatesLoading = true;
+    driverUpdateSelected = new Set();
+    try {
+      driverUpdates = await searchWindowsUpdates(true);
+      driverUpdatesScanned = true;
+      log.success(
+        "driver.update.found",
+        "Driver scan",
+        `Windows Update reports ${driverUpdates.length} driver update${driverUpdates.length === 1 ? "" : "s"}`,
+      );
+    } catch (e) {
+      toast.error("WU driver scan failed", String(e));
+      log.error("driver.update.found", "Driver scan", "Failed", String(e));
+    } finally {
+      driverUpdatesLoading = false;
+    }
+  }
+
+  function toggleDriverUpdateSelection(id: string) {
+    const next = new Set(driverUpdateSelected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    driverUpdateSelected = next;
+  }
+
+  function selectAllDriverUpdates() {
+    driverUpdateSelected = new Set(driverUpdates.map((u) => u.id));
+  }
+
+  function clearDriverUpdateSelection() {
+    driverUpdateSelected = new Set();
+  }
+
+  async function installSelectedDriverUpdates() {
+    if (!isTauri() || driverUpdatesInstalling || driverUpdateSelected.size === 0) return;
+    if (!admin.elevated) {
+      const ok = await admin.relaunchElevated();
+      if (!ok) toast.error("Admin required", "Installing drivers needs administrator rights.");
+      return;
+    }
+    driverUpdatesInstalling = true;
+    const ids = Array.from(driverUpdateSelected);
+    try {
+      const r = await installWindowsUpdates(ids);
+      if (r.ok) {
+        if (r.failed === 0) {
+          toast.success(r.message, r.rebootRequired ? "Reboot required to finish." : undefined);
+        } else {
+          toast.warning(r.message, `${r.failed} failed`);
+        }
+        log.success("driver.update.found", "Driver install", `${r.installed} installed, ${r.failed} failed`, r.message);
+      } else {
+        toast.error("Driver install failed", r.message);
+        log.error("driver.update.found", "Driver install", "Failed", r.message);
+      }
+      driverUpdateSelected = new Set();
+      await scanDriverUpdates();
+    } catch (e) {
+      toast.error("Driver install error", String(e));
+    } finally {
+      driverUpdatesInstalling = false;
+    }
+  }
+
+  // Categorize a driver update by inspecting its title / categories. WU
+  // doesn't expose a device class directly; the title usually starts with the
+  // vendor + class ("Intel Corporation - Audio device") which is enough.
+  function driverClass(u: WuUpdate): string {
+    const haystack = `${u.title} ${u.categories}`.toLowerCase();
+    if (/(audio|sound|realtek|hd audio|speaker|microphone)/.test(haystack)) return "Audio";
+    if (/(chipset|sm bus|system|management|amd chipset|intel chipset)/.test(haystack)) return "Chipset";
+    if (/(display|graphics|video|gpu|nvidia|geforce|radeon|intel uhd|intel iris|intel arc)/.test(haystack)) return "Display";
+    if (/(network|ethernet|wi-?fi|wireless|bluetooth|wlan|nic)/.test(haystack)) return "Network";
+    if (/(storage|nvme|sata|raid|ssd|hard disk|disk drive)/.test(haystack)) return "Storage";
+    if (/(input|mouse|keyboard|touchpad|hid|touch)/.test(haystack)) return "Input";
+    if (/(camera|webcam|imaging)/.test(haystack)) return "Camera";
+    if (/(printer|print|scanner|imaging)/.test(haystack)) return "Print";
+    return "Other";
+  }
+
+  const driverUpdatesByClass = $derived.by(() => {
+    const map = new Map<string, WuUpdate[]>();
+    for (const u of driverUpdates) {
+      const cls = driverClass(u);
+      const list = map.get(cls) ?? [];
+      list.push(u);
+      map.set(cls, list);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  });
 </script>
 
 <header class="mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -785,6 +900,131 @@
         </div>
       {/if}
     </Card>
+  {/if}
+
+  <!-- Mass driver updates (Windows Update Driver Catalog) -->
+  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-8">
+    Driver updates (Windows Update)
+  </h2>
+  {#if isTauri() && admin.checked && !admin.elevated}
+    <AdminBanner
+      title="Installing drivers needs administrator"
+      description="The Windows Update agent only installs driver packages when Reclaim is running elevated. Click here to relaunch with UAC."
+      declinedToast="Driver installation requires admin."
+    />
+  {:else}
+    <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
+      Scans Microsoft's Windows Update Driver Catalog (the same source <code class="font-mono text-[11px]">wuauclt</code>
+      uses) for newer signed drivers across every device class — chipset, audio, network, storage, input.
+      Groups results by device class so you can install just what you want.
+    </p>
+    <Card class="overflow-hidden gap-0 py-0 card-inset">
+      <div class="px-5 py-3 border-b border-foreground/8 flex flex-wrap items-center gap-2">
+        <span class="text-xs text-muted-foreground">
+          {#if driverUpdatesScanned}
+            {driverUpdates.length} driver update{driverUpdates.length === 1 ? "" : "s"} available
+          {:else}
+            Not scanned yet
+          {/if}
+        </span>
+        {#if driverUpdates.length > 0}
+          <button
+            type="button"
+            onclick={selectAllDriverUpdates}
+            class="text-xs text-muted-foreground hover:text-foreground transition-colors ml-2"
+          >
+            select all
+          </button>
+        {/if}
+        <Button
+          size="sm"
+          variant="outline"
+          class="ml-auto"
+          onclick={scanDriverUpdates}
+          disabled={driverUpdatesLoading || driverUpdatesInstalling}
+        >
+          {#if driverUpdatesLoading}
+            <Loader2 class="animate-spin" />
+          {:else}
+            <Search />
+          {/if}
+          {driverUpdatesScanned ? "Re-scan" : "Scan WU"}
+        </Button>
+      </div>
+      {#if driverUpdatesLoading && !driverUpdatesScanned}
+        <div class="grid place-items-center py-12 text-sm text-muted-foreground">
+          <Loader2 class="size-5 animate-spin mb-2" />
+          Querying Windows Update — this can take 30 s to 2 min…
+        </div>
+      {:else if !driverUpdatesScanned}
+        <div class="px-6 py-12 text-center text-sm text-muted-foreground">
+          Click <span class="font-semibold">Scan WU</span> to query Microsoft's driver catalog.
+        </div>
+      {:else if driverUpdates.length === 0}
+        <div class="px-6 py-12 text-center text-sm text-muted-foreground">
+          <CheckCircle2 class="size-5 mx-auto text-success mb-2" />
+          All drivers up to date according to Windows Update.
+        </div>
+      {:else}
+        <div>
+          {#each driverUpdatesByClass as [cls, list] (cls)}
+            <div class="px-5 py-2 bg-foreground/[0.03] text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground border-b border-foreground/[0.06]">
+              {cls} · {list.length}
+            </div>
+            {#each list as u (u.id)}
+              {@const checked = driverUpdateSelected.has(u.id)}
+              <label
+                class={cn(
+                  "flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors cursor-pointer",
+                  checked && "bg-primary/[0.05]",
+                )}
+              >
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={() => toggleDriverUpdateSelection(u.id)}
+                  class="mt-0.5 shrink-0"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-sm font-medium">{u.title}</span>
+                    {#if u.kbs}
+                      <Badge variant="outline" class="font-mono text-[10px]">{u.kbs}</Badge>
+                    {/if}
+                    {#if u.sizeMb > 0}
+                      <Badge variant="outline" class="text-[10px]">{u.sizeMb} MB</Badge>
+                    {/if}
+                    {#if u.rebootRequired}
+                      <Badge variant="warning" class="text-[10px]">
+                        <AlertTriangle class="size-2.5" />
+                        Reboot
+                      </Badge>
+                    {/if}
+                  </div>
+                  {#if u.description}
+                    <p class="text-[11px] text-muted-foreground mt-1 line-clamp-2">{u.description}</p>
+                  {/if}
+                </div>
+              </label>
+            {/each}
+          {/each}
+        </div>
+      {/if}
+    </Card>
+    <BulkActionBar count={driverUpdateSelected.size} onClear={clearDriverUpdateSelection}>
+      <Button
+        size="sm"
+        onclick={installSelectedDriverUpdates}
+        disabled={driverUpdatesInstalling}
+      >
+        {#if driverUpdatesInstalling}
+          <Loader2 class="animate-spin" />
+          Installing…
+        {:else}
+          <Download />
+          Install ({driverUpdateSelected.size})
+        {/if}
+      </Button>
+    </BulkActionBar>
   {/if}
 {/if}
 

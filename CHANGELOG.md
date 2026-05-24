@@ -2,6 +2,43 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.17.0
+
+Catalog depth + the last "we don't have that vs. WinUtil" gap closed: mass driver updates via the Windows Update Driver Catalog. Tweak catalog 180 → 200, apps catalog 67 → 106, every single icon slug verified against its source repo (and direct URLs HTTP-probed) before shipping.
+
+### Added
+
+- **+20 tweaks** to reach 200 entries:
+  - **Privacy +4**: Disable Nearby Sharing (CDP authz policies), Block Office cloud content downloads (`UseOnlineContent=0`), Disable Windows Spotlight on lock screen (`DisableWindowsSpotlightOnLockScreen=1`), Block Microsoft Store auto-updates (`AutoDownload=2`).
+  - **Explorer +4**: Disable balloon tips (`EnableBalloonTips=0`), Enable file checkboxes (`AutoCheckSelect=1`), Disable Search app background tracking (`BackgroundAppGlobalToggle=0`), Don't auto-restart apps after sign-in (`RestartApps=0` — Win11 specific).
+  - **Performance +5**: Disable MapsBroker / RetailDemo / WMPNetworkSvc / dmwappushservice services, Disable Xbox Live services (XblAuthManager / XblGameSave / XboxNetApiSvc — XboxGipSvc explicitly left alone so controllers keep working).
+  - **Notifications +2**: Hide "Apps slowing startup" toast (`StartupNotify=0`), Disable low disk space warnings (`NoLowDiskSpaceChecks=1`).
+  - **Security +4**: Disable SMB1 protocol (server-config + optional feature, idempotent on 24H2), Disable Remote Assistance (`fAllowToGetHelp=0`), Disable Remote Desktop (`fDenyTSConnections=1`), Disable NetBIOS over TCP/IP (`NetbiosOptions=2` on every adapter, defeats Responder / Inveigh-style LAN credential spoofing).
+  - **Memory +1**: Keep kernel resident in RAM (`DisablePagingExecutive=1`, system restart, RAM-rich systems only).
+- **+39 winget apps** (67 → 106) across all 8 groups:
+  - **Browsers**: Floorp, Opera, Opera GX, Ungoogled Chromium.
+  - **Communication**: WhatsApp Desktop, Microsoft Teams (Free), Skype, Session.
+  - **Dev**: IntelliJ IDEA Community, Android Studio, Cursor, Zed, Bun, Deno, Insomnia, GitKraken.
+  - **System**: BleachBit, Autoruns (Sysinternals), System Informer, Snipaste, EarTrumpet.
+  - **Media**: foobar2000, MusicBee, MPC-HC, Krita, Paint.NET, Lightshot.
+  - **Office**: Calibre, Sumatra PDF, Adobe Acrobat Reader, draw.io.
+  - **Gaming**: Playnite, Battle.net, Ubisoft Connect, RetroArch.
+  - **Utilities**: Malwarebytes, Cryptomator, VeraCrypt, Wireshark.
+  - **Excluded** from initial v0.17.0 candidate list because no proper icon exists in any source (homarr-labs/dashboard-icons, simple-icons, selfh.st/icons, app repo, winget manifest): lazygit, ExplorerPatcher, TreeSize Free. Will reconsider if upstream brand icons appear.
+- **Mass driver updates panel (`/drivers`)** — new section under the existing rollback view. Scans Microsoft's Windows Update Driver Catalog (`searchWindowsUpdates(driverOnly: true)`), classifies results into Audio / Chipset / Display / Network / Storage / Input / Camera / Print / Other by inspecting the update title + categories, surfaces them grouped by class. Bulk-install via `installWindowsUpdates(ids)`. Admin-gated like the rollback section. Closes the "no non-GPU driver story" gap vs. WinUtil / Snappy-Driver-Installer; reuses existing WU + admin infra instead of inventing a new module.
+- **Built-in profile updates.**
+  - **Privacy Maximum** +4 tweaks: `nearby-share-off`, `office-content-download-off`, `spotlight-lockscreen-off`, `restart-apps-on-signin-off`. Description updated.
+  - **Performance** +4 tweaks: `maps-broker-off`, `retail-demo-off`, `wmp-network-sharing-off`, `dmwap-push-off`.
+  - **Reclaim Basics** auto-picks up new `recommended: true` tweaks: `balloon-tips-off`, `restart-apps-on-signin-off`, `maps-broker-off`, `retail-demo-off`, `wmp-network-sharing-off`, `smb1-off`, `remote-assistance-off`, `remote-desktop-off`.
+
+### Quality
+
+- **Every single app icon verified** before shipping. Process: pull the full slug lists from the three supported icon sources (homarr-labs/dashboard-icons 3152 svgs · simple-icons 3436 svgs · selfh.st/icons 6865 svgs), cross-reference each catalog entry; for direct `https://…` URLs, HTTP-probe to confirm the asset returns a non-empty 200. Initial v0.17.0 draft had 11 slugs that 404'd on the CDN (e.g. `simple:chromium` doesn't exist — that's `chromium` on homarr; `gitkraken` isn't on homarr but is `simple:gitkraken`); 4 favicons swapped for real brand icons (`simple:foobar2000`, `simple:ubisoft`, `simple:retroarch`); 5 weak favicons / GitHub-org avatars replaced with direct raw-GitHub URLs pointing at the actual app icon assets in each repo (BleachBit's `bleachbit.png`, EarTrumpet's `Square150x150Logo.scale-400.png`, System Informer's `Square44x44Logo.png`, Playnite's `playnite-logo-default.svg`, Sumatra PDF's `SumatraPDF_StoreLogo_150x150.png`). 3 apps cut from the list because no proper icon exists anywhere public (lazygit, ExplorerPatcher, TreeSize Free).
+
+### Deferred
+
+- **Choco support** for the apps catalog. Tracked for v0.18.0 — `installSources: ('winget'|'choco')[]` schema, Rust `choco_*` commands, source badge per app card, fallback chain when winget doesn't have an ID.
+
 ## v0.16.0
 
 User-facing feature batch — two new tweak categories, one new sidebar group, dashboard surfaces them. Catalog grew from **167 → 180 tweaks** (+13). No infra rework, no schema changes; the auto-persist set keeps tracking the new tweaks the same way it did the old ones.

@@ -129,6 +129,31 @@ Shipped:
 
 ---
 
+## ✅ Phase 15 — Catalog depth + mass driver updates (v0.17.0)
+
+Pulled forward from [`PLAN.md`](PLAN.md) items #1 (apps catalog expansion — winget half), #2 (tweaks → 200) and #3 (mass driver updates). Choco support deferred to v0.18.0.
+
+Shipped:
+- **+20 tweaks** to reach exactly 200 entries. Breakdown: Privacy +4 (Nearby Sharing, Office cloud content, Spotlight lock-screen, Store auto-updates), Explorer +4 (balloon tips, file checkboxes, Search background tracking, Win11 restart-apps-on-signin), Performance +5 (MapsBroker, RetailDemo, Xbox Live services, WMPNetworkSvc, dmwappushservice), Notifications +2 (startup-impact toast, low-disk warning), Security +4 (SMB1, Remote Assistance, Remote Desktop, NetBIOS over TCP/IP), Memory +1 (DisablePagingExecutive).
+- **+39 winget apps** (67 → 106). Every icon slug verified against the upstream master lists of homarr-labs/dashboard-icons, simple-icons, selfh.st/icons; direct `https://…` URLs HTTP-probed for non-empty 200s. 3 candidates dropped because no proper icon exists in any public source (lazygit, ExplorerPatcher, TreeSize Free). Icon-quality bar codified in [`PLAN.md`](PLAN.md).
+- **Mass driver updates panel (`/drivers`)** — scans Microsoft's Windows Update Driver Catalog via the existing `search_windows_updates(driverOnly: true)`, classifies by device class (Audio / Chipset / Display / Network / Storage / Input / Camera / Print / Other), bulk-installs via `install_windows_updates(ids)`. Admin-gated. No new Rust module — reuses existing WU + admin infra.
+- **Built-in profile updates.** Privacy Maximum +4 (`nearby-share-off`, `office-content-download-off`, `spotlight-lockscreen-off`, `restart-apps-on-signin-off`). Performance +4 (`maps-broker-off`, `retail-demo-off`, `wmp-network-sharing-off`, `dmwap-push-off`). Reclaim Basics auto-picks new recommended tweaks.
+
+---
+
+## ✅ Phase 14 — Developer tab + Memory + Gaming categories (v0.16.0)
+
+Pulled forward from [`PLAN.md`](PLAN.md) items #4 (granular gaming tweaks) and #5 (developer features tab).
+
+Shipped:
+- **`memory` tweak category + `/memory` route** — 5 entries: Disable RAM compression, Disable SysMain / Superfetch (recommended on SSDs), Disable Prefetch + Superfetch hints, Enable RAM page combining (restore button), Clear pagefile on shutdown.
+- **`gaming` tweak category + `/gaming` route** — 8 entries: Game Mode, MMCSS SystemResponsiveness, MMCSS Games priority block, Win32PrioritySeparation, ForegroundLockTimeout, NetworkThrottlingIndex, TCP ACK + NoDelay on all interfaces, HPET off (with `requiresRestart: "system"`).
+- **`/developer` route + Developer sidebar group** — live state of WSL, VirtualMachinePlatform, HypervisorPlatform, Hyper-V and Sandbox via `Get-WindowsOptionalFeature`; enable/disable streamed through `maintenance::run_pty_script` (same PTY infra as Maintenance); read-only WSL distros list parsed from `wsl --list --verbose`; Dev Drive support card gated on build ≥ 22621. New Rust module `dev_features.rs` + 4 commands (`list_optional_features`, `set_optional_feature_stream`, `list_wsl_distros`, `dev_drive_info`).
+- **Built-in profile updates.** Gaming profile +6 (game-mode-on, system-responsiveness-gaming, mmcss-gaming-priority, cpu-priority-foreground-boost, foreground-lock-timeout-off, sysmain-off). Performance profile +2 (sysmain-off, prefetch-off).
+- **Dashboard surface** — 3 new category cards (Memory / Gaming / Developer).
+
+---
+
 ## ✅ Phase 12 — CLI mode + installer polish (v0.14.0)
 
 Pulled forward from [`PLAN.md`](PLAN.md) item #2 — closes Win11Debloat's last remaining differentiator (scriptable / unattended deployment).
