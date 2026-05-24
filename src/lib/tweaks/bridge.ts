@@ -1083,6 +1083,45 @@ export async function isoBuild(
   });
 }
 
+/* ───────────────────────── Background service / persistence ───────────────────── */
+
+export type PowerState = {
+  onBattery: boolean;
+  percent: number;
+  hasBattery: boolean;
+};
+
+export async function getPowerState(): Promise<PowerState> {
+  const raw = await invoke<{ on_battery: boolean; percent: number; has_battery: boolean }>(
+    "get_power_state",
+  );
+  return {
+    onBattery: raw.on_battery,
+    percent: raw.percent,
+    hasBattery: raw.has_battery,
+  };
+}
+
+export async function recentHotfixInstalledSince(hours: number): Promise<boolean> {
+  return invoke<boolean>("recent_hotfix_installed_since", { hours });
+}
+
+export async function serviceSetInterval(hours: number): Promise<void> {
+  await invoke("service_set_interval", { hours });
+}
+
+export async function serviceGetInterval(): Promise<number> {
+  return invoke<number>("service_get_interval");
+}
+
+export async function serviceSetKeepInTray(enabled: boolean): Promise<void> {
+  await invoke("service_set_keep_in_tray", { enabled });
+}
+
+export async function serviceTriggerNow(): Promise<void> {
+  await invoke("service_trigger_now");
+}
+
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
   const r = await invoke<{
     ok: boolean;

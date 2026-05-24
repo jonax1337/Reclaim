@@ -4,7 +4,7 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.13.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher), Phase 10 (Security hardening + real portable build) and Phase 11 (Install media builder) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.15.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher), Phase 10 (Security hardening + real portable build), Phase 11 (Install media builder), Phase 12 (CLI mode) and Phase 13 (Persistence service + tray companion) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
 
 Headline numbers:
 - **167 reversible tweaks** across 11 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security)
@@ -12,8 +12,9 @@ Headline numbers:
 - **67 winget apps** across 8 groups
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
 - **33 routes** in a 10-group sidebar
-- **96 Tauri commands** across 22 Rust modules
+- **102 Tauri commands** across 23 Rust modules
 - **CLI mode**: the same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile <file.reclaim>`, `--export-state` etc. for headless / gold-image use.
+- **Tray companion**: lives in the system notification area, optionally autostarts with Windows, re-applies HKCU drift after Windows updates, pushes WU + NVIDIA-driver toasts.
 
 Headline features built since v0.1.0:
 - Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
@@ -28,6 +29,8 @@ Headline features built since v0.1.0:
 - Windows activation launcher: read-only license state + one-click elevated PowerShell window running the external MAS script (v0.11.0).
 - Security hardening route (LSA Protection, Controlled Folder Access, Defender ASR rules) + 12 extra privacy tweaks. Real portable build: dedicated single-exe variant via the `portable` Cargo feature, completely stateless on disk (v0.12.0).
 - Install media builder: autounattend.xml generator that maps any Reclaim profile to `<FirstLogonCommands>`, plus optional ISO repack via Windows ADK `oscdimg.exe` (auto-installer for the ADK Deployment Tools when missing). Bloatware catalog brought to parity with Win11Debloat (63 → 144 entries, new OEM group). PowerShell one-liner installer `install.ps1` that bypasses Edge's "publisher unknown" prompt the same way ChrisTitusTech/winutil does (v0.13.0).
+- CLI mode: same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile`, `--export-state` etc. Build-time catalog export (`pnpm catalog:export`) ships TS catalog as `src-tauri/data/*.json` so headless and GUI share the exact same data (v0.14.0).
+- Persistence service + tray companion: system-tray icon, optional autostart, hide-to-tray on close, single-instance lock, background timer (Tokio interval, 6h default). HKCU drift detection + re-apply per persisted profile (Strict / Update-only modes), Windows-Update + NVIDIA-driver push notifications (24h throttled, battery-aware). Settings → Background Service section ties it all together (v0.15.0).
 
 **Still open for v1.0.0**: i18n (DE + EN). Code-signing is no longer planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 
@@ -68,6 +71,10 @@ Headline features built since v0.1.0:
 - **`route-cache.svelte.ts`** — per-route component memoization so transitions don't re-mount expensive routes.
 - **`scroll-restore.svelte.ts`** — per-route scroll position store, applied on route enter.
 - **`startup-preload.svelte.ts`** — fires the slow Tauri queries (system info, installed AppX, services) on app boot so the corresponding routes open instantly.
+- **`service.svelte.ts`** — Background-service config store mirrored to `<app_data_dir>/service.json`: interval, keep-in-tray, persisted profiles (with `update-only` vs `strict` mode), per-channel notification prefs, 24h throttle dedupe state. Subscribes to Rust events `service.tick` / `service.trigger-check` / `service.navigate` and fans them out to tick handlers + a router push handler. `App.svelte` mounts it on boot and wires the persistence + WU + driver checkers behind `onTick`.
+- **`notify.ts`** — Native Win11 toast dispatcher via `tauri-plugin-notification`. `notify({channel,title,body,hash,route?})` checks the per-channel pref, 24h throttle, and OS permission; encodes the route as `[reclaim:/foo]` in the body so `onAction` can route the click back via `svelte-spa-router push()`.
+- **`persistence/checker.ts`** — HKCU-only drift loop. Filters out admin-required tweaks and tweaks without `check[]`, optionally gates on `recent_hotfix_installed_since(48)` (update-only mode), re-applies anything reading as `off`, logs `persistence.drift.fixed` per fixed tweak + one drift toast per profile.
+- **`persistence/updateChecker.ts`** — Background WU + NVIDIA driver pollers. WU runs every 12h, drivers every 24h (timestamps in `service.json`). Both skip when on battery <30%. NVIDIA version compare is naive last-N-digits match against the marketing version.
 - **`utils.ts`** — `cn()` via tailwind-merge + clsx.
 
 ### `src/lib/` — domain helpers (non-catalog)
@@ -134,6 +141,7 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **`firewall.rs`** — Sentinel-grouped (`Reclaim:` prefix) outbound Windows Firewall block manager. `firewall_list_blocks` returns active reclaim groups with rule + enabled counts. `firewall_apply_block(name, programs, remote_addresses)` wipes the group then re-creates one program rule per exe path + one combined `-RemoteAddress @(...)` rule per group. `firewall_remove_block(name)` deletes the group. All name/path/address inputs strictly validated before interpolation.
 - **`driver_packages.rs`** — `list_driver_packages(class_filter?)` enumerates OEM driver packages via `pnputil /enum-drivers`, parses the locale-agnostic key-value block format into typed `DriverPackage` records. `delete_driver_package(published_name, uninstall)` calls `pnputil /delete-driver oem<N>.inf /uninstall /force` after strict `oem<digits>.inf` validation.
 - **`activation.rs`** — `get_activation_status` runs a static PowerShell snippet that queries WMI `SoftwareLicensingProduct` (filtered to Windows products with a `PartialProductKey`), parses the JSON output into a typed `ActivationStatus` (edition name, license status code + text, channel, partial key, grace minutes). `launch_activation_script` spawns a new elevated PowerShell window via `Start-Process -Verb RunAs` that runs the **static** MAS one-liner `irm https://get.activated.win | iex` — the URL is a Rust `const`, never built from frontend input. Reclaim does not bundle, modify, or contain the activation script itself; the launched window lives outside Reclaim's PTY infrastructure on purpose (interactive TUI menu).
+- **`service.rs`** — Tray-resident background timer. `ServiceState` (Mutex<u32> interval_hours, Mutex<bool> keep_in_tray + force_quit) is registered via `tauri::Manager::manage()`. `spawn_loop(app_handle)` runs a Tokio task that sleeps in 60s ticks and emits `service.tick` every `interval_hours` (1–168, default 6). Commands: `service_set_interval`, `service_get_interval`, `service_set_keep_in_tray`, `service_trigger_now`. Helper `emit_navigate(route)` is used by the tray "Settings…" menu to push routes via the frontend's `service.navigate` event listener. The `--autostart` CLI flag (no-op, added to `cli::argv_is_cli` + `cli::parse_args` skip lists) tells `lib.rs` setup to hide the window on launch so autostart boots straight to tray. The tray icon + menu live in `lib.rs::run()`'s `.setup()` hook using `tauri::tray::TrayIconBuilder` (gated by the `tray-icon` feature on the `tauri` crate). Window-close hides instead of quitting when `keep_in_tray && !force_quit`. `tauri-plugin-single-instance` focuses the existing window on a second launch attempt.
 
 ## Critical conventions
 

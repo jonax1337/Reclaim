@@ -1,6 +1,6 @@
 {
   "name": "reclaim",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Reclaim Your Windows — Win11 debloat & privacy tool",
   "type": "module",
   "scripts": {
@@ -19,7 +19,9 @@
     "@fontsource-variable/geist-mono": "^5.2.7",
     "@lucide/svelte": "^1.16.0",
     "@tauri-apps/api": "^2.1.1",
+    "@tauri-apps/plugin-autostart": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.2.0",
+    "@tauri-apps/plugin-notification": "^2.3.0",
     "@tauri-apps/plugin-opener": "^2.5.4",
     "@tauri-apps/plugin-process": "^2.2.0",
     "@tauri-apps/plugin-shell": "^2.2.0",

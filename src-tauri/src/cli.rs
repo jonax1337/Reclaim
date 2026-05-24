@@ -249,8 +249,10 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--import-profile" => {
                 import_path = Some(next(&mut i, "--import-profile")?);
             }
-            // Tolerated no-op flags used by other layers (main.rs handles them).
-            "--no-elevate" | "--cli" => {}
+            // Tolerated no-op flags used by other layers (main.rs / lib.rs handle them).
+            // `--autostart` is appended by the autostart plugin when Windows boots Reclaim
+            // from the Run key — it tells lib.rs to hide the main window on launch.
+            "--no-elevate" | "--cli" | "--autostart" => {}
             other => return Err(format!("unknown argument: {other}")),
         }
         i += 1;
@@ -278,10 +280,11 @@ fn split_ids(s: &str) -> Vec<String> {
 /// True if argv looks like a CLI invocation that should bypass the GUI.
 pub fn argv_is_cli(argv: &[String]) -> bool {
     // First element is the exe path on Windows. Anything starting with `--`
-    // beyond that counts, except for the GUI-internal `--no-elevate`.
+    // beyond that counts, except for GUI-internal flags that get passed through.
     argv.iter().skip(1).any(|a| {
         let s = a.as_str();
-        s != "--no-elevate" && (s.starts_with("--") || matches!(s, "-h" | "-V" | "-q" | "-y"))
+        !matches!(s, "--no-elevate" | "--autostart")
+            && (s.starts_with("--") || matches!(s, "-h" | "-V" | "-q" | "-y"))
     })
 }
 

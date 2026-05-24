@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, toast } from "$lib/ui";
   import { Sun, Moon, Monitor, History, RotateCcw, Info, ArrowDownToLine, Loader2, FolderOpen } from "@lucide/svelte";
+  import BackgroundServiceCard from "$lib/components/BackgroundServiceCard.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
   import {
     isTauri,
@@ -198,6 +199,8 @@
       </p>
     </CardContent>
   </Card>
+
+  <BackgroundServiceCard />
 
   <Card>
     <CardHeader>

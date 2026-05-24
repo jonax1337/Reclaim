@@ -266,6 +266,87 @@ Get-Service | Select-Object Name, DisplayName,
     Ok(services)
 }
 
+#[derive(Serialize, Clone)]
+pub struct PowerState {
+    pub on_battery: bool,
+    pub percent: u8,
+    pub has_battery: bool,
+}
+
+/// Snapshot of the current power state. Background checkers use this to skip
+/// network-heavy operations (WU search, NVIDIA driver lookup) when the device
+/// is unplugged and below 30%. Desktops without a battery report
+/// `has_battery = false`, in which case checkers should always proceed.
+#[tauri::command]
+pub async fn get_power_state() -> Result<PowerState, String> {
+    let script = r#"
+$ErrorActionPreference = 'SilentlyContinue'
+$bat = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $bat) {
+    @{ on_battery = $false; percent = 100; has_battery = $false } | ConvertTo-Json -Compress
+    return
+}
+# BatteryStatus codes per MSDN: 1=discharging (on battery), 2=on AC, 4=low, 5=critical,
+# 6=charging, 7=charging+high, 8=charging+low, 9=charging+critical, 10=undefined, 11=partial.
+$onBattery = ($bat.BatteryStatus -in 1,4,5,11)
+$percent = [int]$bat.EstimatedChargeRemaining
+if ($percent -lt 0) { $percent = 0 }
+if ($percent -gt 100) { $percent = 100 }
+@{ on_battery = $onBattery; percent = $percent; has_battery = $true } | ConvertTo-Json -Compress
+"#;
+    let r = run_ps(script);
+    if !r.success {
+        return Err(r.stderr.trim().to_string());
+    }
+    let out = r.stdout.trim();
+    if out.is_empty() {
+        return Ok(PowerState {
+            on_battery: false,
+            percent: 100,
+            has_battery: false,
+        });
+    }
+    let v: serde_json::Value =
+        serde_json::from_str(out).map_err(|e| format!("JSON parse failed: {}", e))?;
+    Ok(PowerState {
+        on_battery: v.get("on_battery").and_then(|x| x.as_bool()).unwrap_or(false),
+        percent: v
+            .get("percent")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(100)
+            .min(100) as u8,
+        has_battery: v
+            .get("has_battery")
+            .and_then(|x| x.as_bool())
+            .unwrap_or(false),
+    })
+}
+
+/// True if Windows has installed at least one hotfix (KB) within the given
+/// window. Used by the persistence engine's `update-only` mode to gate drift
+/// re-application: only re-apply tweaks if Windows has likely-just-reset them.
+/// 48h default window absorbs timezone clock skew on `Get-HotFix InstalledOn`.
+#[tauri::command]
+pub async fn recent_hotfix_installed_since(hours: u32) -> Result<bool, String> {
+    let h = hours.clamp(1, 24 * 30);
+    let script = format!(
+        r#"
+$ErrorActionPreference = 'SilentlyContinue'
+$cutoff = (Get-Date).AddHours(-{h})
+$any = Get-HotFix -ErrorAction SilentlyContinue | Where-Object {{
+    $_.InstalledOn -and $_.InstalledOn -ge $cutoff
+}} | Select-Object -First 1
+if ($any) {{ 'true' }} else {{ 'false' }}
+"#,
+        h = h
+    );
+    let r = run_ps(&script);
+    if !r.success {
+        return Err(r.stderr.trim().to_string());
+    }
+    Ok(r.stdout.trim().eq_ignore_ascii_case("true"))
+}
+
 #[tauri::command]
 pub async fn set_service(name: String, start_type: String, run_state: Option<String>) -> Result<(), String> {
     let allowed_start = ["Automatic", "AutomaticDelayedStart", "Manual", "Disabled"];

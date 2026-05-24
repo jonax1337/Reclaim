@@ -112,27 +112,34 @@ export function cachedResource<T>(
   const version = opts.version ?? null;
   const entry = getOrCreate<T>(key);
 
-  const versionChanged = version !== null && entry.version !== version;
-  if (versionChanged) {
-    entry.data = undefined;
-    entry.lastFetched = 0;
-    entry.error = undefined;
-    entry.version = version;
-    // Invalidate any in-flight fetch so its stale result is discarded.
-    entry.generation++;
-    entry.inflight = null;
-    entry.loading = false;
-    entry.revalidating = false;
-  }
-  const hasData = entry.data !== undefined;
-  const stale = ttl > 0 && Date.now() - entry.lastFetched > ttl;
-  const shouldRevalidate = opts.revalidateOnMount !== false && hasData && stale;
+  // Defer state mutations + fetch kickoff to a microtask. cachedResource is
+  // routinely called from inside `$derived` (e.g. iconsRes depends on the
+  // installed-apps list), and Svelte 5 forbids state writes during derived
+  // evaluation. Mutating here directly throws `state_unsafe_mutation` the
+  // moment a version change happens — which is exactly what occurs right
+  // after the user removes a bloatware app and the icons resource re-keys.
+  queueMicrotask(() => {
+    const versionChanged = version !== null && entry.version !== version;
+    if (versionChanged) {
+      entry.data = undefined;
+      entry.lastFetched = 0;
+      entry.error = undefined;
+      entry.version = version;
+      entry.generation++;
+      entry.inflight = null;
+      entry.loading = false;
+      entry.revalidating = false;
+    }
+    const hasData = entry.data !== undefined;
+    const stale = ttl > 0 && Date.now() - entry.lastFetched > ttl;
+    const shouldRevalidate = opts.revalidateOnMount !== false && hasData && stale;
 
-  if (!hasData && !entry.inflight) {
-    void runFetch(entry, fetcher, true);
-  } else if (shouldRevalidate && !entry.inflight) {
-    void runFetch(entry, fetcher, false);
-  }
+    if (!hasData && !entry.inflight) {
+      void runFetch(entry, fetcher, true);
+    } else if (shouldRevalidate && !entry.inflight) {
+      void runFetch(entry, fetcher, false);
+    }
+  });
 
   return {
     get data() {

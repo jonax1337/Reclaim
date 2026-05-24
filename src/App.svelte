@@ -37,10 +37,15 @@
   import Settings from "./routes/Settings.svelte";
   import NotFound from "./routes/NotFound.svelte";
   import { onMount } from "svelte";
+  import { push as routerPush } from "svelte-spa-router";
   import { log } from "$lib/log.svelte";
   import { isTauri } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import { kickoffStartupPreloads } from "$lib/startup-preload.svelte";
+  import { service } from "$lib/service.svelte";
+  import { runPersistenceCheck } from "$lib/persistence/checker";
+  import { maybeCheckDriverUpdates, maybeCheckWindowsUpdates } from "$lib/persistence/updateChecker";
+  import { toast } from "$lib/ui";
 
   // Keep-alive routing: every visited route stays mounted forever; inactive
   // ones are hidden via the `hidden` attribute. This preserves transient
@@ -100,6 +105,54 @@
     log.info("system.boot", "Reclaim", "Session started");
     await admin.refresh();
     kickoffStartupPreloads();
+
+    // Boot the background service: wait for service.json to hydrate, then
+    // subscribe to the Rust-emitted ticks and wire navigation.
+    await service.ready;
+    service.setNavigateHandler((route) => {
+      try {
+        routerPush(route);
+      } catch {}
+    });
+    service.onTick(async (source) => {
+      log.info(
+        "service.tick",
+        source === "manual" ? "Manual check" : "Scheduled check",
+        "Background check started",
+      );
+      try {
+        await runPersistenceCheck({});
+      } catch {}
+      try {
+        await maybeCheckWindowsUpdates(source === "manual");
+      } catch {}
+      try {
+        await maybeCheckDriverUpdates(source === "manual");
+      } catch {}
+    });
+    await service.attach();
+
+    // Hint once: first time the window closes while keep-in-tray is on, let
+    // the user know the app stays alive. Triggered via beforeunload because
+    // Tauri runs prevent_close in Rust — JS never sees it directly, but the
+    // window's visibility change is enough to fire a hint at runtime.
+    if (!service.config.hasShownTrayHint && service.config.keepInTray) {
+      window.addEventListener(
+        "blur",
+        async () => {
+          if (service.config.hasShownTrayHint) return;
+          if (document.visibilityState === "hidden") {
+            await service.markTrayHintShown();
+            toast.show("Reclaim is still in your system tray", {
+              description:
+                "Right-click the tray icon and choose Quit Reclaim to exit fully.",
+              duration: 8000,
+            });
+          }
+        },
+        { once: false },
+      );
+    }
   });
 </script>
 

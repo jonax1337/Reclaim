@@ -2,6 +2,39 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.15.0
+
+### Added
+
+- **Persistence service + tray companion.** Reclaim now installs itself as a permanent presence in the Windows notification area instead of being a one-shot GUI that exits on close. The big payoff: persisted profiles get their **HKCU** tweaks re-applied silently after Windows updates flip them back — closing O&O ShutUp10++ Premium's last paid differentiator. New behaviors:
+  - **System tray icon** with menu (Open Reclaim / Check now / Settings… / Quit Reclaim). Left-click toggles window visibility; closing the X button hides to tray instead of quitting (toggleable in Settings).
+  - **Start with Windows** toggle in Settings → Background Service. Wires through `tauri-plugin-autostart`, boots straight to tray (no window flash) via a `--autostart` launch flag. Hard-disabled in portable builds with explanation text — portable mode stays stateless by design.
+  - **Active persistence list** in Settings. Built-in + custom profiles, per-profile **Keep applied** toggle with **Update-only** (default) or **Strict** mode. Update-only re-applies only when Windows has installed a hotfix in the last 48h (absorbs timezone clock skew on `Get-HotFix InstalledOn`); Strict re-applies any drift every tick. Per-profile Run-now button + status line showing last check, drifts re-applied, lifetime total.
+  - **Notification dispatcher** (`tauri-plugin-notification`) with three channels: drift re-applied, Windows Updates available, NVIDIA driver updates available. Clicking a toast opens Reclaim on the relevant route (`/profiles`, `/windows-update`, `/drivers`) — no one-click installs from the toast itself (WU reboots; driver installs can brick GPUs).
+  - **24h throttle** per notification channel — same payload-hash within 24h is silently dropped.
+  - **Windows Update + NVIDIA driver pollers.** Reuses existing `search_windows_updates` and `lookup_nvidia_driver`; runs WU check every 12h, driver check every 24h, gated by `service.json#last*Check` timestamps. Skipped automatically when on battery below 30% via new `get_power_state` query (desktops always proceed). Naive NVIDIA version compare (last-N-digits of `Win32_VideoController.DriverVersion` against marketing version) avoids false positives.
+  - **Single-instance lock** (`tauri-plugin-single-instance`) — double-clicking the desktop icon while the tray is running focuses the existing window instead of spawning a second `reclaim.exe`.
+  - **Configurable check interval** (1h / 6h / 12h / 24h, default 6h). Rust-side Tokio loop sleeps in 60s chunks so a Settings change takes effect within a minute without restarting the task.
+  - **First-close hint** — the first time the window closes to tray while the user is on a session that hasn't seen the hint yet, an in-app toast explains the new behavior so it's not surprising.
+
+### Out of scope (deferred to v0.16+)
+
+- **HKLM persistence.** Admin-requiring tweaks (Defender, Telemetry service, Windows Update settings) need a SYSTEM-scheduled task to re-apply without boot-time UAC. The persistence engine in v0.15 skips them with a clear "X admin (skipped)" badge per profile. v0.14's CLI mode is the foundation — the next iteration wires `register_scheduled_task` + `reclaim.exe --watchdog --persistence <id>` invoked as SYSTEM.
+- **AMD / Intel driver pollers.** No programmatic vendor API exists today; would need scraping (fragile) or a hosted JSON mirror. NVIDIA-only for v1.
+
+### Fixed
+
+- **`cachedResource` could throw `state_unsafe_mutation`** when re-keyed (e.g. after removing a bloatware app, the icons resource re-keys via its `version` arg). The cache was mutating its `entry` state synchronously inside the call, which Svelte 5 forbids when called from a `$derived` block. Mutations + fetch kickoff are now deferred to a microtask so the derived completes first.
+
+### Internal
+
+- New Rust module `src-tauri/src/service.rs` — Tokio interval, `ServiceState` Mutex (interval / keep-in-tray / force-quit), `service_*` Tauri commands, helper functions for tray menu wiring (`show_main`, `emit_trigger_check`, `emit_navigate`).
+- `lib.rs` builds the tray icon + menu in the setup hook via `tauri::tray::TrayIconBuilder` (new `tray-icon` feature on the `tauri` crate). `on_window_event(CloseRequested)` checks `ServiceState.keep_in_tray` and either hides or lets the close through. The tray "Quit" menu sets a `force_quit` flag so the next CloseRequested passes through naturally.
+- `cli.rs`: `--autostart` and `--no-elevate` are now both no-op flags that don't trigger CLI mode (so the autostart-launched reclaim.exe routes to GUI).
+- `sysquery.rs`: + `get_power_state` (parses `Win32_Battery.BatteryStatus`) and `recent_hotfix_installed_since(hours)` (`Get-HotFix | Where InstalledOn -ge $cutoff`).
+- New frontend modules: `service.svelte.ts` (config store mirrored to `<app_data_dir>/service.json` + listens to Rust ticks), `notify.ts` (toast dispatcher with throttling + click routing via route-tag encoded in body), `persistence/checker.ts` (HKCU-only drift loop reusing existing `getTweakState` + `applyTweak`), `persistence/updateChecker.ts` (WU + NVIDIA pollers), `components/BackgroundServiceCard.svelte` (Settings UI).
+- 96 → 100 Tauri commands. 21 → 22 Rust modules. 33 routes unchanged.
+
 ## v0.14.0
 
 ### Added

@@ -35,7 +35,16 @@ export type LogAction =
   | "driver.rollback"
   | "activation.launch"
   | "app.update"
-  | "iso.unattend.save";
+  | "iso.unattend.save"
+  | "service.tick"
+  | "persistence.profile.added"
+  | "persistence.profile.removed"
+  | "persistence.check.completed"
+  | "persistence.drift.fixed"
+  | "persistence.reapply.failed"
+  | "notification.sent"
+  | "winupdate.found"
+  | "driver.update.found";
 
 export type LogEntry = {
   id: number;
@@ -153,4 +162,13 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "activation.launch": "Activation script launched",
   "app.update": "App updated",
   "iso.unattend.save": "autounattend.xml saved",
+  "service.tick": "Background check",
+  "persistence.profile.added": "Profile persistence enabled",
+  "persistence.profile.removed": "Profile persistence disabled",
+  "persistence.check.completed": "Persistence check",
+  "persistence.drift.fixed": "Drift re-applied",
+  "persistence.reapply.failed": "Re-apply failed",
+  "notification.sent": "Notification sent",
+  "winupdate.found": "Windows updates available",
+  "driver.update.found": "Driver update available",
 };

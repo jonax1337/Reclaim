@@ -12,16 +12,22 @@
     "core:window:allow-unmaximize",
     "core:window:allow-close",
     "core:window:allow-destroy",
+    "core:window:allow-hide",
+    "core:window:allow-show",
     "core:window:allow-set-focus",
     "core:window:allow-set-title",
+    "core:window:allow-is-visible",
     "core:event:allow-emit",
     "core:event:allow-listen",
+    "core:tray:default",
     "shell:allow-open",
     "opener:default",
     "dialog:default",
     "window-state:default",
     "process:allow-restart",
     "process:allow-exit",
-    "updater:default"
+    "updater:default",
+    "autostart:default",
+    "notification:default"
   ]
 }
