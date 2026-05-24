@@ -12,26 +12,34 @@
     toast,
   } from "$lib/ui";
   import {
-    Bell,
-    Clock,
     Play,
     PlayCircle,
     Loader2,
-    Power,
-    Shield,
     AlertTriangle,
-    AppWindow,
-    LogIn,
-    Pin,
     Lock,
-    ShieldCheck,
-    ShieldAlert,
+    ListChecks,
+    ChevronDown,
+    ChevronRight,
+    Trash2,
+    HelpCircle,
+    Sparkles,
   } from "@lucide/svelte";
   import { onMount } from "svelte";
-  import { enable as autostartEnable, disable as autostartDisable, isEnabled as autostartIsEnabled } from "@tauri-apps/plugin-autostart";
-  import { service, type NotificationChannel, type PersistenceMode } from "$lib/service.svelte";
-  import { runPersistenceCheck } from "$lib/persistence/checker";
-  import { maybeCheckDriverUpdates, maybeCheckWindowsUpdates } from "$lib/persistence/updateChecker";
+  import {
+    enable as autostartEnable,
+    disable as autostartDisable,
+    isEnabled as autostartIsEnabled,
+  } from "@tauri-apps/plugin-autostart";
+  import {
+    service,
+    type NotificationChannel,
+    type PersistenceMode,
+  } from "$lib/service.svelte";
+  import { runPersistenceCheck, isDriftCheckable } from "$lib/persistence/checker";
+  import {
+    maybeCheckDriverUpdates,
+    maybeCheckWindowsUpdates,
+  } from "$lib/persistence/updateChecker";
   import {
     isTauri,
     isPortable,
@@ -41,20 +49,74 @@
     persistenceUninstallTask,
     type PersistenceTaskStatus,
   } from "$lib/tweaks/bridge";
-  import { PROFILES, type Profile, resolveProfileTweaks } from "$lib/tweaks/profiles";
-  import { customProfiles } from "$lib/tweaks/customProfiles.svelte";
-  import { tweakRequiresAdmin } from "$lib/tweaks/executor";
+  import { ALL_TWEAKS, type Tweak } from "$lib/tweaks/catalog";
+  import { getTweakState, tweakRequiresAdmin } from "$lib/tweaks/executor";
   import { admin } from "$lib/admin.svelte";
-  import ProfileIcon from "$lib/components/ProfileIcon.svelte";
+  import { cn } from "$lib/utils";
 
   let autostartOn = $state(false);
   let autostartBusy = $state(false);
   let portable = $state(false);
   let portableChecked = $state(false);
-  let runningCheckIds = $state<Record<string, boolean>>({});
   let manualCheckBusy = $state(false);
-  let systemTaskStatuses = $state<Record<string, PersistenceTaskStatus>>({});
-  let systemTaskBusy = $state<Record<string, boolean>>({});
+  let snapshotBusy = $state(false);
+  let systemTaskStatus = $state<PersistenceTaskStatus>({ installed: false, tweakCount: 0 });
+  let systemTaskBusy = $state(false);
+  let trackedExpanded = $state(false);
+
+  const tweakById = new Map<string, Tweak>(ALL_TWEAKS.map((t) => [t.id, t] as const));
+
+  // Display labels per Tweak.category. Same source-of-truth as the sidebar
+  // group titles in Layout.svelte / TweakPreviewDialog; consolidating to a
+  // shared helper is a separate cleanup.
+  const CATEGORY_LABEL: Record<string, string> = {
+    privacy: "Privacy",
+    ai: "AI & Copilot",
+    search: "Search",
+    explorer: "Explorer",
+    taskbar: "Taskbar & Start",
+    notifications: "Notifications",
+    performance: "Performance",
+    updates: "Windows Update",
+    browser: "Browser",
+    security: "Security",
+  };
+  // Stable category order, matches the sidebar grouping in Layout.svelte.
+  const CATEGORY_ORDER = [
+    "privacy",
+    "ai",
+    "search",
+    "explorer",
+    "taskbar",
+    "notifications",
+    "performance",
+    "updates",
+    "browser",
+    "security",
+  ] as const;
+
+  const trackedTweaks = $derived(
+    service.config.persist.tweakIds
+      .map((id) => tweakById.get(id))
+      .filter((t): t is Tweak => !!t),
+  );
+  const trackedAdmin = $derived(trackedTweaks.filter((t) => tweakRequiresAdmin(t)));
+  const trackedHkcu = $derived(trackedTweaks.filter((t) => !tweakRequiresAdmin(t)));
+  const trackedUncheckable = $derived(trackedTweaks.filter((t) => !isDriftCheckable(t)));
+  const adminTweakIds = $derived(trackedAdmin.map((t) => t.id));
+  const persist = $derived(service.config.persist);
+
+  // Tracked tweaks grouped + sorted by sidebar category order. Categories with
+  // no tracked entries are filtered out so the grouped list collapses cleanly.
+  const trackedByCategory = $derived(
+    CATEGORY_ORDER.map((cat) => ({
+      cat,
+      label: CATEGORY_LABEL[cat] ?? cat,
+      tweaks: trackedTweaks
+        .filter((t) => t.category === cat)
+        .sort((a, b) => a.title.localeCompare(b.title)),
+    })).filter((g) => g.tweaks.length > 0),
+  );
 
   onMount(async () => {
     if (!isTauri()) return;
@@ -65,23 +127,8 @@
         autostartOn = await autostartIsEnabled();
       } catch {}
     }
-    void refreshAllTaskStatuses();
+    await refreshTaskStatus();
   });
-
-  async function refreshTaskStatus(profileId: string) {
-    try {
-      systemTaskStatuses[profileId] = await persistenceTaskStatus(profileId);
-    } catch {
-      systemTaskStatuses[profileId] = { installed: false };
-    }
-  }
-
-  async function refreshAllTaskStatuses() {
-    if (!isTauri()) return;
-    await Promise.all(
-      [...PROFILES, ...customProfiles.items].map((p) => refreshTaskStatus(p.id)),
-    );
-  }
 
   const INTERVAL_OPTIONS = [
     { value: 1, label: "Every hour" },
@@ -90,18 +137,6 @@
     { value: 24, label: "Every 24 hours" },
   ];
 
-  const allProfiles = $derived([...PROFILES, ...customProfiles.items]);
-
-  function profileAdminCount(p: Profile): number {
-    return resolveProfileTweaks(p).filter((t) => tweakRequiresAdmin(t)).length;
-  }
-
-  function profileHkcuCount(p: Profile): number {
-    return resolveProfileTweaks(p).filter(
-      (t) => !tweakRequiresAdmin(t) && t.check && t.check.length > 0,
-    ).length;
-  }
-
   function formatRelative(ts: number): string {
     if (!ts) return "never";
     const diff = Date.now() - ts;
@@ -109,6 +144,22 @@
     if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
     if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
     return `${Math.floor(diff / 86_400_000)}d ago`;
+  }
+
+  function formatTaskTimestamp(iso: string | null | undefined): string {
+    if (!iso) return "never";
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return "never";
+    return formatRelative(t);
+  }
+
+  async function refreshTaskStatus() {
+    if (!isTauri()) return;
+    try {
+      systemTaskStatus = await persistenceTaskStatus();
+    } catch {
+      systemTaskStatus = { installed: false, tweakCount: 0 };
+    }
   }
 
   async function toggleAutostart(enabled: boolean) {
@@ -133,49 +184,91 @@
 
   async function setIntervalHours(hours: number) {
     await service.setIntervalHours(hours);
-    // Rebuild any installed SYSTEM tasks with the new repetition interval —
-    // otherwise the user changes the slider and the scheduled tasks silently
-    // keep their old cadence.
-    if (admin.elevated) {
-      const installedIds = Object.entries(systemTaskStatuses)
-        .filter(([, s]) => s.installed)
-        .map(([id]) => id);
-      for (const id of installedIds) {
-        const profile = [...PROFILES, ...customProfiles.items].find((p) => p.id === id);
-        if (!profile) continue;
-        try {
-          await persistenceInstallTask(profile.id, profile.name, hours);
-        } catch {}
-      }
-      if (installedIds.length > 0) void refreshAllTaskStatuses();
+    if (admin.elevated && systemTaskStatus.installed && adminTweakIds.length > 0) {
+      try {
+        await persistenceInstallTask(adminTweakIds, hours);
+        await refreshTaskStatus();
+      } catch {}
     }
-    toast.success(`Background interval set to ${hours}h`);
   }
 
-  async function togglePersisted(profile: Profile, on: boolean) {
+  async function setPersistEnabled(on: boolean) {
+    await service.setPersistEnabled(on);
     if (on) {
-      await service.addPersisted(profile.id, "update-only");
-      toast.success(
-        `Persisting ${profile.name}`,
-        "Drift will be re-applied after each Windows update.",
-      );
+      await snapshotCurrent();
     } else {
-      await service.removePersisted(profile.id);
-      // Also tear down the SYSTEM task if one exists — leaving it installed
-      // would keep applying admin tweaks the user just opted out of.
-      if (systemTaskStatuses[profile.id]?.installed && admin.elevated) {
+      if (admin.elevated && systemTaskStatus.installed) {
         try {
-          await persistenceUninstallTask(profile.id);
-          await refreshTaskStatus(profile.id);
+          await persistenceUninstallTask();
+          await refreshTaskStatus();
         } catch {}
       }
-      toast.show(`Stopped persisting ${profile.name}`, {
-        description: "Tweaks remain in place; drift will no longer be re-applied.",
-      });
+      await service.setPersistSystemTaskEnabled(false);
     }
   }
 
-  async function toggleSystemTask(profile: Profile, on: boolean) {
+  async function setMode(mode: PersistenceMode) {
+    await service.setPersistMode(mode);
+  }
+
+  async function snapshotCurrent() {
+    if (!isTauri()) return;
+    snapshotBusy = true;
+    try {
+      const ids: string[] = [];
+      let unknown = 0;
+      for (const t of ALL_TWEAKS) {
+        let state: "on" | "off" | "unknown";
+        try {
+          state = await getTweakState(t);
+        } catch {
+          continue;
+        }
+        if (state === "on") ids.push(t.id);
+        else if (state === "unknown") unknown++;
+      }
+      await service.setPersistedTweakIds(ids);
+      const undetectedHint =
+        unknown > 0
+          ? ` (${unknown} shell-only tweak${unknown === 1 ? "" : "s"} can't be auto-detected — toggle them in their categories to add.)`
+          : "";
+      toast.success(
+        `Snapshot taken — ${ids.length} tweak${ids.length === 1 ? "" : "s"} tracked`,
+        `Anything you apply from now on is added automatically; anything you revert is removed.${undetectedHint}`,
+      );
+      if (
+        admin.elevated &&
+        service.config.persist.systemTaskEnabled &&
+        ids.some((id) => {
+          const t = tweakById.get(id);
+          return t && tweakRequiresAdmin(t);
+        })
+      ) {
+        await syncSystemTask();
+      }
+    } finally {
+      snapshotBusy = false;
+    }
+  }
+
+  async function syncSystemTask() {
+    if (!admin.elevated) return;
+    systemTaskBusy = true;
+    try {
+      if (adminTweakIds.length === 0) {
+        await persistenceUninstallTask();
+      } else {
+        await persistenceInstallTask(adminTweakIds, service.config.intervalHours);
+      }
+      await refreshTaskStatus();
+    } catch (e) {
+      toast.error("Scheduled task sync failed", String(e));
+    } finally {
+      systemTaskBusy = false;
+    }
+  }
+
+  async function toggleSystemTask(on: boolean) {
     if (!admin.elevated) {
       toast.warning(
         "Administrator required",
@@ -183,96 +276,56 @@
       );
       return;
     }
-    systemTaskBusy[profile.id] = true;
+    await service.setPersistSystemTaskEnabled(on);
+    systemTaskBusy = true;
     try {
       if (on) {
-        await persistenceInstallTask(
-          profile.id,
-          profile.name,
-          service.config.intervalHours,
-        );
-        toast.success(
-          `Admin persistence on for ${profile.name}`,
-          "A SYSTEM scheduled task now re-applies HKLM + shell tweaks at logon and on your selected interval.",
-        );
+        if (adminTweakIds.length === 0) {
+          toast.show("No admin tweaks tracked yet", {
+            description:
+              "Apply at least one HKLM / shell-based tweak — the task will be installed automatically.",
+          });
+        } else {
+          await persistenceInstallTask(adminTweakIds, service.config.intervalHours);
+          toast.success(
+            "Admin persistence on",
+            `SYSTEM task installed with ${adminTweakIds.length} admin tweak${adminTweakIds.length === 1 ? "" : "s"}.`,
+          );
+        }
       } else {
-        await persistenceUninstallTask(profile.id);
-        toast.show(`Admin persistence off for ${profile.name}`, {
-          description: "Scheduled task removed. HKCU tweaks continue to be re-applied by the tray companion.",
+        await persistenceUninstallTask();
+        toast.show("Admin persistence off", {
+          description: "Scheduled task removed. HKCU drift re-apply continues via the tray companion.",
         });
       }
-      await refreshTaskStatus(profile.id);
+      await refreshTaskStatus();
     } catch (e) {
       toast.error("Scheduled task change failed", String(e));
     } finally {
-      systemTaskBusy[profile.id] = false;
+      systemTaskBusy = false;
     }
   }
 
-  async function runSystemTaskNow(profile: Profile) {
-    if (!admin.elevated) {
-      toast.warning(
-        "Administrator required",
-        "Running the SYSTEM scheduled task on demand needs elevation.",
-      );
+  let lastSyncedIds = $state<string>("");
+  $effect(() => {
+    const persistSnapshot = service.config.persist;
+    if (!isTauri()) return;
+    if (!persistSnapshot.enabled || !persistSnapshot.systemTaskEnabled) return;
+    if (!admin.elevated) return;
+    const key = adminTweakIds.slice().sort().join(",");
+    if (key === lastSyncedIds) return;
+    if (lastSyncedIds === "" && !systemTaskStatus.installed) {
+      lastSyncedIds = key;
       return;
     }
-    systemTaskBusy[profile.id] = true;
-    try {
-      await persistenceRunTaskNow(profile.id);
-      toast.success(
-        `${profile.name}: admin task triggered`,
-        "Check the Last-run column in a few seconds.",
-      );
-      setTimeout(() => void refreshTaskStatus(profile.id), 3000);
-    } catch (e) {
-      toast.error("Run failed", String(e));
-    } finally {
-      systemTaskBusy[profile.id] = false;
-    }
-  }
+    lastSyncedIds = key;
+    void syncSystemTask();
+  });
 
-  function formatTaskTimestamp(iso: string | null | undefined): string {
-    if (!iso) return "never";
-    const t = Date.parse(iso);
-    if (!Number.isFinite(t)) return "never";
-    return formatRelative(t);
-  }
-
-  async function setMode(profileId: string, mode: PersistenceMode) {
-    await service.setPersistedMode(profileId, mode);
-  }
-
-  async function runCheckNow(profileId: string, profileName: string) {
-    runningCheckIds[profileId] = true;
-    try {
-      const results = await runPersistenceCheck({ profileId });
-      const r = results[0];
-      if (!r) {
-        toast.show(`${profileName}`, { description: "Nothing to check." });
-      } else if (r.skippedReason === "no-update") {
-        toast.show(`${profileName}`, {
-          description: "Update-only mode: no recent Windows update, skipped.",
-        });
-      } else if (r.driftCount === 0) {
-        toast.success(`${profileName}`, "No drift detected.");
-      } else {
-        toast.success(
-          `${profileName}`,
-          `${r.driftCount} tweak${r.driftCount === 1 ? "" : "s"} re-applied.`,
-        );
-      }
-    } catch (e) {
-      toast.error("Check failed", String(e));
-    } finally {
-      runningCheckIds[profileId] = false;
-    }
-  }
-
-  async function runAllChecks() {
+  async function runManualCheck() {
     manualCheckBusy = true;
     try {
-      await runPersistenceCheck({});
+      await runPersistenceCheck();
       await maybeCheckWindowsUpdates(true);
       await maybeCheckDriverUpdates(true);
       toast.success("Background check complete");
@@ -281,6 +334,34 @@
     } finally {
       manualCheckBusy = false;
     }
+  }
+
+  async function runSystemTaskNow() {
+    if (!admin.elevated) {
+      toast.warning("Administrator required", "Running the SYSTEM task on demand needs elevation.");
+      return;
+    }
+    systemTaskBusy = true;
+    try {
+      await persistenceRunTaskNow();
+      toast.success("Admin task triggered", "Check the Last-run timestamp in a few seconds.");
+      setTimeout(() => void refreshTaskStatus(), 3000);
+    } catch (e) {
+      toast.error("Run failed", String(e));
+    } finally {
+      systemTaskBusy = false;
+    }
+  }
+
+  async function clearTracked() {
+    await service.setPersistedTweakIds([]);
+    if (admin.elevated && systemTaskStatus.installed) {
+      try {
+        await persistenceUninstallTask();
+        await refreshTaskStatus();
+      } catch {}
+    }
+    toast.show("Tracked tweaks cleared", { description: "Persistence set is empty." });
   }
 
   async function toggleChannel(channel: NotificationChannel, enabled: boolean) {
@@ -292,29 +373,28 @@
   }
 </script>
 
-<Card class="card-inset">
+<!-- Card 1: Tray companion. Plain title to match Settings.svelte siblings. -->
+<Card>
   <CardHeader>
-    <CardTitle class="flex items-center gap-2">
-      <Power class="size-4 text-primary" />
-      Background service
-    </CardTitle>
+    <CardTitle>Tray companion</CardTitle>
     <CardDescription>
-      Tray companion that re-applies drift after Windows updates and surfaces Windows-Update + NVIDIA-driver availability.
+      Hide-to-tray on close, optional autostart with Windows, and how often the background loop checks for drift, Windows updates and drivers.
     </CardDescription>
   </CardHeader>
-  <CardContent class="flex flex-col gap-6">
-    <!-- Tray + autostart row -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <CardContent class="flex flex-col gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
       <button
         type="button"
-        class="flex items-start gap-3 p-4 rounded-lg border bg-card hover:bg-accent/30 text-left transition disabled:cursor-not-allowed disabled:opacity-60"
+        class={cn(
+          "flex items-start gap-3 p-4 rounded-lg border text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+          autostartOn ? "border-primary/40 bg-primary/5" : "border-input hover:bg-accent/40",
+        )}
         onclick={() => toggleAutostart(!autostartOn)}
         disabled={autostartBusy || (portableChecked && portable)}
       >
-        <LogIn class="size-4 mt-0.5 shrink-0 text-muted-foreground" />
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
-            <div class="text-sm font-medium">Start with Windows</div>
+            <span class="text-sm font-medium">Start with Windows</span>
             <Switch
               checked={autostartOn}
               disabled={autostartBusy || portable}
@@ -334,13 +414,15 @@
 
       <button
         type="button"
-        class="flex items-start gap-3 p-4 rounded-lg border bg-card hover:bg-accent/30 text-left transition"
+        class={cn(
+          "flex items-start gap-3 p-4 rounded-lg border text-left transition",
+          service.config.keepInTray ? "border-primary/40 bg-primary/5" : "border-input hover:bg-accent/40",
+        )}
         onclick={() => toggleKeepInTray(!service.config.keepInTray)}
       >
-        <Pin class="size-4 mt-0.5 shrink-0 text-muted-foreground" />
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
-            <div class="text-sm font-medium">Keep running in tray when closed</div>
+            <span class="text-sm font-medium">Keep running in tray when closed</span>
             <Switch
               checked={service.config.keepInTray}
               onCheckedChange={(v: boolean) => toggleKeepInTray(v)}
@@ -354,16 +436,11 @@
       </button>
     </div>
 
-    <!-- Interval picker + Check now -->
     <div class="flex flex-wrap items-end gap-3 pt-4 border-t">
       <div class="flex-1 min-w-[200px]">
-        <label for="bg-interval" class="text-sm font-medium flex items-center gap-2">
-          <Clock class="size-4 text-muted-foreground" />
-          Check interval
-        </label>
+        <label for="bg-interval" class="text-sm font-medium">Check interval</label>
         <p class="text-xs text-muted-foreground mt-1 mb-2">
-          How often the background loop checks for drift, updates and drivers.
-          Last check: {formatRelative(service.config.lastTick)}.
+          Last tick: {formatRelative(service.config.lastTick)}.
         </p>
         <Select.Root
           type="single"
@@ -380,7 +457,7 @@
           </Select.Content>
         </Select.Root>
       </div>
-      <Button variant="outline" onclick={runAllChecks} disabled={manualCheckBusy}>
+      <Button variant="outline" onclick={runManualCheck} disabled={manualCheckBusy}>
         {#if manualCheckBusy}
           <Loader2 class="animate-spin" />
           Checking…
@@ -390,181 +467,269 @@
         {/if}
       </Button>
     </div>
+  </CardContent>
+</Card>
 
-    <!-- Active persistence -->
-    <div class="pt-4 border-t">
-      <h3 class="text-sm font-medium flex items-center gap-2 mb-1">
-        <Shield class="size-4 text-muted-foreground" />
-        Active persistence
-      </h3>
-      <p class="text-xs text-muted-foreground mb-3">
-        Selected profiles get their HKCU tweaks re-applied by the tray companion. Profiles with admin tweaks can also install a SYSTEM-running scheduled task that re-applies HKLM + shell ops at logon and on the configured interval — no UAC prompt at every boot.
-      </p>
-      <div class="flex flex-col divide-y rounded-lg border overflow-hidden">
-        {#each allProfiles as p (p.id)}
-          {@const persisted = service.getPersisted(p.id)}
-          {@const isOn = !!persisted}
-          {@const hkcu = profileHkcuCount(p)}
-          {@const adminCount = profileAdminCount(p)}
-          {@const taskStatus = systemTaskStatuses[p.id] ?? { installed: false }}
-          <div class="flex items-start gap-3 p-3 bg-card">
-            <div class="size-9 rounded-md bg-foreground/[0.04] border flex items-center justify-center shrink-0">
-              <ProfileIcon name={p.gradient} class="size-4 text-foreground/80" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2">
-                <div class="font-medium text-sm truncate">{p.name}</div>
-                <Switch checked={isOn} onCheckedChange={(v: boolean) => togglePersisted(p, v)} />
-              </div>
-              <div class="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2 items-center">
-                <Badge variant="outline" class="text-[10px]">{hkcu} HKCU watchable</Badge>
-                {#if adminCount > 0}
-                  <Badge variant="outline" class="text-[10px] gap-1">
-                    <Lock class="size-3" />
-                    {adminCount} admin
-                  </Badge>
-                {/if}
-                {#if persisted}
-                  <span class="text-[11px]">
-                    HKCU last: {formatRelative(persisted.lastCheck)}
-                    {#if persisted.lastDriftCount > 0}
-                      · {persisted.lastDriftCount} re-applied
-                    {/if}
-                    {#if persisted.totalDriftsFixed > 0}
-                      · {persisted.totalDriftsFixed} total
-                    {/if}
-                  </span>
-                {/if}
-              </div>
-              {#if persisted}
-                <div class="flex items-center gap-2 mt-2">
-                  <Select.Root
-                    type="single"
-                    value={persisted.mode}
-                    onValueChange={(v) => v && setMode(p.id, v as PersistenceMode)}
-                  >
-                    <Select.Trigger class="h-7 text-xs">
-                      {persisted.mode === "strict" ? "Strict" : "Update-only"}
-                    </Select.Trigger>
-                    <Select.Content>
-                      <Select.Item value="update-only" label="Update-only">Update-only — re-apply only after Windows updates</Select.Item>
-                      <Select.Item value="strict" label="Strict">Strict — re-apply any drift, every tick</Select.Item>
-                    </Select.Content>
-                  </Select.Root>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onclick={() => runCheckNow(p.id, p.name)}
-                    disabled={runningCheckIds[p.id]}
-                  >
-                    {#if runningCheckIds[p.id]}
-                      <Loader2 class="animate-spin" />
-                      Checking…
-                    {:else}
-                      <Play />
-                      Run now
-                    {/if}
-                  </Button>
-                </div>
-
-                {#if adminCount > 0}
-                  <div class="mt-2 rounded-md border bg-foreground/[0.02] p-2.5 flex items-start gap-2">
-                    {#if taskStatus.installed}
-                      <ShieldCheck class="size-4 mt-0.5 shrink-0 text-primary" />
-                    {:else}
-                      <ShieldAlert class="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-                    {/if}
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center justify-between gap-2">
-                        <div class="text-xs font-medium">
-                          Run admin tweaks as SYSTEM
-                          {#if !admin.elevated}
-                            <Badge variant="outline" class="text-[10px] ml-1">requires admin</Badge>
-                          {/if}
-                        </div>
-                        <Switch
-                          checked={taskStatus.installed}
-                          disabled={systemTaskBusy[p.id] || !admin.elevated}
-                          onCheckedChange={(v: boolean) => toggleSystemTask(p, v)}
-                        />
-                      </div>
-                      <p class="text-[11px] text-muted-foreground mt-0.5">
-                        {#if taskStatus.installed}
-                          Scheduled task <code class="px-1 rounded bg-foreground/5">\Reclaim\Persist-{p.id}</code>
-                          {#if taskStatus.state}
-                            · {taskStatus.state}
-                          {/if}
-                          · last run {formatTaskTimestamp(taskStatus.lastRun)}
-                          · next run {formatTaskTimestamp(taskStatus.nextRun)}
-                        {:else}
-                          Installs <code class="px-1 rounded bg-foreground/5">\Reclaim\Persist-{p.id}</code>, runs reclaim.exe --apply-profile {p.id} --admin-only at logon + every {service.config.intervalHours}h.
-                        {/if}
-                      </p>
-                      {#if taskStatus.installed}
-                        <div class="mt-1.5">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onclick={() => runSystemTaskNow(p)}
-                            disabled={systemTaskBusy[p.id] || !admin.elevated}
-                            class="h-6 text-[11px]"
-                          >
-                            {#if systemTaskBusy[p.id]}
-                              <Loader2 class="animate-spin size-3" />
-                              Working…
-                            {:else}
-                              <Play class="size-3" />
-                              Trigger now
-                            {/if}
-                          </Button>
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                {/if}
-              {/if}
-            </div>
-          </div>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Notifications -->
-    <div class="pt-4 border-t">
-      <h3 class="text-sm font-medium flex items-center gap-2 mb-1">
-        <Bell class="size-4 text-muted-foreground" />
-        Notifications
-      </h3>
-      <p class="text-xs text-muted-foreground mb-3">
-        Native Win11 toasts. Clicking a toast opens Reclaim on the relevant page. Throttled to suppress the same payload within 24 hours.
-      </p>
-      <div class="flex flex-col gap-2">
-        {#each [
-          { ch: "driftDetected" as NotificationChannel, label: "Drift re-applied", desc: "When a persisted profile gets tweaks restored after Windows updates." },
-          { ch: "windowsUpdateAvailable" as NotificationChannel, label: "Windows updates", desc: "Polled every 12h. Skipped on battery below 30%." },
-          { ch: "driverUpdateAvailable" as NotificationChannel, label: "NVIDIA driver updates", desc: "Polled every 24h for detected NVIDIA GPUs. AMD/Intel not supported yet." },
-        ] as item (item.ch)}
-          <label class="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/20 transition cursor-pointer">
-            <Bell class="size-4 mt-0.5 shrink-0 text-muted-foreground" />
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-medium">{item.label}</span>
-                <Switch
-                  checked={service.config.notificationPrefs[item.ch]}
-                  onCheckedChange={(v: boolean) => toggleChannel(item.ch, v)}
-                />
-              </div>
-              <p class="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-            </div>
-          </label>
-        {/each}
-      </div>
-      <div class="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
-        <AlertTriangle class="size-3.5 shrink-0 mt-0.5" />
-        <p>
-          Toasts respect Windows Focus Assist. If you don't see them, check Settings → System → Notifications.
+<!-- Card 2: Auto-persist tweaks. -->
+<Card>
+  <CardHeader>
+    <CardTitle>Auto-persist tweaks</CardTitle>
+    <CardDescription>
+      Whatever you've turned on stays on — Reclaim re-applies tweaks that Windows Update flips back. Applying a tweak adds it to the persistence set; reverting removes it.
+    </CardDescription>
+  </CardHeader>
+  <CardContent class="flex flex-col gap-4">
+    <button
+      type="button"
+      class={cn(
+        "flex items-start gap-3 p-4 rounded-lg border text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+        persist.enabled ? "border-primary/40 bg-primary/5" : "border-input hover:bg-accent/40",
+      )}
+      onclick={() => setPersistEnabled(!persist.enabled)}
+      disabled={snapshotBusy}
+    >
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-sm font-medium">Auto-persist active tweaks</span>
+          <Switch
+            checked={persist.enabled}
+            disabled={snapshotBusy}
+            onCheckedChange={(v: boolean) => setPersistEnabled(v)}
+            onclick={(e: MouseEvent) => e.stopPropagation()}
+          />
+        </div>
+        <p class="text-xs text-muted-foreground mt-1">
+          {#if persist.enabled}
+            Tracking {trackedTweaks.length} tweak{trackedTweaks.length === 1 ? "" : "s"}
+            {#if trackedAdmin.length > 0}
+              ({trackedAdmin.length} admin{#if trackedUncheckable.length > 0}, {trackedUncheckable.length} shell-only{/if})
+            {:else if trackedUncheckable.length > 0}
+              ({trackedUncheckable.length} shell-only)
+            {/if}. Last drift check: {formatRelative(persist.lastCheck)}{#if persist.totalDriftsFixed > 0} · {persist.totalDriftsFixed} total re-applied{/if}.
+          {:else}
+            Turn on to snapshot every tweak currently active and keep them re-applied after Windows updates.
+          {/if}
         </p>
       </div>
+    </button>
+
+    {#if persist.enabled}
+      <div class="flex flex-wrap items-end gap-3 pt-4 border-t">
+        <div class="flex-1 min-w-[200px]">
+          <label for="persist-mode" class="text-sm font-medium">Drift detection mode</label>
+          <p class="text-xs text-muted-foreground mt-1 mb-2">
+            How aggressively the background loop scans for drift.
+          </p>
+          <Select.Root
+            type="single"
+            value={persist.mode}
+            onValueChange={(v) => v && setMode(v as PersistenceMode)}
+          >
+            <Select.Trigger class="w-full" id="persist-mode">
+              {persist.mode === "strict"
+                ? "Strict — every tick"
+                : "Update-only — after a Windows hotfix"}
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="update-only" label="Update-only">
+                Update-only — after a Windows hotfix in the last 48h
+              </Select.Item>
+              <Select.Item value="strict" label="Strict">
+                Strict — re-apply any drift, every tick
+              </Select.Item>
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <Button variant="outline" onclick={snapshotCurrent} disabled={snapshotBusy}>
+          {#if snapshotBusy}
+            <Loader2 class="animate-spin" />
+            Scanning…
+          {:else}
+            <ListChecks />
+            Re-snapshot
+          {/if}
+        </Button>
+        {#if trackedTweaks.length > 0}
+          <Button variant="ghost" onclick={clearTracked}>
+            <Trash2 />
+            Clear tracked
+          </Button>
+        {/if}
+      </div>
+
+      {#if trackedTweaks.length > 0}
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition self-start px-1"
+          onclick={() => (trackedExpanded = !trackedExpanded)}
+        >
+          {#if trackedExpanded}
+            <ChevronDown class="size-3.5" />
+          {:else}
+            <ChevronRight class="size-3.5" />
+          {/if}
+          {trackedExpanded ? "Hide" : "Show"} tracked tweaks ({trackedTweaks.length})
+        </button>
+        {#if trackedExpanded}
+          <div class="max-h-96 overflow-y-auto -mx-1 px-1">
+            {#each trackedByCategory as group (group.cat)}
+              <h4 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mt-4 mb-2 first:mt-0">
+                {group.label}
+                <span class="tabular-nums font-normal ml-1">({group.tweaks.length})</span>
+              </h4>
+              <Card class="overflow-hidden gap-0 py-0 card-inset">
+                {#each group.tweaks as t (t.id)}
+                  {@const isAdmin = tweakRequiresAdmin(t)}
+                  {@const checkable = isDriftCheckable(t)}
+                  <div class="relative flex items-start gap-3 py-3 px-5 border-b last:border-b-0 bg-primary/[0.03]">
+                    <span class="absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-primary/60" aria-hidden="true"></span>
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-sm font-medium">{t.title}</span>
+                        {#if t.recommended}
+                          <Badge variant="success">
+                            <Sparkles class="size-2.5" />
+                            Recommended
+                          </Badge>
+                        {/if}
+                        {#if isAdmin}
+                          <Badge variant="warning">
+                            <Lock class="size-2.5" />
+                            Admin
+                          </Badge>
+                        {/if}
+                        {#if !checkable}
+                          <Badge variant="warning">
+                            <HelpCircle class="size-2.5" />
+                            No drift check
+                          </Badge>
+                        {/if}
+                      </div>
+                      <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        {t.description}
+                      </p>
+                    </div>
+                  </div>
+                {/each}
+              </Card>
+            {/each}
+          </div>
+        {/if}
+      {/if}
+
+      <button
+        type="button"
+        class={cn(
+          "flex items-start gap-3 p-4 rounded-lg border text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+          persist.systemTaskEnabled && systemTaskStatus.installed
+            ? "border-primary/40 bg-primary/5"
+            : "border-input hover:bg-accent/40",
+        )}
+        onclick={() => toggleSystemTask(!persist.systemTaskEnabled)}
+        disabled={systemTaskBusy || !admin.elevated}
+      >
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-medium flex items-center gap-2">
+              Also persist admin tweaks as SYSTEM
+              {#if !admin.elevated}
+                <Badge variant="warning">
+                  <Lock class="size-2.5" />
+                  needs admin
+                </Badge>
+              {/if}
+            </span>
+            <Switch
+              checked={persist.systemTaskEnabled}
+              disabled={systemTaskBusy || !admin.elevated}
+              onCheckedChange={(v: boolean) => toggleSystemTask(v)}
+              onclick={(e: MouseEvent) => e.stopPropagation()}
+            />
+          </div>
+          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+            {#if persist.systemTaskEnabled && systemTaskStatus.installed}
+              Scheduled task <code class="font-mono">\Reclaim\Persist-Current</code>
+              {#if systemTaskStatus.state}· {systemTaskStatus.state}{/if}
+              · {systemTaskStatus.tweakCount} tweak{systemTaskStatus.tweakCount === 1 ? "" : "s"} embedded
+              · last run {formatTaskTimestamp(systemTaskStatus.lastRun)}
+              · next run {formatTaskTimestamp(systemTaskStatus.nextRun)}
+            {:else if persist.systemTaskEnabled && !systemTaskStatus.installed}
+              Toggle is on but no scheduled task is installed yet — apply at least one HKLM / shell tweak, or click Re-snapshot if you have admin tweaks already on.
+            {:else}
+              Off — admin tweaks won't be re-applied at all. HKCU tweaks continue to be re-applied by the tray companion regardless.
+            {/if}
+          </p>
+          {#if persist.systemTaskEnabled && systemTaskStatus.installed}
+            <div class="mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onclick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  void runSystemTaskNow();
+                }}
+                disabled={systemTaskBusy || !admin.elevated}
+                class="h-7 text-xs"
+              >
+                {#if systemTaskBusy}
+                  <Loader2 class="animate-spin" />
+                  Working…
+                {:else}
+                  <Play />
+                  Trigger now
+                {/if}
+              </Button>
+            </div>
+          {/if}
+        </div>
+      </button>
+    {/if}
+  </CardContent>
+</Card>
+
+<!-- Card 3: Notifications. -->
+<Card>
+  <CardHeader>
+    <CardTitle>Notifications</CardTitle>
+    <CardDescription>
+      Native Windows toasts when the background loop does something. Clicking a toast opens Reclaim on the relevant page. The same payload is throttled to once per 24 hours.
+    </CardDescription>
+  </CardHeader>
+  <CardContent class="flex flex-col gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {#each [
+        { ch: "driftDetected" as NotificationChannel, label: "Drift re-applied", desc: "When the background loop restores tweaks Windows flipped back." },
+        { ch: "windowsUpdateAvailable" as NotificationChannel, label: "Windows updates", desc: "Polled every 12h. Skipped on battery below 30%." },
+        { ch: "driverUpdateAvailable" as NotificationChannel, label: "NVIDIA driver updates", desc: "Polled every 24h. AMD/Intel not supported yet." },
+      ] as item (item.ch)}
+        {@const on = service.config.notificationPrefs[item.ch]}
+        <button
+          type="button"
+          class={cn(
+            "flex items-start gap-3 p-4 rounded-lg border text-left transition",
+            on ? "border-primary/40 bg-primary/5" : "border-input hover:bg-accent/40",
+          )}
+          onclick={() => toggleChannel(item.ch, !on)}
+        >
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm font-medium">{item.label}</span>
+              <Switch
+                checked={on}
+                onCheckedChange={(v: boolean) => toggleChannel(item.ch, v)}
+                onclick={(e: MouseEvent) => e.stopPropagation()}
+              />
+            </div>
+            <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{item.desc}</p>
+          </div>
+        </button>
+      {/each}
+    </div>
+    <div class="flex items-start gap-2 text-xs text-muted-foreground pt-1">
+      <AlertTriangle class="size-3.5 shrink-0 mt-0.5" />
+      <p>
+        Toasts respect Windows Focus Assist. If you don't see them, check Settings → System → Notifications.
+      </p>
     </div>
   </CardContent>
 </Card>

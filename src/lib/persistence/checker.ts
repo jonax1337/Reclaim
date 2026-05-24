@@ -1,171 +1,160 @@
-// HKCU-only drift detection + reapply, invoked from the service tick.
+// Flat-set drift detection + reapply, invoked from the service tick.
 //
-// For each persisted profile:
-//   1) Resolve its tweaks (built-in PROFILES + customProfiles)
-//   2) Drop admin-required tweaks (HKLM / shell ops). The user opts those in
-//      separately via the per-profile "Run admin tweaks as SYSTEM" toggle —
-//      a SYSTEM-running scheduled task installed by persistence.rs handles
-//      them with --admin-only at logon + on the configured interval.
-//   3) Drop tweaks without check[] (no reliable way to detect drift on them)
-//   4) In "update-only" mode, gate the whole pass on a recent Windows hotfix
-//   5) For every remaining tweak, getTweakState — re-apply if it reads as "off"
-//   6) Log a drift.fixed entry per fixed tweak, emit one toast per profile,
-//      record per-profile lastCheck + totalDriftsFixed in service.json
+// v0.15.2 model: instead of iterating per-profile, the loop walks
+// `service.config.persist.tweakIds` directly. That set is auto-managed by
+// the tweak executor (applyTweak adds, revertTweak removes), so "what gets
+// persisted" mirrors "what the user has actively turned on" without ever
+// asking the user to pick a profile for persistence.
+//
+// For each id in the set:
+//   1) Look up the Tweak in ALL_TWEAKS — drop unknown ids silently (catalog
+//      changed since the user enabled persistence; cleaned up next save).
+//   2) Skip admin-required tweaks (HKLM / shell ops). They're handled by the
+//      SYSTEM-running `\Reclaim\Persist-Current` scheduled task installed via
+//      persistence.rs, which runs reclaim.exe with --admin-only.
+//   3) Skip tweaks without check[] arrays — no reliable way to detect drift.
+//   4) In "update-only" mode, gate the whole pass on a recent Windows hotfix.
+//   5) For remaining tweaks: getTweakState → re-apply on "off".
+//   6) Log + emit one drift toast per run, record stats on the service store.
 
 import { log } from "../log.svelte";
-import { service, type PersistedProfile } from "../service.svelte";
+import { service } from "../service.svelte";
 import { recentHotfixInstalledSince } from "../tweaks/bridge";
 import { applyTweak, getTweakState, tweakRequiresAdmin } from "../tweaks/executor";
-import type { Tweak } from "../tweaks/catalog";
-import { PROFILES, resolveProfileTweaks } from "../tweaks/profiles";
-import { customProfiles } from "../tweaks/customProfiles.svelte";
+import { ALL_TWEAKS, type Tweak } from "../tweaks/catalog";
 import { hashString, notify } from "../notify";
 
 const UPDATE_ONLY_WINDOW_HOURS = 48;
 
-function resolveProfileById(id: string) {
-  const builtin = PROFILES.find((p) => p.id === id);
-  if (builtin) return builtin;
-  return customProfiles.get(id);
+/** Returns true if the tweak's state can be read back from the registry —
+ *  either via an explicit `check[]` array, or by inspecting the apply ops for
+ *  any registry write (getTweakState falls back to those). Tweaks composed
+ *  entirely of shell ops (e.g. `Set-Service X -StartupType Disabled`) have no
+ *  cheap drift-detection path and are skipped by the loop — re-applying them
+ *  unconditionally would mean running PowerShell every tick. */
+export function isDriftCheckable(tweak: Tweak): boolean {
+  if (tweak.check && tweak.check.some((c) => c.kind === "reg")) return true;
+  return tweak.apply.some((o) => o.kind === "reg");
 }
 
-/** A tweak is eligible for drift re-application via the tray companion if it
- *  has check coverage AND doesn't require admin. HKLM / shell ops are handled
- *  by the SYSTEM scheduled task path (persistence.rs). */
-function isEligible(tweak: Tweak): boolean {
-  if (tweakRequiresAdmin(tweak)) return false;
-  // Without check[] we can't detect drift — re-applying on every tick would
-  // be a no-op write storm. Skip silently.
-  if (!tweak.check || tweak.check.length === 0) return false;
-  return true;
-}
-
-export type ProfileCheckResult = {
-  profileId: string;
+export type PersistenceCheckResult = {
   driftCount: number;
   reappliedTitles: string[];
+  scanned: number;
   skippedAdmin: number;
-  skippedShell: number;
-  skippedReason?: "no-update" | "profile-missing";
+  skippedUncheckable: number;
+  skippedUnknown: number;
+  skippedReason?: "disabled" | "empty" | "no-update";
 };
 
-async function checkProfile(p: PersistedProfile): Promise<ProfileCheckResult> {
-  const profile = resolveProfileById(p.profileId);
-  if (!profile) {
-    return {
-      profileId: p.profileId,
-      driftCount: 0,
-      reappliedTitles: [],
-      skippedAdmin: 0,
-      skippedShell: 0,
-      skippedReason: "profile-missing",
-    };
+const tweakById = new Map<string, Tweak>(ALL_TWEAKS.map((t) => [t.id, t] as const));
+
+export async function runPersistenceCheck(): Promise<PersistenceCheckResult> {
+  const persist = service.config.persist;
+  const base: PersistenceCheckResult = {
+    driftCount: 0,
+    reappliedTitles: [],
+    scanned: 0,
+    skippedAdmin: 0,
+    skippedUncheckable: 0,
+    skippedUnknown: 0,
+  };
+
+  if (!persist.enabled) {
+    return { ...base, skippedReason: "disabled" };
+  }
+  if (persist.tweakIds.length === 0) {
+    return { ...base, skippedReason: "empty" };
   }
 
-  // Update-only mode: only re-apply if Windows has likely just reset things.
-  if (p.mode === "update-only") {
+  if (persist.mode === "update-only") {
     try {
       const recent = await recentHotfixInstalledSince(UPDATE_ONLY_WINDOW_HOURS);
       if (!recent) {
-        return {
-          profileId: p.profileId,
-          driftCount: 0,
-          reappliedTitles: [],
-          skippedAdmin: 0,
-          skippedShell: 0,
-          skippedReason: "no-update",
-        };
+        return { ...base, skippedReason: "no-update" };
       }
     } catch {
-      // If we can't query hotfixes, fall through and check anyway — better to
-      // re-apply once than to silently miss drift.
+      // If we can't query hotfix install dates (PS failure, locale weirdness),
+      // fall through and re-apply once — better than silently never running.
     }
-  }
-
-  const tweaks = resolveProfileTweaks(profile);
-  let skippedAdmin = 0;
-  let skippedShell = 0;
-  const candidates: Tweak[] = [];
-  for (const t of tweaks) {
-    if (tweakRequiresAdmin(t)) {
-      skippedAdmin++;
-      continue;
-    }
-    if (!t.check || t.check.length === 0) {
-      skippedShell++;
-      continue;
-    }
-    candidates.push(t);
   }
 
   const reappliedTitles: string[] = [];
-  for (const t of candidates) {
+  let skippedAdmin = 0;
+  let skippedUncheckable = 0;
+  let skippedUnknown = 0;
+  let scanned = 0;
+
+  for (const id of persist.tweakIds) {
+    const tweak = tweakById.get(id);
+    if (!tweak) {
+      skippedUnknown++;
+      continue;
+    }
+    if (tweakRequiresAdmin(tweak)) {
+      skippedAdmin++;
+      continue;
+    }
+    if (!isDriftCheckable(tweak)) {
+      // Pure shell-based tweak with no check[] — can't drift-detect without
+      // executing PowerShell every tick. Still allowed in the persistence set
+      // (the user asked for it), just not auto-re-applied.
+      skippedUncheckable++;
+      continue;
+    }
+    scanned++;
     let state: "on" | "off" | "unknown";
     try {
-      state = await getTweakState(t);
+      state = await getTweakState(tweak);
     } catch {
       continue;
     }
     if (state !== "off") continue;
     try {
-      await applyTweak(t);
-      reappliedTitles.push(t.title);
+      await applyTweak(tweak);
+      reappliedTitles.push(tweak.title);
       log.success(
         "persistence.drift.fixed",
-        t.title,
-        `Re-applied '${t.title}' (drift from '${profile.name}')`,
+        tweak.title,
+        `Re-applied '${tweak.title}' (drift detected)`,
       );
     } catch (e) {
       log.error(
         "persistence.reapply.failed",
-        t.title,
-        `Failed to re-apply '${t.title}'`,
+        tweak.title,
+        `Failed to re-apply '${tweak.title}'`,
         String(e),
       );
     }
   }
 
+  await service.recordPersistRun(reappliedTitles.length);
+
+  log.info(
+    "persistence.check.completed",
+    "Auto-persist",
+    `Drift check: ${reappliedTitles.length} re-applied, ${scanned} scanned, ${skippedAdmin} admin (SYSTEM task), ${skippedUncheckable} uncheckable, ${skippedUnknown} unknown ids`,
+  );
+
+  if (reappliedTitles.length > 0) {
+    const preview = reappliedTitles.slice(0, 3).join(", ");
+    const more =
+      reappliedTitles.length > 3 ? `, +${reappliedTitles.length - 3} more` : "";
+    await notify({
+      channel: "driftDetected",
+      title: `Reclaim re-applied ${reappliedTitles.length} tweak${reappliedTitles.length === 1 ? "" : "s"}`,
+      body: `${preview}${more}`,
+      hash: hashString(`drift:${reappliedTitles.join(",")}`),
+      route: "/settings",
+    });
+  }
+
   return {
-    profileId: p.profileId,
     driftCount: reappliedTitles.length,
     reappliedTitles,
+    scanned,
     skippedAdmin,
-    skippedShell,
+    skippedUncheckable,
+    skippedUnknown,
   };
-}
-
-/** Run the persistence check for one profile (Run-now button) or all (tick). */
-export async function runPersistenceCheck(opts: {
-  profileId?: string;
-}): Promise<ProfileCheckResult[]> {
-  const persisted = service.config.persistedProfiles;
-  const targets = opts.profileId
-    ? persisted.filter((p) => p.profileId === opts.profileId)
-    : persisted;
-
-  const results: ProfileCheckResult[] = [];
-  for (const p of targets) {
-    const r = await checkProfile(p);
-    results.push(r);
-    await service.recordPersistedRun(p.profileId, r.driftCount);
-    if (r.skippedReason) continue;
-    log.info(
-      "persistence.check.completed",
-      resolveProfileById(p.profileId)?.name ?? p.profileId,
-      `Drift check: ${r.driftCount} re-applied, ${r.skippedAdmin} admin skipped, ${r.skippedShell} unchecked skipped`,
-    );
-    if (r.driftCount > 0) {
-      const profileName = resolveProfileById(p.profileId)?.name ?? p.profileId;
-      const titlesPreview = r.reappliedTitles.slice(0, 3).join(", ");
-      const more = r.reappliedTitles.length > 3 ? `, +${r.reappliedTitles.length - 3} more` : "";
-      await notify({
-        channel: "driftDetected",
-        title: `Reclaim re-applied ${r.driftCount} tweak${r.driftCount === 1 ? "" : "s"}`,
-        body: `${profileName} drifted — restored: ${titlesPreview}${more}`,
-        hash: hashString(`drift:${p.profileId}:${r.reappliedTitles.join(",")}`),
-        route: "/profiles",
-      });
-    }
-  }
-  return results;
 }

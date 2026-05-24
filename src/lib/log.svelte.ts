@@ -42,6 +42,7 @@ export type LogAction =
   | "persistence.check.completed"
   | "persistence.drift.fixed"
   | "persistence.reapply.failed"
+  | "persistence.migrate"
   | "notification.sent"
   | "winupdate.found"
   | "driver.update.found";
@@ -168,6 +169,7 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "persistence.check.completed": "Persistence check",
   "persistence.drift.fixed": "Drift re-applied",
   "persistence.reapply.failed": "Re-apply failed",
+  "persistence.migrate": "Persistence migrated",
   "notification.sent": "Notification sent",
   "winupdate.found": "Windows updates available",
   "driver.update.found": "Driver update available",

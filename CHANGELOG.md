@@ -2,6 +2,39 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.15.2
+
+UX revamp of the persistence service: the per-profile "Keep this profile applied" toggles are gone. Reclaim now auto-tracks whatever tweaks you've actually turned on — applying a tweak adds it to the persistence set, reverting removes it. No profile picker for persistence anywhere.
+
+### Changed
+
+- **Persistence is now "auto-track active tweaks" instead of per-profile.** Single global "Auto-persist active tweaks" toggle in Settings → Background Service. When you flip it on, Reclaim snapshots every tweak currently reading as "on" into the persistence set; after that, the executor wires `applyTweak` → add and `revertTweak` → remove automatically. The drift loop walks the set directly, no profile resolution. The user's mental model is now "what's on stays on", not "this profile stays applied".
+- **One SYSTEM scheduled task instead of N.** v0.15.1 installed `\Reclaim\Persist-<profile-id>` per persisted profile. v0.15.2 installs a single `\Reclaim\Persist-Current` task that runs `reclaim.exe --apply-tweak <id1,id2,…> --admin-only` with every tracked admin tweak embedded in the action arguments. Re-installed (with `-Force`) whenever the tracked admin-id set or the check interval changes.
+
+### Added
+
+- **One-shot v0.15.1 → v0.15.2 migration.** On first boot of v0.15.2, any existing `persistedProfiles` in `service.json` are resolved to flat tweak ids (built-in PROFILES + custom profile builder lookups) and merged into the new `persist.tweakIds` set; persistence is auto-enabled to match the user's prior intent. Legacy `\Reclaim\Persist-<id>` scheduled tasks are torn down via the new `persistence_cleanup_legacy_tasks` command (requires admin; gracefully skipped if not elevated, with a clear log entry).
+- **Tracked-tweaks transparency.** Expandable list under the auto-persist card shows exactly which tweaks are in the persistence set with category + admin badges and an explicit "not drift-checkable" badge for shell-only entries (they stay in the set but won't auto-re-apply).
+- **Re-snapshot button.** If you've toggled tweaks outside of Reclaim's auto-track (or want to reset the set to "whatever's currently on"), one click rescans all 167 tweaks and replaces the set. The toast also shows how many shell-only tweaks couldn't be auto-detected so it's clear why the count may be lower than expected.
+- **Clear tracked button.** Drops the entire persistence set without touching the underlying tweak state on disk.
+
+### Fixed
+
+- **Snapshot no longer silently skips tweaks without explicit `check[]`.** `getTweakState` already falls back to inspecting apply-side reg ops when no check array is provided, but the snapshot loop was pre-filtering on `tweak.check?.length > 0` and dropping every tweak that relied on the fallback path — making "Auto-persist on" appear to detect almost nothing on a Privacy-Max-heavy system. The filter is gone; only tweaks reading as `"unknown"` (genuinely undetectable shell-only ones) are skipped, and the toast surfaces that count.
+- **Drift checker now uses `isDriftCheckable(tweak)`** as the skip-rule instead of `tweak.check?.length > 0`. Same fix — tweaks defined purely via apply reg ops are now drift-detected from those ops, instead of being silently ignored on every tick.
+- **UI alignment with the rest of the app.** Background-service settings now live in three separate Cards (`Tray companion` / `Auto-persist tweaks` / `Notifications`) instead of one giant nested layout — mirrors how `Settings.svelte` already structures Appearance / System / Updates / About. Card titles are plain text without leading icons (`<CardTitle>Auto-persist tweaks</CardTitle>`, not `<Icon /> Auto-persist`), matching the rest of the Settings page. The mode picker is full-width with help text and the standard `h-9` height, not a cramped `min-w-[160px]` chip. Toggle tiles use `border-primary/40 bg-primary/5` when active (same visual language as the theme-picker tiles in the Appearance card).
+- **Tracked-tweaks list grouped by category** (`PRIVACY (12)` / `AI & COPILOT (5)` / …) instead of a flat list with per-row category Badges — `TweakRow` itself doesn't show category badges because the route context implies the category, and the mixed-category persistence list now mirrors that by lifting the category into a section header instead of a per-row chip.
+
+### Internal
+
+- New `src/lib/persistence/migrate.ts` (~80 LOC). One-shot resolver that reads the legacy `persistedProfiles` field from localStorage, resolves to tweak ids via `PROFILES` + `customProfiles`, calls `service.setPersistedTweakIds([...])`, then invokes the Rust `persistence_cleanup_legacy_tasks` command. Idempotent via `service.legacyProfilesMigrated`.
+- `service.svelte.ts`: dropped `PersistedProfile[]` model entirely. New `PersistState` shape: `{enabled, mode, tweakIds, systemTaskEnabled, lastCheck, lastDriftCount, totalDriftsFixed}`. `mergeWithDefaults` reads the legacy `persistedProfiles` header to preserve `mode` / `enabled` / lifetime stats during migration.
+- `executor.ts`: `applyTweak` calls `service.addPersistedTweak(id)` after success; `revertTweak` calls `service.removePersistedTweak(id)`. The store helpers are no-ops when persist is disabled.
+- `persistence/checker.ts` rewritten — single iteration over `persist.tweakIds`, lookup in a pre-built `tweakById` map of `ALL_TWEAKS`. No more `resolveProfileById` / `resolveProfileTweaks` calls in the loop.
+- `persistence.rs` rewritten — singular task `\Reclaim\Persist-Current`. New `persistence_cleanup_legacy_tasks` Tauri command that enumerates `Get-ScheduledTask -TaskPath '\Reclaim\'`, filters to anything matching `Persist-*` but not the new singleton, and `Unregister-ScheduledTask`s each one. Returns the removed count.
+- `BackgroundServiceCard.svelte`: replaced per-profile iteration with the new single-section UI. Reactive `$effect` syncs the SYSTEM task whenever the tracked admin-id set changes (sort-stable hash compare so writes don't fire on every Svelte update).
+- +1 Tauri command (`persistence_cleanup_legacy_tasks`). Total: 108 commands across 24 modules.
+
 ## v0.15.1
 
 Patch release on the v0.15 persistence service: fixes three UX bugs that landed in v0.15.0 and ships SYSTEM-context scheduled tasks so admin tweaks finally persist too (the "HKLM deferred to v0.16+" caveat from v0.15.0 is closed).

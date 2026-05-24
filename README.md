@@ -99,8 +99,8 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 **Background persistence service + tray companion** — Reclaim lives in the Windows notification area instead of being a one-shot GUI:
 
 - Closing the window with X hides to tray; right-click → Quit Reclaim to exit fully. Optional "Start with Windows" boots straight to tray at login (no UAC prompt, no window flash).
-- **HKCU drift re-apply.** Per-profile "Keep applied" toggle re-runs the user-context tweaks of a profile after Windows updates flip them back. Two modes: *Update-only* (default — only after a recent hotfix) and *Strict* (every tick). Configurable interval (1h / 6h / 12h / 24h).
-- **SYSTEM-context persistence for admin tweaks.** Per-profile opt-in installs `\Reclaim\Persist-<id>` as a SYSTEM-running scheduled task that re-applies HKLM + shell tweaks at logon plus on the configured interval — no UAC prompt at boot, no manual reapply after monthly Patch Tuesday.
+- **Auto-persist active tweaks.** One global toggle: anything you turn on is automatically added to the persistence set, anything you revert is removed. The drift loop walks that set after every Windows update and re-applies anything that got flipped back. Two modes: *Update-only* (default — only after a recent hotfix in the last 48h) and *Strict* (every tick). Configurable interval (1h / 6h / 12h / 24h). Expandable list shows exactly what's tracked.
+- **SYSTEM-context persistence for admin tweaks.** Sub-toggle installs `\Reclaim\Persist-Current` as a SYSTEM-running scheduled task that re-applies HKLM + shell tweaks at logon plus on the configured interval — no UAC prompt at boot, no manual reapply after monthly Patch Tuesday. Auto-rebuilt whenever the tracked admin-id set or the interval changes.
 - **Push notifications.** Native Win11 toasts when drift was re-applied, when Windows Updates are available, and when a newer NVIDIA driver is out. Battery-aware (skipped under 30% on battery), 24h throttled, click-to-route to the relevant page.
 
 **Windows activation launcher** — Live license-state card (edition, status code, channel, partial product key) read from WMI `SoftwareLicensingProduct`, plus a one-click launcher that opens a new **elevated PowerShell window** running the external [MAS](https://massgrave.dev/) one-liner (`irm https://get.activated.win | iex`). Reclaim does not bundle, modify, or contain the activation script itself — only the launch command is fired off. Includes a methods reference card (HWID / KMS38 / Ohook / TSforge / Online KMS) and an explicit disclaimer. Use only on systems you own a license for; Microsoft Defender may flag the script — that is expected.
@@ -157,7 +157,8 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
     network/           DoH provider presets, DNS helpers
     maintenance/       Operation catalog (op id → label/description)
     profiles/          Gradient presets, profile import/export helpers
-    persistence/       Drift checker (HKCU) + update / driver pollers
+    persistence/       Auto-tracked drift checker (HKCU) + update/driver
+                       pollers + v0.15.1→v0.15.2 profile-list migration
     ui/                shadcn-style components (Button/Card/Switch/…)
                        BulkActionBar, Titlebar, Toaster
     components/        Layout, TweakSection, TweakRow, ProfileCard,
@@ -178,7 +179,7 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
   routes/              33 routes (see below)
 
 src-tauri/src/
-  lib.rs               Plugin init + 107-command invoke_handler registry +
+  lib.rs               Plugin init + 108-command invoke_handler registry +
                        tray icon + close/exit handlers
   app_info.rs          Portable mode, app data dir, activity.log mirror
   cli.rs               Headless CLI dispatcher (--apply-profile / --admin-only
@@ -205,8 +206,8 @@ src-tauri/src/
   unattend.rs          autounattend.xml generator (FirstLogonCommands mapping)
   iso_builder.rs       ADK oscdimg.exe ISO repack pipeline
   service.rs           Tray-resident background tick loop + tray menu wiring
-  persistence.rs       SYSTEM scheduled task installer (\Reclaim\Persist-<id>)
-                       for admin-tweak persistence
+  persistence.rs       SYSTEM scheduled task installer (\Reclaim\Persist-Current)
+                       for admin-tweak persistence + legacy-task cleanup
 ```
 
 ### Routes (33 total)

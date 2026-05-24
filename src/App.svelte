@@ -44,6 +44,7 @@
   import { kickoffStartupPreloads } from "$lib/startup-preload.svelte";
   import { service } from "$lib/service.svelte";
   import { runPersistenceCheck } from "$lib/persistence/checker";
+  import { migrateLegacyProfiles } from "$lib/persistence/migrate";
   import { maybeCheckDriverUpdates, maybeCheckWindowsUpdates } from "$lib/persistence/updateChecker";
   import { toast } from "$lib/ui";
 
@@ -109,6 +110,10 @@
     // Boot the background service: wait for service.json to hydrate, then
     // subscribe to the Rust-emitted ticks and wire navigation.
     await service.ready;
+    // Resolve any v0.15.1 legacy persistedProfiles into the new flat
+    // persist.tweakIds set + tear down old `\Reclaim\Persist-<profile-id>`
+    // scheduled tasks. No-op when nothing legacy is found.
+    void migrateLegacyProfiles();
     service.setNavigateHandler((route) => {
       try {
         routerPush(route);
@@ -121,7 +126,7 @@
         "Background check started",
       );
       try {
-        await runPersistenceCheck({});
+        await runPersistenceCheck();
       } catch {}
       try {
         await maybeCheckWindowsUpdates(source === "manual");

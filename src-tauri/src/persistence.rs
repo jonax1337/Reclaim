@@ -1,29 +1,24 @@
-// SYSTEM-context persistence: per-profile scheduled tasks that run
-// `reclaim.exe --apply-profile <id> --admin-only --silent --no-elevate`
-// at logon plus on a repeating interval. The task runs as the SYSTEM
-// principal with RunLevel Highest, so HKLM + shell ops succeed without
-// any UAC prompt visible to the user.
+// SYSTEM-context persistence: a single scheduled task that re-applies the
+// user's tracked admin-tweaks (HKLM + shell ops) at logon plus on a repeating
+// interval. The task runs as SYSTEM with RunLevel Highest, so HKLM + shell
+// ops succeed without any UAC prompt visible to the user.
 //
-// Why a separate task per profile (instead of one task with a list of
-// profile ids): each profile is a unit the user toggles independently;
-// having one task per profile lets the user disable / re-arm them
-// individually via the GUI without re-creating the others, and lets
-// Task Scheduler track Last-Run / Next-Run state per profile.
+// v0.15.2 model: one task `\Reclaim\Persist-Current` for ALL tracked admin
+// tweaks (ids embedded in the action arguments), instead of v0.15.1's
+// `\Reclaim\Persist-<profile-id>` per profile. Whenever the user toggles a
+// tweak on/off or changes the global interval, the GUI re-installs the task
+// with the updated id list — `-Force` makes the Register call idempotent.
 //
 // The HKCU side of persistence stays in the tray companion (checker.ts).
-// Splitting it this way avoids the trap of writing HKCU under S-1-5-18
-// (SYSTEM's profile) and avoids ever needing to prompt the user for UAC
-// at every Windows login.
+// Splitting this way avoids ever writing HKCU under S-1-5-18 (SYSTEM's
+// profile) — the `--admin-only` CLI flag enforces it.
 
 use serde::{Deserialize, Serialize};
 
 use crate::tweaks::run_ps;
 
-/// Single task scope used by every Reclaim persistence task. Anchored under
-/// `\Reclaim\` so a sysadmin can find / disable them all at once via
-/// `Get-ScheduledTask -TaskPath '\Reclaim\*'`.
 const TASK_PATH: &str = "\\Reclaim\\";
-const TASK_NAME_PREFIX: &str = "Persist-";
+const TASK_NAME: &str = "Persist-Current";
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub struct PersistenceTaskStatus {
@@ -36,27 +31,24 @@ pub struct PersistenceTaskStatus {
     pub last_result: Option<i64>,
     #[serde(rename = "nextRun", default)]
     pub next_run: Option<String>,
+    /// Number of tweak ids embedded in the task's argument list. 0 when the
+    /// task is installed but currently scheduled to apply nothing (kept around
+    /// so the GUI can hint "you have admin persistence on but nothing tracked").
+    #[serde(rename = "tweakCount", default)]
+    pub tweak_count: usize,
 }
 
-/// Profile ids come from the TypeScript catalog (kebab-case) and from custom
-/// profiles (timestamp-based ids). Both contain only ASCII alphanumerics, `-`,
-/// `_` and digits. Anything else is rejected before we ever splice it into a
-/// PowerShell argument.
-fn validate_profile_id(id: &str) -> Result<(), String> {
+fn validate_tweak_id(id: &str) -> Result<(), String> {
     if id.is_empty() || id.len() > 128 {
-        return Err("invalid profile id length".into());
+        return Err(format!("invalid tweak id length: {id:?}"));
     }
     if !id
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
     {
-        return Err("profile id contains forbidden characters".into());
+        return Err(format!("tweak id contains forbidden characters: {id:?}"));
     }
     Ok(())
-}
-
-fn task_name_for(profile_id: &str) -> String {
-    format!("{TASK_NAME_PREFIX}{profile_id}")
 }
 
 fn current_exe_path() -> Result<String, String> {
@@ -64,39 +56,40 @@ fn current_exe_path() -> Result<String, String> {
     Ok(exe.to_string_lossy().replace('\'', "''"))
 }
 
-/// Install (or replace) the SYSTEM scheduled task for one profile. Idempotent:
-/// passing `-Force` to `Register-ScheduledTask` overwrites an existing task
-/// with the same TaskPath/TaskName.
+/// Install (or replace) the singleton SYSTEM scheduled task with the given
+/// tweak id list. Empty list → fall through to uninstall (no point in running
+/// a task that applies nothing). Idempotent via `-Force`.
 #[tauri::command]
 pub async fn persistence_install_task(
-    profile_id: String,
-    profile_name: String,
+    tweak_ids: Vec<String>,
     interval_hours: u32,
 ) -> Result<(), String> {
-    validate_profile_id(&profile_id)?;
+    if tweak_ids.is_empty() {
+        // The frontend should call uninstall in this case, but be tolerant.
+        return persistence_uninstall_task().await;
+    }
+    for id in &tweak_ids {
+        validate_tweak_id(id)?;
+    }
     let exe = current_exe_path()?;
     let interval = interval_hours.clamp(1, 168);
-    let task_name = task_name_for(&profile_id);
-    // Display name surfaced in Task Scheduler's Description column. Plain text;
-    // single-quote escape against the rare profile with an apostrophe.
-    let display_name = profile_name.replace('\'', "''");
+    let ids_joined = tweak_ids.join(",");
 
     let script = format!(
         r#"
 $ErrorActionPreference = 'Stop'
-$action = New-ScheduledTaskAction -Execute '{exe}' -Argument '--apply-profile {pid} --admin-only --silent --no-elevate'
+$action = New-ScheduledTaskAction -Execute '{exe}' -Argument '--apply-tweak {ids} --admin-only --silent --no-elevate'
 $trigger1 = New-ScheduledTaskTrigger -AtLogOn
 $trigger2 = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(5)) -RepetitionInterval (New-TimeSpan -Hours {interval})
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 30)
-Register-ScheduledTask -TaskPath '{path}' -TaskName '{name}' -Action $action -Trigger @($trigger1,$trigger2) -Principal $principal -Settings $settings -Description 'Reclaim persistence - re-applies admin tweaks from profile "{display}" after Windows updates' -Force | Out-Null
+Register-ScheduledTask -TaskPath '{path}' -TaskName '{name}' -Action $action -Trigger @($trigger1,$trigger2) -Principal $principal -Settings $settings -Description 'Reclaim auto-persist - re-applies tracked admin tweaks after Windows updates' -Force | Out-Null
 "#,
         exe = exe,
-        pid = profile_id,
+        ids = ids_joined,
         interval = interval,
         path = TASK_PATH,
-        name = task_name,
-        display = display_name,
+        name = TASK_NAME,
     );
     let r = run_ps(&script);
     if !r.success {
@@ -109,21 +102,15 @@ Register-ScheduledTask -TaskPath '{path}' -TaskName '{name}' -Action $action -Tr
     Ok(())
 }
 
-/// Remove the SYSTEM task for one profile. Safe to call when the task does not
-/// exist — we swallow the "Cannot find" error.
+/// Remove the singleton task. Safe to call when no task exists.
 #[tauri::command]
-pub async fn persistence_uninstall_task(profile_id: String) -> Result<(), String> {
-    validate_profile_id(&profile_id)?;
-    let task_name = task_name_for(&profile_id);
+pub async fn persistence_uninstall_task() -> Result<(), String> {
     let script = format!(
         "$ErrorActionPreference='SilentlyContinue'; Unregister-ScheduledTask -TaskPath '{path}' -TaskName '{name}' -Confirm:$false",
         path = TASK_PATH,
-        name = task_name,
+        name = TASK_NAME,
     );
     let r = run_ps(&script);
-    // Unregister-ScheduledTask returns success even when nothing matched (with
-    // -ErrorAction SilentlyContinue). Treat actual stderr as failure only when
-    // the task did exist and removal failed.
     if !r.success && !r.stderr.contains("does not exist") {
         return Err(if r.stderr.trim().is_empty() {
             r.stdout
@@ -134,31 +121,40 @@ pub async fn persistence_uninstall_task(profile_id: String) -> Result<(), String
     Ok(())
 }
 
-/// Query Task Scheduler for the current state of one profile's task.
-/// Returns `{installed: false}` when no task exists.
+/// Read Task Scheduler state for the singleton task. Also parses the action
+/// arguments to count how many tweak ids are currently embedded — useful for
+/// the GUI to detect drift between service.json and the actual task command.
 #[tauri::command]
-pub async fn persistence_task_status(profile_id: String) -> Result<PersistenceTaskStatus, String> {
-    validate_profile_id(&profile_id)?;
-    let task_name = task_name_for(&profile_id);
+pub async fn persistence_task_status() -> Result<PersistenceTaskStatus, String> {
     let script = format!(
         r#"
 $ErrorActionPreference='SilentlyContinue'
 $t = Get-ScheduledTask -TaskPath '{path}' -TaskName '{name}'
 if ($null -eq $t) {{
-    @{{ installed = $false }} | ConvertTo-Json -Compress
+    @{{ installed = $false; tweakCount = 0 }} | ConvertTo-Json -Compress
 }} else {{
     $info = $t | Get-ScheduledTaskInfo
+    $count = 0
+    foreach ($a in $t.Actions) {{
+        if ($a.Arguments) {{
+            $m = [regex]::Match($a.Arguments, '--apply-tweak\s+([^\s]+)')
+            if ($m.Success) {{
+                $count = ($m.Groups[1].Value -split ',').Count
+            }}
+        }}
+    }}
     @{{
         installed = $true
         state = $t.State.ToString()
         lastRun = if ($info.LastRunTime -and $info.LastRunTime.Year -gt 1) {{ $info.LastRunTime.ToString('o') }} else {{ $null }}
         lastResult = [int64]$info.LastTaskResult
         nextRun = if ($info.NextRunTime -and $info.NextRunTime.Year -gt 1) {{ $info.NextRunTime.ToString('o') }} else {{ $null }}
+        tweakCount = $count
     }} | ConvertTo-Json -Compress
 }}
 "#,
         path = TASK_PATH,
-        name = task_name,
+        name = TASK_NAME,
     );
     let r = run_ps(&script);
     let out = r.stdout.trim();
@@ -173,16 +169,14 @@ if ($null -eq $t) {{
     })
 }
 
-/// Trigger one profile's task immediately. Equivalent to right-clicking →
-/// "Run" in Task Scheduler. Useful for "Test now" buttons in the UI.
+/// Trigger the singleton task immediately. Equivalent to right-clicking →
+/// "Run" in Task Scheduler.
 #[tauri::command]
-pub async fn persistence_run_task_now(profile_id: String) -> Result<(), String> {
-    validate_profile_id(&profile_id)?;
-    let task_name = task_name_for(&profile_id);
+pub async fn persistence_run_task_now() -> Result<(), String> {
     let script = format!(
         "$ErrorActionPreference='Stop'; Start-ScheduledTask -TaskPath '{path}' -TaskName '{name}'",
         path = TASK_PATH,
-        name = task_name,
+        name = TASK_NAME,
     );
     let r = run_ps(&script);
     if !r.success {
@@ -193,4 +187,35 @@ pub async fn persistence_run_task_now(profile_id: String) -> Result<(), String> 
         });
     }
     Ok(())
+}
+
+/// One-shot cleanup for v0.15.1 leftovers: tear down any per-profile
+/// `\Reclaim\Persist-<profile-id>` tasks. Idempotent; returns the count of
+/// tasks actually removed so the migration code can log it.
+#[tauri::command]
+pub async fn persistence_cleanup_legacy_tasks() -> Result<usize, String> {
+    // List every task under \Reclaim\ that isn't the new singleton, then
+    // unregister each one. The static script does the filtering — no string
+    // interpolation of any user-controlled value here.
+    let script = format!(
+        r#"
+$ErrorActionPreference='Stop'
+$removed = 0
+Get-ScheduledTask -TaskPath '{path}' -ErrorAction SilentlyContinue | Where-Object {{ $_.TaskName -ne '{singleton}' -and $_.TaskName -like 'Persist-*' }} | ForEach-Object {{
+    try {{ Unregister-ScheduledTask -TaskPath $_.TaskPath -TaskName $_.TaskName -Confirm:$false; $removed++ }} catch {{}}
+}}
+$removed
+"#,
+        path = TASK_PATH,
+        singleton = TASK_NAME,
+    );
+    let r = run_ps(&script);
+    if !r.success {
+        return Err(if r.stderr.trim().is_empty() {
+            r.stdout
+        } else {
+            r.stderr
+        });
+    }
+    Ok(r.stdout.trim().parse().unwrap_or(0))
 }

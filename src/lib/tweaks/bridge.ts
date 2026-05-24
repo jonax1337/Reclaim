@@ -1128,32 +1128,34 @@ export type PersistenceTaskStatus = {
   lastRun?: string | null;
   lastResult?: number | null;
   nextRun?: string | null;
+  tweakCount: number;
 };
 
+/** Install (or replace) the singleton `\Reclaim\Persist-Current` SYSTEM task
+ *  with the given admin-tweak id list. Empty list calls uninstall. */
 export async function persistenceInstallTask(
-  profileId: string,
-  profileName: string,
+  tweakIds: string[],
   intervalHours: number,
 ): Promise<void> {
-  await invoke("persistence_install_task", {
-    profileId,
-    profileName,
-    intervalHours,
-  });
+  await invoke("persistence_install_task", { tweakIds, intervalHours });
 }
 
-export async function persistenceUninstallTask(profileId: string): Promise<void> {
-  await invoke("persistence_uninstall_task", { profileId });
+export async function persistenceUninstallTask(): Promise<void> {
+  await invoke("persistence_uninstall_task");
 }
 
-export async function persistenceTaskStatus(
-  profileId: string,
-): Promise<PersistenceTaskStatus> {
-  return invoke<PersistenceTaskStatus>("persistence_task_status", { profileId });
+export async function persistenceTaskStatus(): Promise<PersistenceTaskStatus> {
+  return invoke<PersistenceTaskStatus>("persistence_task_status");
 }
 
-export async function persistenceRunTaskNow(profileId: string): Promise<void> {
-  await invoke("persistence_run_task_now", { profileId });
+export async function persistenceRunTaskNow(): Promise<void> {
+  await invoke("persistence_run_task_now");
+}
+
+/** Remove every leftover v0.15.1 per-profile `\Reclaim\Persist-<id>` task.
+ *  Returns the count of tasks actually removed. Requires elevation. */
+export async function persistenceCleanupLegacyTasks(): Promise<number> {
+  return invoke<number>("persistence_cleanup_legacy_tasks");
 }
 
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {

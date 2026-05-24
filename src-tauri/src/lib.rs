@@ -233,6 +233,7 @@ pub fn run() {
             persistence::persistence_uninstall_task,
             persistence::persistence_task_status,
             persistence::persistence_run_task_now,
+            persistence::persistence_cleanup_legacy_tasks,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

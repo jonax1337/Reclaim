@@ -7,6 +7,7 @@ import {
 } from "./bridge";
 import type { RegOp, Tweak, TweakOp } from "./catalog";
 import { log } from "$lib/log.svelte";
+import { service } from "$lib/service.svelte";
 
 export function tweakRequiresAdmin(tweak: Tweak): boolean {
   for (const op of tweak.apply) {
@@ -62,6 +63,9 @@ export async function applyTweak(tweak: Tweak): Promise<void> {
       await applyOp(op);
     }
     log.success("tweak.apply", tweak.title, `Enabled '${tweak.title}'`);
+    // Auto-track into the persistence set so the background loop will re-apply
+    // if Windows ever flips it back. Helper is a no-op when persist is off.
+    void service.addPersistedTweak(tweak.id);
   } catch (e) {
     log.error("tweak.apply", tweak.title, `Failed to enable '${tweak.title}'`, String(e));
     throw e;
@@ -90,6 +94,9 @@ export async function revertTweak(tweak: Tweak): Promise<void> {
       }
     }
     log.success("tweak.revert", tweak.title, `Reverted '${tweak.title}'`);
+    // Pair with applyTweak: revert means the user no longer wants this on, so
+    // drop it from the persistence set unconditionally. Safe if it wasn't in.
+    void service.removePersistedTweak(tweak.id);
   } catch (e) {
     log.error("tweak.revert", tweak.title, `Failed to revert '${tweak.title}'`, String(e));
     throw e;
