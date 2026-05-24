@@ -2,6 +2,16 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.13.1
+
+### Fixed
+
+- **Auto-updater actually-actually installs now.** v0.12.1's headline fix wired up `update.downloadAndInstall()` in the frontend — but Tauri 2's capability ACL was never extended to allow `plugin:updater|check`, so every call has been failing with `Command plugin:updater|check not allowed by ACL` since v0.7.0 when the updater plugin was first wired up. The Settings page caught the error, fell back to `openUrl(".../releases")`, and looked like it was "opening the releases page by design" — but it was actually error-recovery the whole time. Adding `updater:default` to `src-tauri/capabilities/default.json` unblocks all four updater commands (check, download, install, download-and-install) for real this time.
+
+### Note for users on v0.13.0 and earlier
+
+This fix needs to ship in a binary you install manually once. The v0.13.0 client still has the broken capabilities file and will keep falling back to the releases page. Grab v0.13.1's NSIS / MSI from this release (or use the `irm "…/install.ps1" | iex` one-liner) — after that, the in-app updater works for every future version.
+
 ## v0.13.0
 
 ### Added
