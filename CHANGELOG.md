@@ -2,6 +2,40 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.18.0
+
+USB-stick flasher + Install-Media correctness pass + live Windows Update progress. The "Install media" page now writes bootable USB sticks end-to-end (no Rufus needed), the generated autounattend.xml actually completes the install on real hardware again (six install-breakers fixed), and `/windows-update` streams per-update download + install percent through an xterm instead of a generic spinner.
+
+### Added
+
+- **USB-stick flasher (`/install-media` → "Flash to USB stick")**. New section on the existing Install Media page. Lists USB-attached disks via `Get-Disk | Where-Object BusType -eq 'USB'`, filters out system + boot disks, double-confirm dialog with disk/model/serial/size, then writes the selected ISO using Microsoft's own single-FAT32 + DISM-split layout:
+  - Single FAT32 partition (capped at 32 GiB because the built-in `Format-Volume` won't do FAT32 larger than that; the remainder is left unallocated and is plenty for a Win11 ISO which uses <10 GiB after splitting).
+  - `install.wim > 4 GiB` triggers `dism /Split-Image /SWMFile install.swm /FileSize:3800` so the install image fits FAT32's 4 GiB file-size limit. `install.esd` and pre-split `install*.swm` are copied as-is.
+  - Optional autounattend.xml injection at both the root + `\sources\` (toggle on the same page).
+  - All work streams through the existing PTY/xterm + Tasks infrastructure, so resize/cancel/scrollback work the same way as ISO build does.
+  - **Why not the Rufus dual-partition layout?** A FAT32 boot partition + NTFS install partition only works with a custom UEFI:NTFS bootloader (Rufus' own, not redistributable). The single-FAT32 + DISM-split approach is what `MediaCreationTool` itself uses for >4 GB WIMs — no third-party components needed.
+- **New Rust commands**: `list_usb_drives`, `usb_flash_iso` (PTY-streamed). New TS bridge wrappers `listUsbDrives` + `usbFlashIso`, new `runUsbFlashTask` in `tasks.svelte.ts`. New `iso.usb.flash` activity-log action.
+- **Live Windows Update install progress (`/windows-update`)**. New streaming command `install_windows_updates_stream` emits one JSON event per phase tick (`queued`, `download_start`, `download_progress`, `download_done`, `install_start`, `install_progress`, `install_done`, `finished`); the UI renders per-update phase + percent in the existing table instead of the previous opaque spinner.
+
+### Fixed
+
+- **Install Media autounattend.xml** — six install-breakers found in an audit; the prior version booted but couldn't finish a real install on most hardware.
+  - **No more forced `<DiskConfiguration>` + `DiskID=0` wipe.** The previous unattend hard-coded "wipe disk 0, install to partition 3"; on any system where the install target doesn't enumerate as disk 0 (NVMe + SATA mixes, USB-boot scenarios) this either wiped the wrong drive or aborted setup. The disk block is gone — Setup now asks once where to install, and edition is still pre-selected via `<InstallFrom>/<MetaData>/IMAGE/NAME`. One interactive click in an otherwise fully-unattended flow, traded for hardware-independence.
+  - **`<Reseal><Mode>Audit</Mode>` removed.** This was being emitted in the `specialize` pass whenever all three OOBE-skip flags were on (the default!). Reseal is only valid in `auditUser`/`generalize`; in `specialize` it makes the XML schema-invalid and aborts unattended setup on 24H2/25H2.
+  - **KMS keys list rewritten** against Microsoft's official Windows 11 KMS client setup keys. The prior list had Pro/Pro N/Home labels pointing at the wrong keys (e.g. the "Pro" entry was actually the Win10/11 retail-generic key, the "Pro N" entry was the real Pro key) — edition selection during install was unpredictable.
+  - **`<SkipMachineOOBE>` + `<SkipUserOOBE>` removed.** Deprecated since Win10; on Win11 24H2/25H2 their presence can abort the `oobeSystem` pass with `0x80070002`. Replaced by the per-page `Hide*Screen` flags that were already emitted.
+  - **`<HideLocalAccountScreen>` removed.** Not a real schema element; either silently ignored or rejected by stricter Setup builds. `HideOnlineAccountScreens` (the documented one) stays.
+  - **AppX removals moved from `<FirstLogonCommands>` to `<RunSynchronous>` in the `specialize` pass.** FirstLogonCommands runs as the new user with a UAC-filtered medium-IL token — `Remove-AppxProvisionedPackage -Online` requires elevation and was silently failing (every removal swallowed by `-ErrorAction SilentlyContinue`). The `specialize` pass runs as SYSTEM, so removals now actually succeed. The `Get-AppxPackage -AllUsers` half is dropped because no users exist yet at specialize time and provisioned-package removal is sufficient for fresh-install debloat.
+- **`disable_diagnostic_data` wrote to a non-existent policy path** (`MaxTelemetryAllowed` under `Policies\DataCollection`) — silent no-op. Now reuses the documented `AllowTelemetry` path at value 1 (Basic) when telemetry isn't already fully off.
+- **USB flasher Initialize-Disk failure after Clear-Disk**. `Clear-Disk -RemoveData -RemoveOEM` wipes partitions but keeps the disk's `PartitionStyle` attribute; the next `Initialize-Disk … GPT` then failed with "disk has already been initialized". Script now re-queries `PartitionStyle` and only initialises if `RAW`, converts via `Set-Disk` if `MBR`, no-ops if already `GPT`.
+- **Install Media: sticky bottom action bar replaced with header-action pattern** to match the rest of the app (see `ProfileBuilder.svelte`). The sticky bar was visually weird now that the page has three equal outputs (Save XML / Build ISO / Flash USB) — the bar was privileging just one of them.
+
+### Internal
+
+- New module `src-tauri/src/usb_flash.rs` (~330 LoC). Hardened input validation in Rust + a redundant disk-bus / system-disk check inside the PowerShell script itself (defence in depth).
+- `unattend.rs` simplified: dropped `COMPONENT_DEPLOY` constant, dropped the AppX duplication in `build_first_logon_commands`, added a shared `run_sync_cmd` helper for emitting `<RunSynchronousCommand>` entries.
+- `bridge.ts`: new `UsbDrive` type + `listUsbDrives`/`usbFlashIso` wrappers; `iso.usb.flash` added to `LogAction` enum.
+
 ## v0.17.0
 
 Catalog depth + the last "we don't have that vs. WinUtil" gap closed: mass driver updates via the Windows Update Driver Catalog. Tweak catalog 180 → 200, apps catalog 67 → 106, every single icon slug verified against its source repo (and direct URLs HTTP-probed) before shipping.

@@ -1083,6 +1083,74 @@ export async function isoBuild(
   });
 }
 
+/* ─────────────────────────────── USB flasher ──────────────────────────────── */
+
+export type UsbDrive = {
+  diskNumber: number;
+  friendlyName: string;
+  model: string;
+  serialNumber: string;
+  sizeBytes: number;
+  busType: string;
+  partitionStyle: string;
+  isSystem: boolean;
+  isBoot: boolean;
+  isOffline: boolean;
+};
+
+export async function listUsbDrives(): Promise<UsbDrive[]> {
+  const raw = await invoke<
+    Array<{
+      disk_number: number;
+      friendly_name: string;
+      model: string;
+      serial_number: string;
+      size_bytes: number;
+      bus_type: string;
+      partition_style: string;
+      is_system: boolean;
+      is_boot: boolean;
+      is_offline: boolean;
+    }>
+  >("list_usb_drives");
+  return raw.map((d) => ({
+    diskNumber: d.disk_number,
+    friendlyName: d.friendly_name,
+    model: d.model,
+    serialNumber: d.serial_number,
+    sizeBytes: d.size_bytes,
+    busType: d.bus_type,
+    partitionStyle: d.partition_style,
+    isSystem: d.is_system,
+    isBoot: d.is_boot,
+    isOffline: d.is_offline,
+  }));
+}
+
+export async function usbFlashIso(
+  taskId: string,
+  isoPath: string,
+  diskNumber: number,
+  autounattendXml: string | null,
+  cols: number,
+  rows: number,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("usb_flash_iso", {
+    taskId,
+    req: {
+      iso_path: isoPath,
+      disk_number: diskNumber,
+      autounattend_xml: autounattendXml,
+    },
+    cols,
+    rows,
+    onEvent: channel,
+  });
+}
+
 /* ───────────────────────── Background service / persistence ───────────────────── */
 
 export type PowerState = {
@@ -1243,4 +1311,35 @@ export async function installWindowsUpdates(ids: string[]): Promise<WuInstallRes
     rebootRequired: r.reboot_required,
     message: r.message,
   };
+}
+
+export type WuProgressEvent =
+  | { t: "queued"; id: string; index: number; total: number; title: string }
+  | { t: "download_start"; total: number }
+  | { t: "download_progress"; percent: number; currentIndex: number; currentPercent: number }
+  | { t: "download_done"; id: string; index: number; ok: boolean; code: number }
+  | { t: "install_start"; total: number }
+  | { t: "install_progress"; percent: number; currentIndex: number; currentPercent: number }
+  | { t: "install_done"; id: string; index: number; ok: boolean; code: number }
+  | { t: "finished"; installed: number; failed: number; rebootRequired: boolean; message: string }
+  | { t: "info"; message: string }
+  | { t: "error"; message: string };
+
+export async function installWindowsUpdatesStream(
+  ids: string[],
+  onEvent: (e: WuProgressEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = (e) => {
+    if (e.kind !== "stdout") return;
+    const line = e.data.trim();
+    if (!line) return;
+    try {
+      const parsed = JSON.parse(line) as WuProgressEvent;
+      if (parsed && typeof parsed === "object" && "t" in parsed) onEvent(parsed);
+    } catch {
+      // non-JSON stdout (e.g. PowerShell warnings) — ignore.
+    }
+  };
+  return invoke<number>("install_windows_updates_stream", { ids, onEvent: channel });
 }

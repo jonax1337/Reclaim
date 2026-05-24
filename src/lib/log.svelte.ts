@@ -36,6 +36,7 @@ export type LogAction =
   | "activation.launch"
   | "app.update"
   | "iso.unattend.save"
+  | "iso.usb.flash"
   | "service.tick"
   | "persistence.profile.added"
   | "persistence.profile.removed"
@@ -164,6 +165,7 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "activation.launch": "Activation script launched",
   "app.update": "App updated",
   "iso.unattend.save": "autounattend.xml saved",
+  "iso.usb.flash": "USB stick flashed",
   "service.tick": "Background check",
   "persistence.profile.added": "Profile persistence enabled",
   "persistence.profile.removed": "Profile persistence disabled",

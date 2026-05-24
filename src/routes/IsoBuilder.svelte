@@ -7,17 +7,16 @@
     Checkbox,
     Switch,
     Select,
+    Dialog,
     toast,
   } from "$lib/ui";
   import {
-    Disc3,
     Save,
     Loader2,
     Eye,
     AlertTriangle,
     UserCircle2,
     ShieldOff,
-    Sparkles,
     FolderOpen,
     Play,
     CheckCircle2,
@@ -27,6 +26,9 @@
     Wand2,
     Download,
     RefreshCw,
+    Usb,
+    Zap,
+    HardDrive,
   } from "@lucide/svelte";
   import { save as saveDialog, open as openDialog } from "@tauri-apps/plugin-dialog";
   import { openUrl } from "@tauri-apps/plugin-opener";
@@ -40,8 +42,10 @@
     isoCheckTools,
     downloadAdkSetup,
     launchAdkInstaller,
+    listUsbDrives,
     type IsoTools,
     type UnattendConfig,
+    type UsbDrive,
     type Win11Edition,
   } from "$lib/tweaks/bridge";
   import { PROFILES, type Profile } from "$lib/tweaks/profiles";
@@ -49,7 +53,8 @@
   import { mapProfileToUnattend } from "$lib/unattend/profileMapping";
   import ProfileIcon from "$lib/components/ProfileIcon.svelte";
   import XmlPreviewDialog from "$lib/components/XmlPreviewDialog.svelte";
-  import { tasks, runIsoBuildTask } from "$lib/tasks.svelte";
+  import { tasks, runIsoBuildTask, runUsbFlashTask } from "$lib/tasks.svelte";
+  import { admin } from "$lib/admin.svelte";
   import { log } from "$lib/log.svelte";
   import { cn } from "$lib/utils";
 
@@ -117,6 +122,17 @@
   let outputIsoPath = $state("");
   let buildBusy = $state(false);
 
+  // ── USB flash state ───────────────────────────────────────────────────
+  let usbDrives = $state<UsbDrive[]>([]);
+  let usbDrivesLoading = $state(false);
+  let usbDrivesError = $state<string | null>(null);
+  let selectedDiskNumber = $state<number | null>(null);
+  let flashIsoPath = $state("");
+  let includeUnattendOnFlash = $state(true);
+  let flashConfirmOpen = $state(false);
+  let flashStarting = $state(false);
+  let lastBuiltIso = $state(""); // remembered after a successful Build ISO
+
   // ADK installer state
   let adkDownloading = $state(false);
   let adkDownloadedBytes = $state(0);
@@ -131,6 +147,7 @@
     if (!isTauri()) return;
     listWin11Editions().then((e) => (editions = e)).catch(() => {});
     isoCheckTools().then((t) => (isoTools = t)).catch(() => {});
+    refreshUsbDrives();
 
     listen<{ downloaded: number; total: number }>("adk-download:progress", (e) => {
       adkDownloadedBytes = e.payload.downloaded;
@@ -322,11 +339,100 @@
       tasks.panelOpen = true;
       await runIsoBuildTask(inputIsoPath, outputIsoPath, xml);
       log.success("iso.unattend.save", "Install media", `Built ${outputIsoPath} from ${inputIsoPath}`);
+      lastBuiltIso = outputIsoPath;
+      // Auto-fill the flasher's source so the natural next step is one click.
+      if (!flashIsoPath) flashIsoPath = outputIsoPath;
     } catch (e) {
       toast.error("Build failed", String(e));
     } finally {
       buildBusy = false;
     }
+  }
+
+  // ── USB flash actions ───────────────────────────────────────────────────
+  async function refreshUsbDrives() {
+    if (!isTauri()) return;
+    usbDrivesLoading = true;
+    usbDrivesError = null;
+    try {
+      const drives = await listUsbDrives();
+      usbDrives = drives;
+      // Drop the selection if the disk vanished between refreshes.
+      if (selectedDiskNumber !== null && !drives.some((d) => d.diskNumber === selectedDiskNumber)) {
+        selectedDiskNumber = null;
+      }
+    } catch (e) {
+      usbDrivesError = String(e);
+      usbDrives = [];
+    } finally {
+      usbDrivesLoading = false;
+    }
+  }
+
+  async function pickFlashIso() {
+    try {
+      const picked = await openDialog({
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Windows ISO", extensions: ["iso"] }],
+      });
+      if (typeof picked === "string") flashIsoPath = picked;
+    } catch (e) {
+      toast.error("Pick failed", String(e));
+    }
+  }
+
+  const selectedDrive = $derived<UsbDrive | undefined>(
+    selectedDiskNumber === null
+      ? undefined
+      : usbDrives.find((d) => d.diskNumber === selectedDiskNumber),
+  );
+
+  const flashRunning = $derived(tasks.hasRunning("usb-flash"));
+
+  const canStartFlash = $derived(
+    !!flashIsoPath &&
+      selectedDiskNumber !== null &&
+      !flashStarting &&
+      !flashRunning &&
+      isTauri(),
+  );
+
+  function openFlashConfirm() {
+    if (!canStartFlash) return;
+    flashConfirmOpen = true;
+  }
+
+  async function flashUsb() {
+    if (!isTauri()) { toast.error("Browser preview", "Flashing needs the Tauri runtime."); return; }
+    if (selectedDiskNumber === null || !flashIsoPath) return;
+    const drive = selectedDrive;
+    if (!drive) { toast.error("Drive missing", "Refresh and try again."); return; }
+    flashConfirmOpen = false;
+    flashStarting = true;
+    try {
+      const xml = includeUnattendOnFlash ? await generateAutounattendXml(buildConfig()) : null;
+      tasks.panelOpen = true;
+      const label = `${drive.friendlyName || drive.model || "USB"} · ${formatBytes(drive.sizeBytes)}`;
+      await runUsbFlashTask(flashIsoPath, drive.diskNumber, label, xml);
+      log.success(
+        "iso.usb.flash",
+        "Install media",
+        `Flashed ${flashIsoPath} → disk ${drive.diskNumber} (${drive.friendlyName})`,
+      );
+    } catch (e) {
+      toast.error("Flash failed", String(e));
+    } finally {
+      flashStarting = false;
+    }
+  }
+
+  function formatBytes(n: number): string {
+    if (!Number.isFinite(n) || n <= 0) return "—";
+    const gb = n / (1024 * 1024 * 1024);
+    if (gb >= 1) return `${gb.toFixed(gb >= 10 ? 0 : 1)} GB`;
+    const mb = n / (1024 * 1024);
+    return `${mb.toFixed(0)} MB`;
   }
 
   async function openAdkPage() {
@@ -377,6 +483,16 @@
       runs your selected Reclaim profile during first logon — debloat and
       registry tweaks become part of the install itself.
     </p>
+  </div>
+  <div class="flex items-center gap-2">
+    <Button variant="outline" onclick={generatePreview} disabled={generating || !isTauri()}>
+      {#if generating}<Loader2 class="size-4 animate-spin" />{:else}<Eye class="size-4" />{/if}
+      Preview XML
+    </Button>
+    <Button onclick={saveXml} disabled={saving || !isTauri()}>
+      {#if saving}<Loader2 class="size-4 animate-spin" />{:else}<Save class="size-4" />{/if}
+      Save autounattend.xml
+    </Button>
   </div>
 </header>
 
@@ -804,25 +920,208 @@
   </CardContent>
 </Card>
 
-<!-- ─── Sticky action bar ────────────────────────────────────────────────── -->
-<div class="sticky bottom-4 mt-8 flex items-center gap-3 justify-end p-3 rounded-2xl border border-foreground/10 bg-card/85 backdrop-blur-xl shadow-lg">
-  <div class="text-xs text-muted-foreground mr-auto pl-3 flex items-center gap-1.5 flex-wrap">
-    <Sparkles class="size-3.5 text-primary" />
-    <span class="font-medium text-foreground">{selectedProfile?.name ?? "—"}</span>
-    <span class="text-muted-foreground/60">·</span>
-    <span>{selectedLocale.language}</span>
-    <span class="text-muted-foreground/60">·</span>
-    <span>{username || "—"}</span>
+<!-- ─── Flash to USB stick ───────────────────────────────────────────────── -->
+<h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
+  Flash to USB stick <span class="normal-case font-normal text-muted-foreground/60">(optional)</span>
+</h2>
+<Card class="card-inset mb-6">
+  <CardContent class="space-y-4">
+    <p class="text-xs text-muted-foreground">
+      Write any Windows install ISO directly to a USB stick — Rufus-style dual
+      partition (FAT32 boot + NTFS install) so install.wim images larger than
+      4&nbsp;GB work out of the box. Boots UEFI on modern PCs. Needs admin
+      rights to touch the disk.
+    </p>
+
+    {#if !admin.elevated}
+      <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-amber-500/10 border-amber-500/30">
+        <ShieldOff class="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div class="text-xs text-foreground/90">
+          Flashing needs administrator rights. Click <strong>Elevate</strong>
+          in the titlebar, then come back here.
+        </div>
+      </div>
+    {/if}
+
+    <!-- Source ISO -->
+    <div class="flex items-stretch gap-2">
+      <label class="flex-1 min-w-0 {labelClass}">
+        <span class={labelTextClass}>ISO to flash</span>
+        <input
+          type="text"
+          bind:value={flashIsoPath}
+          placeholder={lastBuiltIso || "C:\\Users\\You\\Downloads\\Win11_24H2.iso"}
+          class={cn(fieldClass, "w-full font-mono text-[12px]")}
+          readonly
+        />
+      </label>
+      <Button variant="outline" class="self-end" onclick={pickFlashIso}>
+        <FolderOpen class="size-4" />
+        Browse
+      </Button>
+    </div>
+    {#if lastBuiltIso && flashIsoPath !== lastBuiltIso}
+      <button
+        type="button"
+        class="text-[11px] text-primary hover:underline self-start"
+        onclick={() => (flashIsoPath = lastBuiltIso)}
+      >
+        Use last built ISO ({lastBuiltIso.split(/[\\/]/).pop()})
+      </button>
+    {/if}
+
+    <!-- Target drive picker -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between">
+        <span class={labelTextClass}>Target USB drive</span>
+        <Button size="sm" variant="ghost" onclick={refreshUsbDrives} disabled={usbDrivesLoading}>
+          {#if usbDrivesLoading}
+            <Loader2 class="size-3.5 animate-spin" />
+          {:else}
+            <RefreshCw class="size-3.5" />
+          {/if}
+          Refresh
+        </Button>
+      </div>
+
+      {#if usbDrivesError}
+        <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-red-500/10 border-red-500/30">
+          <XCircle class="size-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
+          <div class="text-xs text-foreground/90">{usbDrivesError}</div>
+        </div>
+      {:else if usbDrives.length === 0 && !usbDrivesLoading}
+        <div class="flex items-start gap-3 px-3 py-3 rounded-md border border-foreground/8 bg-foreground/[0.02]">
+          <Usb class="size-4 mt-0.5 text-muted-foreground shrink-0" />
+          <div class="text-xs text-muted-foreground">
+            No USB drives detected. Plug one in and click <strong>Refresh</strong>.
+            Internal drives are never listed here.
+          </div>
+        </div>
+      {:else}
+        <div class="grid gap-2">
+          {#each usbDrives as d (d.diskNumber)}
+            <button
+              type="button"
+              onclick={() => (selectedDiskNumber = d.diskNumber)}
+              class={cn(
+                "flex items-start gap-3 px-3 py-2.5 rounded-md text-left border transition-colors",
+                selectedDiskNumber === d.diskNumber
+                  ? "border-primary/40 bg-primary/[0.08] hover:bg-primary/[0.11]"
+                  : "border-foreground/8 bg-foreground/[0.02] hover:bg-foreground/[0.04]",
+              )}
+            >
+              <div class="pt-0.5 pointer-events-none">
+                <Checkbox checked={selectedDiskNumber === d.diskNumber} />
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <HardDrive class="size-3.5 text-muted-foreground" />
+                  <span class="text-sm font-medium truncate">
+                    {d.friendlyName || d.model || `Disk ${d.diskNumber}`}
+                  </span>
+                  <Badge variant="secondary" class="text-[10px] px-1.5 py-0">
+                    Disk {d.diskNumber}
+                  </Badge>
+                  <Badge variant="outline" class="text-[10px] px-1.5 py-0">
+                    {formatBytes(d.sizeBytes)}
+                  </Badge>
+                  {#if d.partitionStyle && d.partitionStyle !== "RAW"}
+                    <Badge variant="outline" class="text-[10px] px-1.5 py-0">{d.partitionStyle}</Badge>
+                  {/if}
+                </div>
+                <div class="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">
+                  {d.serialNumber || "—"}
+                </div>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Inject unattend toggle -->
+    <div class="flex items-center justify-between px-3 py-2.5 rounded-md bg-foreground/[0.03] border border-foreground/8">
+      <div class="flex items-center gap-2 min-w-0">
+        <Wand2 class="size-4 text-muted-foreground shrink-0" />
+        <div class="min-w-0">
+          <div class="text-sm font-medium">Inject autounattend.xml on the stick</div>
+          <div class="text-xs text-muted-foreground">
+            Drops the generated autounattend.xml at the root of both partitions
+            so Windows setup auto-applies the selected Reclaim profile during
+            first logon.
+          </div>
+        </div>
+      </div>
+      <Switch bind:checked={includeUnattendOnFlash} />
+    </div>
+
+    <!-- Action row -->
+    <div class="flex items-center gap-3 flex-wrap pt-2">
+      <Button onclick={openFlashConfirm} disabled={!canStartFlash}>
+        {#if flashStarting || flashRunning}
+          <Loader2 class="size-4 animate-spin" />
+          {flashRunning ? "Flashing…" : "Starting…"}
+        {:else}
+          <Zap class="size-4" />
+          Flash USB
+        {/if}
+      </Button>
+      {#if flashRunning}
+        <Button size="sm" variant="outline" onclick={() => (tasks.panelOpen = true)}>
+          <TerminalIcon class="size-3.5" />
+          Show terminal
+        </Button>
+      {/if}
+      <div class="text-xs text-muted-foreground flex items-start gap-1.5 ml-auto">
+        <AlertTriangle class="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+        <span>All data on the selected drive is wiped.</span>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+
+<Dialog
+  bind:open={flashConfirmOpen}
+  title="Wipe and flash USB drive?"
+  description={selectedDrive
+    ? `Disk ${selectedDrive.diskNumber} — ${selectedDrive.friendlyName || selectedDrive.model || "USB"} (${formatBytes(selectedDrive.sizeBytes)})`
+    : ""}
+>
+  <div class="text-sm space-y-3">
+    <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-red-500/10 border-red-500/30">
+      <AlertTriangle class="size-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
+      <div class="text-xs text-foreground/90 leading-relaxed">
+        Every partition and file on this disk will be deleted. This cannot be
+        undone — make absolutely sure the right drive is selected before you
+        continue.
+      </div>
+    </div>
+    {#if selectedDrive}
+      <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs font-mono">
+        <span class="text-muted-foreground">Disk:</span>
+        <span>{selectedDrive.diskNumber}</span>
+        <span class="text-muted-foreground">Model:</span>
+        <span>{selectedDrive.friendlyName || selectedDrive.model || "—"}</span>
+        <span class="text-muted-foreground">Serial:</span>
+        <span>{selectedDrive.serialNumber || "—"}</span>
+        <span class="text-muted-foreground">Size:</span>
+        <span>{formatBytes(selectedDrive.sizeBytes)}</span>
+        <span class="text-muted-foreground">Bus:</span>
+        <span>{selectedDrive.busType}</span>
+      </div>
+    {/if}
+    <div class="text-xs text-muted-foreground">
+      Source: <span class="font-mono text-foreground/80 break-all">{flashIsoPath}</span>
+    </div>
   </div>
-  <Button variant="outline" onclick={generatePreview} disabled={generating || !isTauri()}>
-    {#if generating}<Loader2 class="size-4 animate-spin" />{:else}<Eye class="size-4" />{/if}
-    Preview XML
-  </Button>
-  <Button onclick={saveXml} disabled={saving || !isTauri()}>
-    {#if saving}<Loader2 class="size-4 animate-spin" />{:else}<Save class="size-4" />{/if}
-    Save autounattend.xml
-  </Button>
-</div>
+  {#snippet footer()}
+    <Button variant="outline" onclick={() => (flashConfirmOpen = false)}>Cancel</Button>
+    <Button onclick={flashUsb}>
+      <Zap class="size-4" />
+      Wipe and flash
+    </Button>
+  {/snippet}
+</Dialog>
 
 <XmlPreviewDialog
   bind:open={previewOpen}

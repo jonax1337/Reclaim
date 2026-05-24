@@ -112,19 +112,26 @@ pub async fn list_win11_editions() -> Vec<EditionInfo> {
             label: label.to_string(),
         }
     }
+    // Microsoft KMS Client Setup Keys for Windows 11 (edition-selection keys
+    // during unattended install; not activation keys). Source:
+    // https://learn.microsoft.com/en-us/windows-server/get-started/kms-client-activation-keys
     vec![
-        e("VK7JG-NPHTM-C97JM-9MPGT-3V66T", "Windows 11 Pro"),
-        e("W269N-WFGWX-YVC9B-4J6C9-T83GX", "Windows 11 Pro N"),
-        e("MH37W-N47XK-V7XM9-C7227-GCQG9", "Windows 11 Home"),
-        e("3KHY7-WNT83-DGQKR-F7HPR-844BM", "Windows 11 Home N"),
-        e("NRG8B-VKK3Q-CXVCJ-9G2XF-6Q84J", "Windows 11 Home Single Language"),
-        e("MNXKQ-WY2CT-JWBJ2-T68TQ-YBH2V", "Windows 11 Education"),
-        e("DXG7C-N36C4-C4HTG-X4T3X-2YV77", "Windows 11 Pro Education"),
-        e("XGVPP-NMH47-7TTHJ-W3FW7-8HV2C", "Windows 11 Pro Education N"),
-        e("NW6C2-QMPVW-D7KKK-3GKT6-VCFB2", "Windows 11 Education N"),
-        e("R3BYW-CBNWT-F3JTP-FM942-BTDXY", "Windows 11 Enterprise G"),
+        e("W269N-WFGWX-YVC9B-4J6C9-T83GX", "Windows 11 Pro"),
+        e("MH37W-N47XK-V7XM9-C7227-GCQG9", "Windows 11 Pro N"),
+        e("NRG8B-VKK3Q-CXVCJ-9G2XF-6Q84J", "Windows 11 Pro for Workstations"),
+        e("9FNHH-K3HBT-3W4TD-6383H-6XYWF", "Windows 11 Pro for Workstations N"),
+        e("6TP4R-GNPTD-KYYHQ-7B7DP-J447Y", "Windows 11 Pro Education"),
+        e("YVWGF-BXNMC-HTQYQ-CPQ99-66QFC", "Windows 11 Pro Education N"),
+        e("NW6C2-QMPVW-D7KKK-3GKT6-VCFB2", "Windows 11 Education"),
+        e("2WH4N-8QGBV-H22JP-CT43Q-MDWWJ", "Windows 11 Education N"),
         e("NPPR9-FWDCX-D2C8J-H872K-2YT43", "Windows 11 Enterprise"),
         e("DPH2V-TTNVB-4X9Q3-TJR4H-KHJW4", "Windows 11 Enterprise N"),
+        e("YDRBP-3D83W-TY26F-D46B2-XCKRJ", "Windows 11 Enterprise LTSC 2024"),
+        e("MFY9F-XBN2F-TYFMP-CCV49-RMYVH", "Windows 11 Enterprise N LTSC 2024"),
+        e("WNMTR-4C88C-JK8YV-HQ7T2-76DF9", "Windows 11 IoT Enterprise LTSC 2024"),
+        e("TX9XD-98N7V-6WMQ6-BX7FG-H8Q99", "Windows 11 Home"),
+        e("3KHY7-WNT83-DGQKR-F7HPR-844BM", "Windows 11 Home N"),
+        e("7HNRX-D7KGG-3K4RQ-4WPJ4-YTDFH", "Windows 11 Home Single Language"),
     ]
 }
 
@@ -182,7 +189,6 @@ const COMPONENT_INTL_WINPE: &str = "Microsoft-Windows-International-Core-WinPE";
 const COMPONENT_SETUP: &str = "Microsoft-Windows-Setup";
 const COMPONENT_SHELL: &str = "Microsoft-Windows-Shell-Setup";
 const COMPONENT_INTL: &str = "Microsoft-Windows-International-Core";
-const COMPONENT_DEPLOY: &str = "Microsoft-Windows-Deployment";
 
 const ARCH: &str = "amd64";
 const PUB_KEY_TOKEN: &str = "31bf3856ad364e35";
@@ -238,79 +244,33 @@ fn pass_windows_pe(c: &UnattendConfig) -> String {
     // ── Setup component: disk layout, image pick, install-time tweaks ─────
     s.push_str(&component_open(COMPONENT_SETUP));
 
-    // Auto-partition the first disk for UEFI/GPT install. This wipes the
-    // selected disk — that's exactly the point of unattended install.
-    s.push_str(
-        r#"
-      <DiskConfiguration>
-        <Disk wcm:action="add">
-          <DiskID>0</DiskID>
-          <WillWipeDisk>true</WillWipeDisk>
-          <CreatePartitions>
-            <CreatePartition wcm:action="add">
-              <Order>1</Order>
-              <Type>EFI</Type>
-              <Size>300</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>2</Order>
-              <Type>MSR</Type>
-              <Size>16</Size>
-            </CreatePartition>
-            <CreatePartition wcm:action="add">
-              <Order>3</Order>
-              <Type>Primary</Type>
-              <Extend>true</Extend>
-            </CreatePartition>
-          </CreatePartitions>
-          <ModifyPartitions>
-            <ModifyPartition wcm:action="add">
-              <Order>1</Order>
-              <PartitionID>1</PartitionID>
-              <Label>System</Label>
-              <Format>FAT32</Format>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Order>2</Order>
-              <PartitionID>2</PartitionID>
-            </ModifyPartition>
-            <ModifyPartition wcm:action="add">
-              <Order>3</Order>
-              <PartitionID>3</PartitionID>
-              <Label>Windows</Label>
-              <Letter>C</Letter>
-              <Format>NTFS</Format>
-            </ModifyPartition>
-          </ModifyPartitions>
-        </Disk>
-      </DiskConfiguration>
-"#,
-    );
+    // No <DiskConfiguration>: forcing a layout against Disk 0 wipes the wrong
+    // disk on any system where the install target doesn't enumerate as 0 (most
+    // modern multi-disk setups, NVMe + SATA, USB-boot scenarios). Setup will
+    // ask the user once where to install — the only interactive step in an
+    // otherwise unattended flow, and the safe default.
 
-    // Image install: pick by edition name if supplied, else first image
-    s.push_str("      <ImageInstall>\n");
-    s.push_str("        <OSImage>\n");
+    // Image install: pre-select the edition by /IMAGE/NAME but leave the
+    // destination unspecified — Setup will fall back to interactive disk
+    // picking, which is exactly the safe default we want without a
+    // DiskConfiguration block. WillShowUI=OnError makes that explicit.
     if let Some(edition) = &c.edition {
         let edition_esc = xml_escape(edition);
         s.push_str(&format!(
-            r#"          <InstallFrom>
+            r#"      <ImageInstall>
+        <OSImage>
+          <InstallFrom>
             <MetaData wcm:action="add">
               <Key>/IMAGE/NAME</Key>
               <Value>{edition_esc}</Value>
             </MetaData>
           </InstallFrom>
+          <WillShowUI>OnError</WillShowUI>
+        </OSImage>
+      </ImageInstall>
 "#
         ));
     }
-    s.push_str(
-        r#"          <InstallTo>
-            <DiskID>0</DiskID>
-            <PartitionID>3</PartitionID>
-          </InstallTo>
-        </OSImage>
-      </ImageInstall>
-"#,
-    );
 
     // UserData (EULA + product key for edition selection)
     s.push_str("      <UserData>\n");
@@ -416,7 +376,12 @@ fn pass_specialize(c: &UnattendConfig) -> String {
         priv_cmds.push("reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection /v AllowTelemetry /t REG_DWORD /d 0 /f".into());
     }
     if c.disable_diagnostic_data {
-        priv_cmds.push("reg add HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\DataCollection /v MaxTelemetryAllowed /t REG_DWORD /d 1 /f".into());
+        // Cap telemetry at Basic (1). Lives in the same policy hive as
+        // disable_telemetry (which sets 0 = Security), so the user can pick
+        // "off" or "basic" without writing two conflicting values.
+        if !c.disable_telemetry {
+            priv_cmds.push("reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\DataCollection /v AllowTelemetry /t REG_DWORD /d 1 /f".into());
+        }
     }
     if c.disable_location {
         priv_cmds.push("reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\LocationAndSensors /v DisableLocation /t REG_DWORD /d 1 /f".into());
@@ -431,40 +396,60 @@ fn pass_specialize(c: &UnattendConfig) -> String {
     if c.disable_cortana {
         priv_cmds.push("reg add HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\Windows Search /v AllowCortana /t REG_DWORD /d 0 /f".into());
     }
-    if !priv_cmds.is_empty() {
+    // Provisioned-AppX removals run in specialize too: this pass runs as
+    // SYSTEM with full elevation, so `Remove-AppxProvisionedPackage -Online`
+    // actually succeeds. Doing the same in FirstLogonCommands would silently
+    // fail because that runs in the new user's filtered (medium-IL) token.
+    let appx_cmds: Vec<String> = c
+        .debloat_appx_patterns
+        .iter()
+        .filter(|p| !p.is_empty())
+        .map(|p| {
+            let safe = ps_single_quote(p);
+            // Single-line, single-quoted PowerShell — embedded `'` already
+            // doubled by ps_single_quote. We keep it as a `powershell -Command`
+            // one-liner so the unattend stays self-contained.
+            let ps = format!(
+                "Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like '{safe}' }} | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue"
+            );
+            format!("powershell -NoProfile -ExecutionPolicy Bypass -Command \"{ps}\"")
+        })
+        .collect();
+
+    if !priv_cmds.is_empty() || !appx_cmds.is_empty() {
         s.push_str("      <RunSynchronous>\n");
-        for (i, cmd) in priv_cmds.iter().enumerate() {
-            s.push_str(&format!(
-                r#"        <RunSynchronousCommand wcm:action="add">
-          <Order>{}</Order>
-          <Path>cmd /c {}</Path>
-        </RunSynchronousCommand>
-"#,
-                i + 1,
-                xml_escape(cmd)
-            ));
+        let mut o = 1usize;
+        for cmd in priv_cmds.iter() {
+            s.push_str(&run_sync_cmd(o, &xml_escape(&format!("cmd /c {cmd}"))));
+            o += 1;
+        }
+        for cmd in appx_cmds.iter() {
+            s.push_str(&run_sync_cmd(o, &xml_escape(cmd)));
+            o += 1;
         }
         s.push_str("      </RunSynchronous>\n");
     }
 
     s.push_str("    </component>\n");
 
-    // Deployment component for Reseal flags (skip OOBE entirely if desired).
-    // We only emit this when the user wants to skip OOBE — otherwise let it run.
-    if c.skip_oobe_privacy && c.skip_ms_account && c.skip_eula {
-        s.push_str(&component_open(COMPONENT_DEPLOY));
-        s.push_str(
-            r#"
-      <Reseal>
-        <Mode>Audit</Mode>
-      </Reseal>
-"#,
-        );
-        s.push_str("    </component>\n");
-    }
+    // No Deployment/Reseal block: <Reseal> is only valid in auditUser/generalize
+    // passes, not specialize. Emitting it there made the XML schema-invalid
+    // and aborted unattended setup on Win11 24H2/25H2.
 
     s.push_str("  </settings>\n");
     s
+}
+
+/// Emit a single `<RunSynchronousCommand>` entry. `path_xml` must already be
+/// XML-escaped — caller decides whether the value needs `cmd /c` wrapping.
+fn run_sync_cmd(order: usize, path_xml: &str) -> String {
+    format!(
+        r#"        <RunSynchronousCommand wcm:action="add">
+          <Order>{order}</Order>
+          <Path>{path_xml}</Path>
+        </RunSynchronousCommand>
+"#
+    )
 }
 
 // ── oobeSystem pass: OOBE config + user account + FirstLogonCommands ─────────
@@ -498,8 +483,10 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
         s.push_str("        <HideEULAPage>true</HideEULAPage>\n");
     }
     if c.skip_ms_account {
+        // HideOnlineAccountScreens is the documented Win11 element.
+        // (HideLocalAccountScreen is not a real schema element — it was
+        // silently ignored at best, schema-validation noise at worst.)
         s.push_str("        <HideOnlineAccountScreens>true</HideOnlineAccountScreens>\n");
-        s.push_str("        <HideLocalAccountScreen>true</HideLocalAccountScreen>\n");
     }
     s.push_str("        <HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>\n");
     s.push_str("        <NetworkLocation>Home</NetworkLocation>\n");
@@ -508,8 +495,10 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
     } else {
         s.push_str("        <ProtectYourPC>1</ProtectYourPC>\n");
     }
-    s.push_str("        <SkipMachineOOBE>true</SkipMachineOOBE>\n");
-    s.push_str("        <SkipUserOOBE>true</SkipUserOOBE>\n");
+    // SkipMachineOOBE / SkipUserOOBE were deprecated after Windows 7 and on
+    // Win11 24H2/25H2 can actually abort the oobeSystem pass with 0x80070002.
+    // The replacement is the per-page Hide*Screen flags above + the OOBE
+    // registry bypass written during specialize.
     s.push_str("      </OOBE>\n");
 
     // Local account
@@ -603,23 +592,9 @@ fn build_first_logon_commands(c: &UnattendConfig) -> Vec<(String, String)> {
         ));
     }
 
-    // AppX removals — one PS command per pattern, scoped to current user and
-    // provisioned packages so the apps don't come back for new users.
-    for pat in &c.debloat_appx_patterns {
-        if pat.is_empty() {
-            continue;
-        }
-        let safe = ps_single_quote(pat);
-        let ps = format!(
-            "Get-AppxPackage -AllUsers '{safe}' | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue; \
-             Get-AppxProvisionedPackage -Online | Where-Object {{ $_.DisplayName -like '{safe}' }} | \
-             Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue"
-        );
-        out.push((
-            format!("powershell -NoProfile -ExecutionPolicy Bypass -Command \"{}\"", ps),
-            format!("Remove AppX {pat}"),
-        ));
-    }
+    // AppX removals are emitted in the specialize pass (as SYSTEM) — see
+    // pass_specialize. FirstLogonCommands runs with a filtered medium-IL
+    // token where `Remove-AppxProvisionedPackage -Online` silently fails.
 
     // Custom registry tweaks from the selected Reclaim profile
     for t in &c.registry_tweaks {

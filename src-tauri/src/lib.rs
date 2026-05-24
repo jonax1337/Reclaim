@@ -23,6 +23,7 @@ pub mod sysinfo;
 mod sysquery;
 mod tweaks;
 mod unattend;
+mod usb_flash;
 mod winget;
 mod winupdate;
 
@@ -148,6 +149,7 @@ pub fn run() {
             sysquery::recent_hotfix_installed_since,
             winupdate::search_windows_updates,
             winupdate::install_windows_updates,
+            winupdate::install_windows_updates_stream,
             driver_search::open_driver_search,
             driver_update::lookup_nvidia_driver,
             driver_update::download_driver,
@@ -226,6 +228,8 @@ pub fn run() {
             iso_builder::iso_build,
             iso_builder::download_adk_setup,
             iso_builder::launch_adk_installer,
+            usb_flash::list_usb_drives,
+            usb_flash::usb_flash_iso,
             service::service_set_interval,
             service::service_get_interval,
             service::service_set_keep_in_tray,

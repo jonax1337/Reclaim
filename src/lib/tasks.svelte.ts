@@ -9,6 +9,7 @@ import {
   maintenanceRunStream,
   setOptionalFeatureStream,
   unblockFilesStream,
+  usbFlashIso,
   type MaintenanceOp,
   type StreamEvent,
 } from "./tweaks/bridge";
@@ -404,6 +405,44 @@ export async function runIsoBuildTask(
       task.id,
       inputIso,
       outputIso,
+      autounattendXml,
+      cols,
+      rows,
+      onEvent,
+    );
+    tasks.finish(task.id, exit);
+  } catch (err) {
+    task.terminal.write(`\r\n\x1b[31m${String(err)}\x1b[0m\r\n`);
+    tasks.finish(task.id, -1, "error");
+  }
+  return task;
+}
+
+export async function runUsbFlashTask(
+  isoPath: string,
+  diskNumber: number,
+  driveLabel: string,
+  autounattendXml: string | null,
+): Promise<Task> {
+  const label = `Flash USB: ${driveLabel} (disk ${diskNumber})`;
+  const task = tasks.start({ label, kind: "maintenance", opId: "usb-flash" });
+  if (!isTauri()) {
+    task.terminal.write(
+      "\x1b[33mBrowser preview — PowerShell is not available outside Tauri.\x1b[0m\r\n",
+    );
+    tasks.finish(task.id, -1, "error");
+    return task;
+  }
+  const onEvent = (e: StreamEvent) => {
+    if (e.kind === "bytes") task.terminal.write(decodeBase64(e.data));
+    else if (e.kind !== "exit") task.terminal.writeln(e.data);
+  };
+  try {
+    const { cols, rows } = task.terminal;
+    const exit = await usbFlashIso(
+      task.id,
+      isoPath,
+      diskNumber,
       autounattendXml,
       cols,
       rows,
