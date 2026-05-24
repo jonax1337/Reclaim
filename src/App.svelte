@@ -143,10 +143,10 @@
           if (service.config.hasShownTrayHint) return;
           if (document.visibilityState === "hidden") {
             await service.markTrayHintShown();
-            toast.show("Reclaim is still in your system tray", {
+            toast.show("Reclaim is still running in the system tray", {
               description:
-                "Right-click the tray icon and choose Quit Reclaim to exit fully.",
-              duration: 8000,
+                "On Windows 11 new tray icons live in the ^ overflow drawer next to the clock — drag Reclaim onto the taskbar to pin it. Right-click → Quit Reclaim to exit fully.",
+              duration: 12000,
             });
           }
         },

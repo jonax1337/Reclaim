@@ -3,6 +3,7 @@
   import { Minus, Square, Copy, X } from "@lucide/svelte";
   import { onMount } from "svelte";
   import type { Snippet } from "svelte";
+  import { service } from "$lib/service.svelte";
 
   type Props = {
     title?: string;
@@ -23,6 +24,21 @@
       un.then((u) => u());
     };
   });
+
+  // Tauri 2's `prevent_close` flag is checked by the runtime but on the IPC
+  // close path (`getCurrentWindow().close()` from JS) on Windows it has been
+  // observed to still tear down the window — which makes the event loop exit
+  // and the tray companion die with it. Calling `hide()` directly here is the
+  // robust fix: the window stays alive, the runtime stays alive, no
+  // prevent_close gymnastics. The Rust-side `on_window_event` handler still
+  // covers Alt+F4 / OS-initiated close paths.
+  async function handleClose() {
+    if (service.config.keepInTray) {
+      await win.hide();
+    } else {
+      await win.close();
+    }
+  }
 </script>
 
 <header
@@ -80,7 +96,7 @@
       type="button"
       class="titlebar-btn titlebar-btn-close"
       aria-label="Close"
-      onclick={() => win.close()}
+      onclick={handleClose}
     >
       <X class="size-4" />
     </button>

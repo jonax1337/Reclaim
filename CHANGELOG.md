@@ -2,6 +2,34 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.15.1
+
+Patch release on the v0.15 persistence service: fixes three UX bugs that landed in v0.15.0 and ships SYSTEM-context scheduled tasks so admin tweaks finally persist too (the "HKLM deferred to v0.16+" caveat from v0.15.0 is closed).
+
+### Fixed
+
+- **Closing the window with X actually hides to the tray now.** v0.15.0 wired the Rust-side `on_window_event` close handler correctly (`prevent_close()` + `hide()`), but on Tauri 2 / Windows the IPC close path from `getCurrentWindow().close()` ignores `prevent_close` and tears the window down anyway — which made the event loop exit and the tray companion die with it. The Titlebar X now calls `win.hide()` directly when "Keep running in tray when closed" is on, bypassing the broken IPC pipeline entirely. Alt+F4 / OS-initiated close paths still go through the Rust handler as a backstop (those respect `prevent_close`). An `ExitRequested` safety net in the runtime callback uses `prevent_exit()` if something destroys the window externally, so the tray icon never dies silently — and `service::show_main` re-creates the window if needed when the tray "Open Reclaim" menu is clicked.
+- **Keep-in-tray and Start-with-Windows switches actually toggle when clicked.** Both Switch components in Settings → Background Service had `e.stopPropagation()` but no `onCheckedChange` — direct clicks on the switch did nothing while clicks on the surrounding card area worked. Easy to mis-interpret as "the setting is on" without it actually being on. Both switches now wire `onCheckedChange` to the same handler the surrounding card uses, with `stopPropagation` only preventing the duplicate fire.
+- **Autostart no longer triggers UAC at every Windows login.** `try_elevate_at_startup` now skips when `--autostart` is present in argv. Previously Reclaim's autostart entry fired a UAC prompt at every boot — dismissing or missing it would still launch the unelevated copy into tray, but the prompt itself was a UX killer (and on systems where UAC is set to auto-deny, the entry looked broken). v0.15's autostart UX is now what the v0.15.0 changelog promised.
+
+### Added (extends v0.15 persistence)
+
+- **SYSTEM-context persistence for admin tweaks.** Profiles can now re-apply HKLM + shell tweaks in the background without ever showing a UAC prompt to the user. Per-profile toggle in Settings → Background Service installs `\Reclaim\Persist-<id>` as a SYSTEM-running scheduled task that calls `reclaim.exe --apply-profile <id> --admin-only --silent --no-elevate` at logon plus on the configured interval (1h / 6h / 12h / 24h). Closes the v0.15.0 "HKLM persistence deferred" gap.
+  - Status surface per profile: live Task Scheduler state (`Ready` / `Running` / `Disabled`), Last-run + Next-run timestamps, **Trigger now** button.
+  - Changing the global check interval rebuilds every installed SYSTEM task with the new cadence — no orphaned schedules.
+  - Tear-down on un-persist: disabling a profile that has an admin task installed removes the scheduled task too (so the user can't accidentally leave SYSTEM re-applying tweaks they opted out of).
+  - HKCU side stays in the tray companion: `S-1-5-18` (SYSTEM) has its own HKCU hive that the user never sees, so re-applying HKCU under SYSTEM would silently miss the target. The new `--admin-only` CLI flag enforces the split.
+- **New `--admin-only` CLI flag.** Filters `--apply-profile` / `--apply-tweak` to only HKLM + shell ops; HKCU-only tweaks are silently skipped. Used by the SYSTEM persistence task; also useful for sysadmins pushing per-machine settings from a deployment script.
+
+### Internal
+
+- New Rust module `src-tauri/src/persistence.rs` (~170 LOC). Four `#[tauri::command]`s: `persistence_install_task`, `persistence_uninstall_task`, `persistence_task_status`, `persistence_run_task_now`. Static PowerShell scripts splice profile ids only after `[a-zA-Z0-9_-]+` validation, never user-controlled display text.
+- `cli.rs` gains an `admin_only: bool` arg, filter is applied inside `apply_tweak_ids` so it covers both `--apply-tweak` and `--apply-profile` paths (the latter routes through it).
+- `bridge.ts`: 4 new wrappers (`persistenceInstallTask` / `Uninstall` / `Status` / `RunNow`), 1 new exported type (`PersistenceTaskStatus`).
+- `BackgroundServiceCard.svelte`: tracks per-profile task status in `$state<Record<string, PersistenceTaskStatus>>`, refreshes on mount + after each toggle / interval change.
+- `lib.rs` now uses `Builder::build()? .run(|app_handle, event| ...)` instead of plain `.run()` so the `ExitRequested` event can be intercepted with `prevent_exit()`. Window-close handling stays in `on_window_event` as a backstop for OS-initiated paths.
+- +4 Tauri commands (persistence module). +1 Rust module. Total: 107 commands across 24 modules. 33 routes unchanged.
+
 ## v0.15.0
 
 ### Added
@@ -17,9 +45,9 @@ All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https
   - **Configurable check interval** (1h / 6h / 12h / 24h, default 6h). Rust-side Tokio loop sleeps in 60s chunks so a Settings change takes effect within a minute without restarting the task.
   - **First-close hint** — the first time the window closes to tray while the user is on a session that hasn't seen the hint yet, an in-app toast explains the new behavior so it's not surprising.
 
-### Out of scope (deferred to v0.16+)
+### Out of scope (initially deferred; HKLM closed in v0.15.1)
 
-- **HKLM persistence.** Admin-requiring tweaks (Defender, Telemetry service, Windows Update settings) need a SYSTEM-scheduled task to re-apply without boot-time UAC. The persistence engine in v0.15 skips them with a clear "X admin (skipped)" badge per profile. v0.14's CLI mode is the foundation — the next iteration wires `register_scheduled_task` + `reclaim.exe --watchdog --persistence <id>` invoked as SYSTEM.
+- ~~**HKLM persistence.**~~ ✅ Shipped in v0.15.1 via SYSTEM-context scheduled tasks per profile (`\Reclaim\Persist-<id>`), invoked through the existing CLI mode with the new `--admin-only` flag.
 - **AMD / Intel driver pollers.** No programmatic vendor API exists today; would need scraping (fragile) or a hosted JSON mirror. NVIDIA-only for v1.
 
 ### Fixed

@@ -6,54 +6,24 @@ For shipped work see [`../CHANGELOG.md`](../CHANGELOG.md). For the original phas
 
 ---
 
+## Already shipped (was on this list)
+
+- **Persistence service** — v0.15.0 + v0.15.1. Tray companion with background timer + HKCU drift re-apply per profile (v0.15.0). SYSTEM-running scheduled task path for HKLM + shell tweaks via per-profile opt-in toggle, no UAC prompt at boot (v0.15.1). Both layers together close every gap O&O ShutUp10++ Premium charges money for.
+- **CLI mode** — v0.14.0 + v0.15.1. Same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile`, `--export-state` etc. The new `--admin-only` flag (v0.15.1) lets a SYSTEM-context call filter to HKLM + shell ops only. Catalog shared with GUI via build-time export to `src-tauri/data/*.json`. Closed Win11Debloat's last non-marketing USP.
+
+---
+
 ## Killer features (new USPs)
 
 These are the items that would change Reclaim's competitive position — not just "more of the same" but features no GUI competitor currently has, or that close a single specific gap to a specific tool.
 
-### 1. Persistence service
-
-**What.** A background Scheduled Task (or Windows service) that runs once per day, uses our existing `check[]` arrays on every applied tweak from a "persisted profile", detects drift (Windows-Update reverted something, Microsoft reset a setting), and re-applies the tweaks silently.
-
-**Why it matters.** This is the single feature that O&O ShutUp10++ Premium charges money for ("Premium privacy enforcement that persists across updates", 3.0.1076 May 2026). Reclaim already has all the primitives — `regReadMany` for drift detection, `applyTweak`/`revertTweak` for re-application, the activity log for audit. We just don't have a thing that runs them on a schedule.
-
-**How.** Two layers:
-- A bundled `reclaim-watchdog.exe` (or invocation of `reclaim.exe --watchdog` if we ship the CLI mode below) that takes a profile id, reads its tweaks via the existing executor, and reports + re-applies drift. Logs to the same `activity.log` JSON-lines mirror.
-- A first-class UI in Settings: "Keep this profile applied" toggle next to the profile selector, creates the Scheduled Task via the existing `schtasks.rs` module.
-
-**Scope.** Small-to-medium. The hard part (idempotent tweak engine) already exists. The Scheduled Task plumbing is ~200 lines of Rust + a Settings card.
-
-**Competitive impact.** Neutralizes O&O Premium's one remaining differentiator. After this, we beat O&O on every axis they're stronger on, while keeping all our advantages (apps catalog, hosts/DNS, maintenance, driver tools, recall, OneDrive, install media).
-
----
-
-### 2. CLI mode
-
-**What.** Add a `--cli` (or `--apply-profile <id>`, `--debloat <pattern>`, `--silent`, `--check`) argument-driven mode to `reclaim.exe` so the same binary that runs the Webview UI also functions as a headless deployment tool. Cargo `clap` (or `argh`) feature, gated so it adds <50 KB to the GUI binary.
-
-**Why it matters.** Win11Debloat's last remaining genuine USP is "scriptable for unattended provisioning" — Sysadmins, MDT/Intune pipelines, gold-image build scripts. They put us into "for end users" vs "for sysadmins" segmentation. A CLI mode collapses that.
-
-**Examples that would just work:**
-```powershell
-reclaim.exe --apply-profile privacy-max --silent
-reclaim.exe --apply-tweak telemetry-off --silent
-reclaim.exe --remove-bloat "*Spotify*","Microsoft.BingNews"
-reclaim.exe --import-profile path\to\custom.reclaim --apply --silent
-reclaim.exe --export-state json > current.json   # for compliance auditing
-```
-
-**Scope.** Small. The executor + bridge already abstract everything we need; CLI just needs to wire arguments to the same paths and skip the Webview init. ~2-3 days including arg-parsing UX.
-
-**Competitive impact.** Closes Win11Debloat's last non-marketing USP. Opens enterprise/MSP use cases that we currently can't serve at all.
-
----
-
-### 3. i18n (DE + EN)
+### 1. i18n (DE + EN)
 
 **What.** Localize all UI strings to German and English. Use `svelte-i18n` or a tiny custom rune-based store. Move ~600 hardcoded strings into `src/lib/i18n/{de,en}.ts` keyed translation tables. Language picker in Settings, autodetect from Windows display language on first launch.
 
 **Why it matters.** Listed as the **only** v1.0.0 blocker in CLAUDE.md. O&O ShutUp10 ships in ~30 languages, Optimizer had 24. Reclaim being English-only is the single biggest adoption blocker in DACH (Reclaim's primary geography given the author + Zettel lineage).
 
-**Scope.** Medium. The string count is the work — ~600 user-facing strings across 33 routes + UI components. Per-tweak title/description (~151 × 2 = 302 strings) is the bulk. Frontend wiring is mechanical.
+**Scope.** Medium. The string count is the work — ~600 user-facing strings across 33 routes + UI components. Per-tweak title/description (~167 × 2 = 334 strings) is the bulk. Frontend wiring is mechanical.
 
 **Competitive impact.** Doesn't add competitive surface area, but blocks every DACH adoption conversation. Required for v1.0.0.
 
@@ -63,9 +33,9 @@ reclaim.exe --export-state json > current.json   # for compliance auditing
 
 These are "make existing categories bigger / deeper" — not new USPs but addressing specific gaps in the market-analysis table where competitors clearly out-scoped us.
 
-### 4. Apps catalog → 150-200 entries
+### 2. Apps catalog → 150-200 entries
 
-**Current.** 46 winget apps, 16 recommended.
+**Current.** 67 winget apps across 8 groups, 16 recommended.
 
 **Gap.** ChrisTitusTech/winutil ships ~200+ apps via winget + choco. We deliberately curated small for v1, but at this point we're leaving a lot of "is X available?" requests on the table.
 
@@ -75,9 +45,9 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 5. Tweaks → 200
+### 3. Tweaks → 200
 
-**Current.** 151 across 10 categories.
+**Current.** 167 across 11 categories.
 
 **Gap.** Sophia Script has ~150 callable functions, many of them edge-cases (WSL toggles, Hyper-V, Windows Sandbox, NTFS deeper toggles, hardware-specific). We cover the obvious 80 % well; the next 20 % opens up power-user appeal.
 
@@ -90,7 +60,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 6. Mass driver updates (non-GPU)
+### 4. Mass driver updates (non-GPU)
 
 **Current.** GPU only (NVIDIA / AMD / Intel) — vendor-page auto-find + NVIDIA streaming download.
 
@@ -102,7 +72,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 7. Granular gaming tweaks
+### 5. Granular gaming tweaks
 
 **Current.** Performance category has 20 entries — enough for the "low-hanging" gaming wins (Game DVR, Game Bar, background apps, mouse accel, Game DVR background recording, Visual Effects best-performance, High Performance plan).
 
@@ -114,7 +84,7 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ---
 
-### 8. Developer features tab
+### 6. Developer features tab
 
 **Current.** Nothing. WSL/Hyper-V/Sandbox toggles live in Windows Settings only.
 
@@ -128,9 +98,8 @@ These are "make existing categories bigger / deeper" — not new USPs but addres
 
 ## Where these fit relative to v1.0.0
 
-- **Required for v1.0.0:** i18n (#3 above). Nothing else.
-- **Should land before v1.0.0 if time allows:** CLI mode (#2) and Persistence service (#1) — they unlock entire user segments we currently don't serve.
-- **Post-v1.0.0:** Scope expansions (#4-#8). All "more of the same" and don't change positioning, just depth.
+- **Required for v1.0.0:** i18n (#1 above). Nothing else.
+- **Post-v1.0.0:** Scope expansions (#2-#6). All "more of the same" and don't change positioning, just depth.
 
 ## Where these would NOT go
 

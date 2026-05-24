@@ -40,11 +40,11 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 
 ## What it does
 
-**151 reversible tweaks** across 10 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
+**167 reversible tweaks** across 11 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
 | Category | Count | Highlights |
 | --- | ---: | --- |
-| Privacy | 42 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync, diagnostic log + crash dump limits |
+| Privacy | 54 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync, diagnostic log + crash dump limits |
 | AI & Copilot | 10 | Copilot, Recall, Click to Do, Edge AI, Notepad AI, Paint Cocreator, Photos generative erase |
 | Search | 9 | Bing in Start, Cortana, web suggestions, search highlights, SafeSearch, device search history |
 | Explorer | 19 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
@@ -53,15 +53,15 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 | Performance | 20 | background apps, Game DVR, mouse accel, DiagTrack, Reserved Storage, NTFS last-access, scheduled defrag, IPv6 Teredo, NDU, High Performance plan, visual effects |
 | Updates | 10 | defer features, no auto-restart, P2P Delivery Optimization, exclude drivers, extended active hours, block Insider |
 | Browser (Edge) | 13 | skip first-run, no Bing in URL bar, no background mode, no shopping/wallet/Discover, hide rewards, clean New Tab page, sign-in optional |
-| Security | 3 | LSA Protection (RunAsPPL), Controlled Folder Access, Defender Attack Surface Reduction rules |
+| Security | 6 | LSA Protection (RunAsPPL), Controlled Folder Access, Defender Attack Surface Reduction rules, extra hardening |
 
-**Bloatware remover** — 63 curated AppX patterns across 7 groups (consumer, office, gaming, communication, media, system, other). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
+**Bloatware remover** — 147 curated AppX patterns across 8 groups (consumer, office, gaming, communication, media, system, other, plus OEM bloat for HP / Lenovo / Dell). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
 
 **OneDrive removal** — Two-step flow: pick redirected folders (Documents/Desktop/Pictures/sync root) to back up via `robocopy`, then run the official `OneDriveSetup.exe /uninstall`, remove leftover folders, unpin the sidebar CLSID, and optionally write the `DisableFileSyncNGSC` group policy to prevent re-install.
 
 **Right-click menu editor** — Toggle shell-extension `ContextMenuHandlers` on/off. Aggregates Files / Folders / Folder-background / Drives / AllFileObjects, dedupes by CLSID, resolves friendly names from `HKCR\CLSID\<id>`. System entries dimmed by default with a "Show System" toggle.
 
-**App installer (winget)** — 46 curated apps across 8 groups (Browsers, Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended (16 picks), live upgrade-available badge with version diff. Streams stdout to an embedded xterm terminal.
+**App installer (winget)** — 67 curated apps across 8 groups (Browsers, Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended (16 picks), live upgrade-available badge with version diff. Streams stdout to an embedded xterm terminal.
 
 **Hosts & blocklists** — Curated builtin lists (Microsoft Telemetry, Office/Edge, MS Ads) plus on-demand StevenBlack remote lists. Sentinel-based merge (`# >>> Reclaim: Name` … `# <<< Reclaim: Name`) leaves your existing hosts entries untouched. Raw editor with auto `hosts.reclaim.bak` and one-click restore.
 
@@ -95,6 +95,13 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 **Services** — Curated "notable services" list (DiagTrack, WSearch, SysMain, Xbox, …) with plain-English explanations, or the full list of every Win32 service. Disable + stop in one click with a confirmation dialog.
 
 **Activity log** — Every tweak applied/reverted, every app removed/installed, every restore point — persistent in localStorage **and** mirrored crash-safe to `activity.log` as JSON-lines in the app data dir. Filterable by severity, expand for stderr.
+
+**Background persistence service + tray companion** — Reclaim lives in the Windows notification area instead of being a one-shot GUI:
+
+- Closing the window with X hides to tray; right-click → Quit Reclaim to exit fully. Optional "Start with Windows" boots straight to tray at login (no UAC prompt, no window flash).
+- **HKCU drift re-apply.** Per-profile "Keep applied" toggle re-runs the user-context tweaks of a profile after Windows updates flip them back. Two modes: *Update-only* (default — only after a recent hotfix) and *Strict* (every tick). Configurable interval (1h / 6h / 12h / 24h).
+- **SYSTEM-context persistence for admin tweaks.** Per-profile opt-in installs `\Reclaim\Persist-<id>` as a SYSTEM-running scheduled task that re-applies HKLM + shell tweaks at logon plus on the configured interval — no UAC prompt at boot, no manual reapply after monthly Patch Tuesday.
+- **Push notifications.** Native Win11 toasts when drift was re-applied, when Windows Updates are available, and when a newer NVIDIA driver is out. Battery-aware (skipped under 30% on battery), 24h throttled, click-to-route to the relevant page.
 
 **Windows activation launcher** — Live license-state card (edition, status code, channel, partial product key) read from WMI `SoftwareLicensingProduct`, plus a one-click launcher that opens a new **elevated PowerShell window** running the external [MAS](https://massgrave.dev/) one-liner (`irm https://get.activated.win | iex`). Reclaim does not bundle, modify, or contain the activation script itself — only the launch command is fired off. Includes a methods reference card (HWID / KMS38 / Ohook / TSforge / Online KMS) and an explicit disclaimer. Use only on systems you own a license for; Microsoft Defender may flag the script — that is expected.
 
@@ -138,38 +145,46 @@ Produces NSIS + MSI installers in `src-tauri/target/release/bundle/`.
 src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
   lib/
     tweaks/
-      catalog.ts       123 typed tweak records (apply/revert/check ops)
-      bloatware.ts     63 AppX wildcard patterns
+      catalog.ts       167 typed tweak records (apply/revert/check ops)
+      bloatware.ts     147 AppX wildcard patterns (incl. OEM groups)
       profiles.ts      Built-in preset bundles
       bridge.ts        TS wrappers for every Tauri command
       executor.ts      applyTweak / revertTweak / getTweakState
       customProfiles.svelte.ts   localStorage-backed custom profile store
       profileEdit.svelte.ts      handoff state for ProfileBuilder
-    apps/catalog.ts    46 curated winget entries (8 groups)
+    apps/catalog.ts    67 curated winget entries (8 groups)
     hosts/             Builtin blocklists + remote sources
     network/           DoH provider presets, DNS helpers
     maintenance/       Operation catalog (op id → label/description)
     profiles/          Gradient presets, profile import/export helpers
+    persistence/       Drift checker (HKCU) + update / driver pollers
     ui/                shadcn-style components (Button/Card/Switch/…)
                        BulkActionBar, Titlebar, Toaster
     components/        Layout, TweakSection, TweakRow, ProfileCard,
-                       AdminBanner, TerminalPanel (xterm)
+                       AdminBanner, TerminalPanel (xterm),
+                       BackgroundServiceCard
     log.svelte.ts      Activity log (500 entries, localStorage + file mirror)
     admin.svelte.ts    Elevation + auto-UAC store
     theme.svelte.ts    system / light / dark
     prefs.svelte.ts    App prefs (theme, persisted to file + localStorage)
     tasks.svelte.ts    Long-running task registry (PTY-backed)
     cache.svelte.ts    SWR-style resource cache
+    service.svelte.ts  Background service config (tray, interval, persisted
+                       profiles, notification prefs)
+    notify.ts          Win11 native toast dispatcher (throttled, route-tagged)
     route-cache.svelte.ts        per-route component memoization
     scroll-restore.svelte.ts     per-route scroll position
     startup-preload.svelte.ts    boot-time resource preloads
-  routes/              32 routes (see below)
+  routes/              33 routes (see below)
 
 src-tauri/src/
-  lib.rs               Plugin init + 91-command invoke_handler registry
+  lib.rs               Plugin init + 107-command invoke_handler registry +
+                       tray icon + close/exit handlers
   app_info.rs          Portable mode, app data dir, activity.log mirror
-  sysinfo.rs           Windows version + elevation + relaunch_elevated + accent color
-  sysquery.rs          Hardware (WMI) / Startup (Run + AppX AUMID) / Services
+  cli.rs               Headless CLI dispatcher (--apply-profile / --admin-only
+                       / --remove-bloat / --import-profile / --export-state)
+  sysinfo.rs           Windows version + elevation + relaunch_elevated + accent
+  sysquery.rs          Hardware (WMI) / Startup / Services / Power state
   tweaks.rs            PowerShell runner + AppX + registry + restore point
   winupdate.rs         Microsoft.Update.Session search + install
   driver_search.rs     Vendor webview with auto-fill JS injection
@@ -187,16 +202,21 @@ src-tauri/src/
   firewall.rs          Sentinel-grouped (`Reclaim:`) outbound firewall blocks
   driver_packages.rs   pnputil enum/rollback for OEM driver packages
   activation.rs        Live license state (WMI) + external MAS launcher
+  unattend.rs          autounattend.xml generator (FirstLogonCommands mapping)
+  iso_builder.rs       ADK oscdimg.exe ISO repack pipeline
+  service.rs           Tray-resident background tick loop + tray menu wiring
+  persistence.rs       SYSTEM scheduled task installer (\Reclaim\Persist-<id>)
+                       for admin-tweak persistence
 ```
 
-### Routes (31 total)
+### Routes (33 total)
 
 Grouped in the sidebar as: Top · Clean up · Install · Customize · Network · Updates & drivers · System info · Licensing · App.
 
-- **Top:** Dashboard, Profiles
+- **Top:** Dashboard, Profiles (+ Profile Builder)
 - **Clean up:** Bloatware, OneDrive, AI & Copilot
-- **Install:** Apps (winget)
-- **Customize:** Privacy, Defender*, Browser (Edge)*, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
+- **Install:** Apps (winget), ISO Builder (autounattend + ADK oscdimg repack)
+- **Customize:** Privacy, Defender*, Security hardening*, Browser (Edge)*, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
 - **Network:** Hosts & blocklists*, DNS & DoH*, Firewall*
 - **Updates & drivers:** Windows Update, Drivers, Update settings
 - **System info:** Specs, Startup apps, Services*, Scheduled tasks*, Maintenance*
@@ -224,7 +244,7 @@ Grouped in the sidebar as: Top · Clean up · Install · Customize · Network ·
 
 ## Roadmap
 
-Phases 1-5, 7 (System depth), 8 (Customize & drivers) and 9 (Licensing launcher) are shipped. Phase 6 polish is partially complete — see [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
+Phases 1-5, 7 (System depth), 8 (Customize & drivers), 9 (Licensing launcher), 10 (Security hardening + portable build), 11 (Install media builder), 12 (CLI mode) and 13 (Persistence service + tray companion, incl. SYSTEM-context admin persistence) are shipped. Phase 6 (polish + i18n) is partially complete — DE + EN translations are the last v1.0.0 blocker. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0 and [`docs/PLAN.md`](docs/PLAN.md) for post-v1.0 ideas. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
 
 ## Inspirations
 

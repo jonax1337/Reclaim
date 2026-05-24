@@ -180,6 +180,10 @@ struct Args {
     yes: bool,
     include_bloatware: bool,
     category: Option<String>,
+    /// When true, skip every HKCU-only tweak. Set by the SYSTEM-running
+    /// persistence scheduled task — its HKCU points to S-1-5-18, not the
+    /// user's profile, so writing there would silently miss the target hive.
+    admin_only: bool,
 }
 
 #[derive(Debug, Default)]
@@ -221,6 +225,7 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--json" => a.json = true,
             "--yes" | "-y" => a.yes = true,
             "--include-bloatware" => a.include_bloatware = true,
+            "--admin-only" => a.admin_only = true,
             "--apply" => import_apply = true,
             "--category" => a.category = Some(next(&mut i, "--category")?),
             "--list-profiles" => a.command = Command::ListProfiles,
@@ -336,6 +341,9 @@ GLOBAL FLAGS:
   --silent, -q          Suppress informational output (errors still go to stderr).
   --json                Emit machine-readable JSON where supported.
   --yes, -y             Skip confirmation prompts. Currently no command prompts; reserved.
+  --admin-only          Skip every HKCU-only tweak. Used by the SYSTEM-running
+                        persistence scheduled task (its HKCU is S-1-5-18, not
+                        the user's profile).
   -h, --help            This help.
   -V, --version         Print version.
 
@@ -668,6 +676,12 @@ fn apply_tweak_ids(args: &Args, cat: &Catalog, ids: &[String]) -> ExitU8 {
             skipped += 1;
             continue;
         };
+        if args.admin_only && !tweak_requires_admin(t) {
+            // SYSTEM-context run: HKCU resolves to S-1-5-18, not the logged-in
+            // user, so the tray companion (running as the user) owns HKCU.
+            skipped += 1;
+            continue;
+        }
         if tweak_requires_admin(t) && !elevated {
             err!("[skip] '{}' requires Administrator", t.id);
             skipped += 1;

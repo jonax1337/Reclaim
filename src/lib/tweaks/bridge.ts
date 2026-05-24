@@ -1122,6 +1122,40 @@ export async function serviceTriggerNow(): Promise<void> {
   await invoke("service_trigger_now");
 }
 
+export type PersistenceTaskStatus = {
+  installed: boolean;
+  state?: string | null;
+  lastRun?: string | null;
+  lastResult?: number | null;
+  nextRun?: string | null;
+};
+
+export async function persistenceInstallTask(
+  profileId: string,
+  profileName: string,
+  intervalHours: number,
+): Promise<void> {
+  await invoke("persistence_install_task", {
+    profileId,
+    profileName,
+    intervalHours,
+  });
+}
+
+export async function persistenceUninstallTask(profileId: string): Promise<void> {
+  await invoke("persistence_uninstall_task", { profileId });
+}
+
+export async function persistenceTaskStatus(
+  profileId: string,
+): Promise<PersistenceTaskStatus> {
+  return invoke<PersistenceTaskStatus>("persistence_task_status", { profileId });
+}
+
+export async function persistenceRunTaskNow(profileId: string): Promise<void> {
+  await invoke("persistence_run_task_now", { profileId });
+}
+
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
   const r = await invoke<{
     ok: boolean;

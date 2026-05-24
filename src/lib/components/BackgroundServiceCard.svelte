@@ -24,16 +24,27 @@
     LogIn,
     Pin,
     Lock,
+    ShieldCheck,
+    ShieldAlert,
   } from "@lucide/svelte";
   import { onMount } from "svelte";
   import { enable as autostartEnable, disable as autostartDisable, isEnabled as autostartIsEnabled } from "@tauri-apps/plugin-autostart";
   import { service, type NotificationChannel, type PersistenceMode } from "$lib/service.svelte";
   import { runPersistenceCheck } from "$lib/persistence/checker";
   import { maybeCheckDriverUpdates, maybeCheckWindowsUpdates } from "$lib/persistence/updateChecker";
-  import { isTauri, isPortable } from "$lib/tweaks/bridge";
+  import {
+    isTauri,
+    isPortable,
+    persistenceInstallTask,
+    persistenceRunTaskNow,
+    persistenceTaskStatus,
+    persistenceUninstallTask,
+    type PersistenceTaskStatus,
+  } from "$lib/tweaks/bridge";
   import { PROFILES, type Profile, resolveProfileTweaks } from "$lib/tweaks/profiles";
   import { customProfiles } from "$lib/tweaks/customProfiles.svelte";
   import { tweakRequiresAdmin } from "$lib/tweaks/executor";
+  import { admin } from "$lib/admin.svelte";
   import ProfileIcon from "$lib/components/ProfileIcon.svelte";
 
   let autostartOn = $state(false);
@@ -42,6 +53,8 @@
   let portableChecked = $state(false);
   let runningCheckIds = $state<Record<string, boolean>>({});
   let manualCheckBusy = $state(false);
+  let systemTaskStatuses = $state<Record<string, PersistenceTaskStatus>>({});
+  let systemTaskBusy = $state<Record<string, boolean>>({});
 
   onMount(async () => {
     if (!isTauri()) return;
@@ -52,7 +65,23 @@
         autostartOn = await autostartIsEnabled();
       } catch {}
     }
+    void refreshAllTaskStatuses();
   });
+
+  async function refreshTaskStatus(profileId: string) {
+    try {
+      systemTaskStatuses[profileId] = await persistenceTaskStatus(profileId);
+    } catch {
+      systemTaskStatuses[profileId] = { installed: false };
+    }
+  }
+
+  async function refreshAllTaskStatuses() {
+    if (!isTauri()) return;
+    await Promise.all(
+      [...PROFILES, ...customProfiles.items].map((p) => refreshTaskStatus(p.id)),
+    );
+  }
 
   const INTERVAL_OPTIONS = [
     { value: 1, label: "Every hour" },
@@ -104,6 +133,22 @@
 
   async function setIntervalHours(hours: number) {
     await service.setIntervalHours(hours);
+    // Rebuild any installed SYSTEM tasks with the new repetition interval —
+    // otherwise the user changes the slider and the scheduled tasks silently
+    // keep their old cadence.
+    if (admin.elevated) {
+      const installedIds = Object.entries(systemTaskStatuses)
+        .filter(([, s]) => s.installed)
+        .map(([id]) => id);
+      for (const id of installedIds) {
+        const profile = [...PROFILES, ...customProfiles.items].find((p) => p.id === id);
+        if (!profile) continue;
+        try {
+          await persistenceInstallTask(profile.id, profile.name, hours);
+        } catch {}
+      }
+      if (installedIds.length > 0) void refreshAllTaskStatuses();
+    }
     toast.success(`Background interval set to ${hours}h`);
   }
 
@@ -116,10 +161,82 @@
       );
     } else {
       await service.removePersisted(profile.id);
+      // Also tear down the SYSTEM task if one exists — leaving it installed
+      // would keep applying admin tweaks the user just opted out of.
+      if (systemTaskStatuses[profile.id]?.installed && admin.elevated) {
+        try {
+          await persistenceUninstallTask(profile.id);
+          await refreshTaskStatus(profile.id);
+        } catch {}
+      }
       toast.show(`Stopped persisting ${profile.name}`, {
         description: "Tweaks remain in place; drift will no longer be re-applied.",
       });
     }
+  }
+
+  async function toggleSystemTask(profile: Profile, on: boolean) {
+    if (!admin.elevated) {
+      toast.warning(
+        "Administrator required",
+        "Installing the SYSTEM scheduled task needs elevation. Click the shield in the title bar to re-launch as admin.",
+      );
+      return;
+    }
+    systemTaskBusy[profile.id] = true;
+    try {
+      if (on) {
+        await persistenceInstallTask(
+          profile.id,
+          profile.name,
+          service.config.intervalHours,
+        );
+        toast.success(
+          `Admin persistence on for ${profile.name}`,
+          "A SYSTEM scheduled task now re-applies HKLM + shell tweaks at logon and on your selected interval.",
+        );
+      } else {
+        await persistenceUninstallTask(profile.id);
+        toast.show(`Admin persistence off for ${profile.name}`, {
+          description: "Scheduled task removed. HKCU tweaks continue to be re-applied by the tray companion.",
+        });
+      }
+      await refreshTaskStatus(profile.id);
+    } catch (e) {
+      toast.error("Scheduled task change failed", String(e));
+    } finally {
+      systemTaskBusy[profile.id] = false;
+    }
+  }
+
+  async function runSystemTaskNow(profile: Profile) {
+    if (!admin.elevated) {
+      toast.warning(
+        "Administrator required",
+        "Running the SYSTEM scheduled task on demand needs elevation.",
+      );
+      return;
+    }
+    systemTaskBusy[profile.id] = true;
+    try {
+      await persistenceRunTaskNow(profile.id);
+      toast.success(
+        `${profile.name}: admin task triggered`,
+        "Check the Last-run column in a few seconds.",
+      );
+      setTimeout(() => void refreshTaskStatus(profile.id), 3000);
+    } catch (e) {
+      toast.error("Run failed", String(e));
+    } finally {
+      systemTaskBusy[profile.id] = false;
+    }
+  }
+
+  function formatTaskTimestamp(iso: string | null | undefined): string {
+    if (!iso) return "never";
+    const t = Date.parse(iso);
+    if (!Number.isFinite(t)) return "never";
+    return formatRelative(t);
   }
 
   async function setMode(profileId: string, mode: PersistenceMode) {
@@ -198,13 +315,18 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
             <div class="text-sm font-medium">Start with Windows</div>
-            <Switch checked={autostartOn} disabled={autostartBusy || portable} onclick={(e: MouseEvent) => e.stopPropagation()} />
+            <Switch
+              checked={autostartOn}
+              disabled={autostartBusy || portable}
+              onCheckedChange={(v: boolean) => toggleAutostart(v)}
+              onclick={(e: MouseEvent) => e.stopPropagation()}
+            />
           </div>
           <p class="text-xs text-muted-foreground mt-1">
             {#if portableChecked && portable}
               Portable mode is stateless on disk — autostart needs an installed build.
             {:else}
-              Boots directly to tray at login. No window flash.
+              Boots directly to tray at login. No window flash, no UAC prompt.
             {/if}
           </p>
         </div>
@@ -219,7 +341,11 @@
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
             <div class="text-sm font-medium">Keep running in tray when closed</div>
-            <Switch checked={service.config.keepInTray} onclick={(e: MouseEvent) => e.stopPropagation()} />
+            <Switch
+              checked={service.config.keepInTray}
+              onCheckedChange={(v: boolean) => toggleKeepInTray(v)}
+              onclick={(e: MouseEvent) => e.stopPropagation()}
+            />
           </div>
           <p class="text-xs text-muted-foreground mt-1">
             Closing the window hides it. Right-click the tray icon → Quit to exit fully.
@@ -272,14 +398,15 @@
         Active persistence
       </h3>
       <p class="text-xs text-muted-foreground mb-3">
-        Selected profiles get their HKCU tweaks re-applied on a schedule. Admin-requiring tweaks (HKLM, shell ops) are skipped — those need a SYSTEM-scheduled task and will land in a later release.
+        Selected profiles get their HKCU tweaks re-applied by the tray companion. Profiles with admin tweaks can also install a SYSTEM-running scheduled task that re-applies HKLM + shell ops at logon and on the configured interval — no UAC prompt at every boot.
       </p>
       <div class="flex flex-col divide-y rounded-lg border overflow-hidden">
         {#each allProfiles as p (p.id)}
           {@const persisted = service.getPersisted(p.id)}
           {@const isOn = !!persisted}
           {@const hkcu = profileHkcuCount(p)}
-          {@const admin = profileAdminCount(p)}
+          {@const adminCount = profileAdminCount(p)}
+          {@const taskStatus = systemTaskStatuses[p.id] ?? { installed: false }}
           <div class="flex items-start gap-3 p-3 bg-card">
             <div class="size-9 rounded-md bg-foreground/[0.04] border flex items-center justify-center shrink-0">
               <ProfileIcon name={p.gradient} class="size-4 text-foreground/80" />
@@ -290,16 +417,16 @@
                 <Switch checked={isOn} onCheckedChange={(v: boolean) => togglePersisted(p, v)} />
               </div>
               <div class="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-2 items-center">
-                <Badge variant="outline" class="text-[10px]">{hkcu} watchable</Badge>
-                {#if admin > 0}
+                <Badge variant="outline" class="text-[10px]">{hkcu} HKCU watchable</Badge>
+                {#if adminCount > 0}
                   <Badge variant="outline" class="text-[10px] gap-1">
                     <Lock class="size-3" />
-                    {admin} admin (skipped)
+                    {adminCount} admin
                   </Badge>
                 {/if}
                 {#if persisted}
                   <span class="text-[11px]">
-                    Last: {formatRelative(persisted.lastCheck)}
+                    HKCU last: {formatRelative(persisted.lastCheck)}
                     {#if persisted.lastDriftCount > 0}
                       · {persisted.lastDriftCount} re-applied
                     {/if}
@@ -339,6 +466,62 @@
                     {/if}
                   </Button>
                 </div>
+
+                {#if adminCount > 0}
+                  <div class="mt-2 rounded-md border bg-foreground/[0.02] p-2.5 flex items-start gap-2">
+                    {#if taskStatus.installed}
+                      <ShieldCheck class="size-4 mt-0.5 shrink-0 text-primary" />
+                    {:else}
+                      <ShieldAlert class="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+                    {/if}
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center justify-between gap-2">
+                        <div class="text-xs font-medium">
+                          Run admin tweaks as SYSTEM
+                          {#if !admin.elevated}
+                            <Badge variant="outline" class="text-[10px] ml-1">requires admin</Badge>
+                          {/if}
+                        </div>
+                        <Switch
+                          checked={taskStatus.installed}
+                          disabled={systemTaskBusy[p.id] || !admin.elevated}
+                          onCheckedChange={(v: boolean) => toggleSystemTask(p, v)}
+                        />
+                      </div>
+                      <p class="text-[11px] text-muted-foreground mt-0.5">
+                        {#if taskStatus.installed}
+                          Scheduled task <code class="px-1 rounded bg-foreground/5">\Reclaim\Persist-{p.id}</code>
+                          {#if taskStatus.state}
+                            · {taskStatus.state}
+                          {/if}
+                          · last run {formatTaskTimestamp(taskStatus.lastRun)}
+                          · next run {formatTaskTimestamp(taskStatus.nextRun)}
+                        {:else}
+                          Installs <code class="px-1 rounded bg-foreground/5">\Reclaim\Persist-{p.id}</code>, runs reclaim.exe --apply-profile {p.id} --admin-only at logon + every {service.config.intervalHours}h.
+                        {/if}
+                      </p>
+                      {#if taskStatus.installed}
+                        <div class="mt-1.5">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onclick={() => runSystemTaskNow(p)}
+                            disabled={systemTaskBusy[p.id] || !admin.elevated}
+                            class="h-6 text-[11px]"
+                          >
+                            {#if systemTaskBusy[p.id]}
+                              <Loader2 class="animate-spin size-3" />
+                              Working…
+                            {:else}
+                              <Play class="size-3" />
+                              Trigger now
+                            {/if}
+                          </Button>
+                        </div>
+                      {/if}
+                    </div>
+                  </div>
+                {/if}
               {/if}
             </div>
           </div>

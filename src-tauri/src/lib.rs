@@ -14,6 +14,7 @@ mod iso_builder;
 mod maintenance;
 mod network;
 mod onedrive;
+mod persistence;
 mod recall;
 mod schtasks;
 mod service;
@@ -65,7 +66,7 @@ pub fn run() {
                 &[&open_i, &sep1, &check_i, &sep2, &settings_i, &quit_i],
             )?;
 
-            let _tray = TrayIconBuilder::with_id("main")
+            match TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().cloned().ok_or("missing default window icon")?)
                 .tooltip("Reclaim Your Windows")
                 .menu(&menu)
@@ -105,7 +106,11 @@ pub fn run() {
                         }
                     }
                 })
-                .build(app)?;
+                .build(app)
+            {
+                Ok(_) => eprintln!("[reclaim] tray icon created"),
+                Err(e) => eprintln!("[reclaim] tray icon creation FAILED: {e}"),
+            }
 
             // Honor --autostart flag: boot straight to tray, no flash.
             let argv: Vec<String> = std::env::args().collect();
@@ -118,20 +123,6 @@ pub fn run() {
             // Start the background tick loop.
             service::spawn_loop(app.handle().clone());
             Ok(())
-        })
-        .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let app = window.app_handle();
-                let state = app.state::<service::ServiceState>();
-                // If the user picked "Quit Reclaim" from the tray, let the close go through.
-                if service::is_force_quit(&state) {
-                    return;
-                }
-                if service::is_keep_in_tray(&state) {
-                    api.prevent_close();
-                    let _ = window.hide();
-                }
-            }
         })
         .invoke_handler(tauri::generate_handler![
             sysinfo::get_system_info,
@@ -238,7 +229,66 @@ pub fn run() {
             service::service_get_interval,
             service::service_set_keep_in_tray,
             service::service_trigger_now,
+            persistence::persistence_install_task,
+            persistence::persistence_uninstall_task,
+            persistence::persistence_task_status,
+            persistence::persistence_run_task_now,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .on_window_event(|window, event| {
+            // Only the Builder-global `on_window_event` handler's `prevent_close`
+            // is consulted by Tauri 2's close-request decision. Per-window
+            // listeners attached via `Window::on_window_event` fire too but
+            // their `api.prevent_close()` call is a no-op for the actual close
+            // resolution — we burned a debugging round on that. Keep this here.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() != "main" {
+                    return;
+                }
+                let app = window.app_handle();
+                let Some(state) = app.try_state::<service::ServiceState>() else {
+                    eprintln!("[reclaim] CloseRequested: ServiceState unmanaged, letting close through");
+                    return;
+                };
+                let force = service::is_force_quit(&state);
+                let keep = service::is_keep_in_tray(&state);
+                eprintln!("[reclaim] CloseRequested force_quit={force} keep_in_tray={keep}");
+                if force {
+                    return;
+                }
+                if keep {
+                    api.prevent_close();
+                    match window.hide() {
+                        Ok(_) => eprintln!("[reclaim] hidden to tray"),
+                        Err(e) => eprintln!("[reclaim] hide failed: {e}"),
+                    }
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // Safety net for the "last window destroyed → app exits" default.
+            // If anything tears the main window down (e.g. another plugin's
+            // close handler winning ordering, or someone calling destroy()
+            // directly), Tauri would normally exit the event loop and the
+            // tray companion would die with it. `prevent_exit` keeps the
+            // runtime alive so the tray icon survives — the user can re-open
+            // a window from the tray "Open Reclaim" menu, which spawns a
+            // fresh window if the original is gone (see service::show_main).
+            // Force-quit (tray "Quit Reclaim" menu) is the only path that
+            // actually allows the runtime to wind down.
+            if let tauri::RunEvent::ExitRequested { api, .. } = event {
+                let Some(state) = app_handle.try_state::<service::ServiceState>() else {
+                    return;
+                };
+                if service::is_force_quit(&state) {
+                    return;
+                }
+                let main_alive = app_handle.get_webview_window("main").is_some();
+                eprintln!(
+                    "[reclaim] ExitRequested intercepted → staying alive in tray (main_alive={main_alive})"
+                );
+                api.prevent_exit();
+            }
+        });
 }

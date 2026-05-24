@@ -136,7 +136,16 @@ pub fn try_elevate_at_startup() -> bool {
     if check_elevated() {
         return false;
     }
-    if std::env::args().any(|a| a == "--no-elevate") {
+    let argv = std::env::args();
+    // --autostart fires at every Windows login. Surfacing a UAC prompt there
+    // is a UX killer (and on dismissed prompts the autostart copy never
+    // appears in the tray for the user). Persistence of admin tweaks is now
+    // handled by the SYSTEM-running scheduled task installed per profile —
+    // the tray companion itself can stay unelevated.
+    if argv
+        .into_iter()
+        .any(|a| a == "--no-elevate" || a == "--autostart")
+    {
         return false;
     }
     let Ok(exe) = std::env::current_exe() else {

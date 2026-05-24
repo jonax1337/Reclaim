@@ -2,8 +2,10 @@
 //
 // For each persisted profile:
 //   1) Resolve its tweaks (built-in PROFILES + customProfiles)
-//   2) Drop admin-required tweaks (HKLM / shell ops — those need a SYSTEM
-//      Scheduled Task; deferred to a later release per docs/PLAN.md)
+//   2) Drop admin-required tweaks (HKLM / shell ops). The user opts those in
+//      separately via the per-profile "Run admin tweaks as SYSTEM" toggle —
+//      a SYSTEM-running scheduled task installed by persistence.rs handles
+//      them with --admin-only at logon + on the configured interval.
 //   3) Drop tweaks without check[] (no reliable way to detect drift on them)
 //   4) In "update-only" mode, gate the whole pass on a recent Windows hotfix
 //   5) For every remaining tweak, getTweakState — re-apply if it reads as "off"
@@ -27,8 +29,9 @@ function resolveProfileById(id: string) {
   return customProfiles.get(id);
 }
 
-/** A tweak is eligible for drift re-application if it has check coverage AND
- *  doesn't require admin (HKCU only — HKLM/shell deferred to v0.16+). */
+/** A tweak is eligible for drift re-application via the tray companion if it
+ *  has check coverage AND doesn't require admin. HKLM / shell ops are handled
+ *  by the SYSTEM scheduled task path (persistence.rs). */
 function isEligible(tweak: Tweak): boolean {
   if (tweakRequiresAdmin(tweak)) return false;
   // Without check[] we can't detect drift — re-applying on every tick would

@@ -135,12 +135,32 @@ pub fn emit_navigate(app: &AppHandle, route: &str) {
 }
 
 /// Show + focus the main window (used by tray click, Open menu, single-instance
-/// re-launch).
+/// re-launch). If the window was destroyed (rare — only happens when the close
+/// path bypassed our hide-instead-of-close handler), re-create it.
 pub fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
         let _ = w.unminimize();
         let _ = w.set_focus();
+        return;
+    }
+    // Fallback: original window is gone, spawn a fresh one. Reuses the same
+    // label so all `get_webview_window("main")` calls keep working afterwards.
+    let result = tauri::WebviewWindowBuilder::new(
+        app,
+        "main",
+        tauri::WebviewUrl::default(),
+    )
+    .title("Reclaim Your Windows")
+    .inner_size(1280.0, 820.0)
+    .min_inner_size(1000.0, 640.0)
+    .decorations(false)
+    .transparent(true)
+    .visible(true)
+    .build();
+    match result {
+        Ok(_) => eprintln!("[reclaim] main window re-created from tray"),
+        Err(e) => eprintln!("[reclaim] main window re-create failed: {e}"),
     }
 }
 
