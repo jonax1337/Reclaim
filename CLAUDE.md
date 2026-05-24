@@ -4,15 +4,15 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.12.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher) and Phase 10 (Security hardening + real portable build) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**v0.13.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phase 7 (System depth), Phase 8 (Customize & drivers), Phase 9 (Licensing launcher), Phase 10 (Security hardening + real portable build) and Phase 11 (Install media builder) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 Headline numbers:
 - **151 reversible tweaks** across 10 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security)
-- **63 bloatware patterns** across 7 groups
+- **144 bloatware patterns** across 8 groups (incl. OEM bloat for HP / Lenovo / Dell)
 - **46 winget apps** across 8 groups (16 recommended)
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
-- **32 routes** in a 10-group sidebar
-- **91 Tauri commands** across 20 Rust modules
+- **33 routes** in a 10-group sidebar
+- **96 Tauri commands** across 21 Rust modules
 
 Headline features built since v0.1.0:
 - Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
@@ -26,6 +26,7 @@ Headline features built since v0.1.0:
 - Browser (Edge) tweaks + dedicated route, Driver rollback via pnputil, AMD/Intel smart vendor-page auto-find (v0.10.0).
 - Windows activation launcher: read-only license state + one-click elevated PowerShell window running the external MAS script (v0.11.0).
 - Security hardening route (LSA Protection, Controlled Folder Access, Defender ASR rules) + 12 extra privacy tweaks. Real portable build: dedicated single-exe variant via the `portable` Cargo feature, completely stateless on disk (v0.12.0).
+- Install media builder: autounattend.xml generator that maps any Reclaim profile to `<FirstLogonCommands>`, plus optional ISO repack via Windows ADK `oscdimg.exe` (auto-installer for the ADK Deployment Tools when missing). Bloatware catalog brought to parity with Win11Debloat (63 → 144 entries, new OEM group). PowerShell one-liner installer `install.ps1` that bypasses Edge's "publisher unknown" prompt the same way ChrisTitusTech/winutil does (v0.13.0).
 
 **Still open for v1.0.0**: i18n (DE + EN). Code-signing is no longer planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 

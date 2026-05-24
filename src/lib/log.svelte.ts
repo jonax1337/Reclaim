@@ -34,7 +34,8 @@ export type LogAction =
   | "recall.wipe"
   | "driver.rollback"
   | "activation.launch"
-  | "app.update";
+  | "app.update"
+  | "iso.unattend.save";
 
 export type LogEntry = {
   id: number;
@@ -151,4 +152,5 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "driver.rollback": "Driver rolled back",
   "activation.launch": "Activation script launched",
   "app.update": "App updated",
+  "iso.unattend.save": "autounattend.xml saved",
 };

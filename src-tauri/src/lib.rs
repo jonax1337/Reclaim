@@ -8,6 +8,7 @@ mod driver_update;
 mod files;
 mod firewall;
 mod icons;
+mod iso_builder;
 mod maintenance;
 mod network;
 mod onedrive;
@@ -16,6 +17,7 @@ mod schtasks;
 pub mod sysinfo;
 mod sysquery;
 mod tweaks;
+mod unattend;
 mod winget;
 mod winupdate;
 
@@ -119,6 +121,13 @@ pub fn run() {
             driver_packages::delete_driver_package,
             activation::get_activation_status,
             activation::launch_activation_script,
+            unattend::generate_autounattend_xml,
+            unattend::save_autounattend_xml,
+            unattend::list_win11_editions,
+            iso_builder::iso_check_tools,
+            iso_builder::iso_build,
+            iso_builder::download_adk_setup,
+            iso_builder::launch_adk_installer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

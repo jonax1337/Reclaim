@@ -8,6 +8,7 @@ export { default as Badge } from "./Badge.svelte";
 export { default as Switch } from "./Switch.svelte";
 export { default as Checkbox } from "./Checkbox.svelte";
 export { default as Dialog } from "./Dialog.svelte";
+export * as Select from "./select/index";
 export { default as Titlebar } from "./Titlebar.svelte";
 export { default as Toaster } from "./Toaster.svelte";
 export { default as BulkActionBar } from "./BulkActionBar.svelte";

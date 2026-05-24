@@ -19,6 +19,7 @@
   import Network from "./routes/Network.svelte";
   import Firewall from "./routes/Firewall.svelte";
   import Apps from "./routes/Apps.svelte";
+  import IsoBuilder from "./routes/IsoBuilder.svelte";
   import Notifications from "./routes/Notifications.svelte";
   import Maintenance from "./routes/Maintenance.svelte";
   import Profiles from "./routes/Profiles.svelte";
@@ -60,6 +61,7 @@
     ["/network", Network],
     ["/firewall", Firewall],
     ["/apps", Apps],
+    ["/iso-builder", IsoBuilder],
     ["/notifications", Notifications],
     ["/maintenance", Maintenance],
     ["/profiles", Profiles],

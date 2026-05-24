@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import {
   isTauri,
+  isoBuild,
   maintenancePtyKill,
   maintenancePtyResize,
   maintenanceRunStream,
@@ -370,6 +371,43 @@ export async function runUnblockTask(
   try {
     const { cols, rows } = task.terminal;
     const exit = await unblockFilesStream(task.id, target, recursive, cols, rows, onEvent);
+    tasks.finish(task.id, exit);
+  } catch (err) {
+    task.terminal.write(`\r\n\x1b[31m${String(err)}\x1b[0m\r\n`);
+    tasks.finish(task.id, -1, "error");
+  }
+  return task;
+}
+
+export async function runIsoBuildTask(
+  inputIso: string,
+  outputIso: string,
+  autounattendXml: string,
+): Promise<Task> {
+  const label = `Build ISO: ${outputIso.split(/[\\/]/).pop() ?? outputIso}`;
+  const task = tasks.start({ label, kind: "maintenance", opId: "iso-build" });
+  if (!isTauri()) {
+    task.terminal.write(
+      "\x1b[33mBrowser preview — PowerShell is not available outside Tauri.\x1b[0m\r\n",
+    );
+    tasks.finish(task.id, -1, "error");
+    return task;
+  }
+  const onEvent = (e: StreamEvent) => {
+    if (e.kind === "bytes") task.terminal.write(decodeBase64(e.data));
+    else if (e.kind !== "exit") task.terminal.writeln(e.data);
+  };
+  try {
+    const { cols, rows } = task.terminal;
+    const exit = await isoBuild(
+      task.id,
+      inputIso,
+      outputIso,
+      autounattendXml,
+      cols,
+      rows,
+      onEvent,
+    );
     tasks.finish(task.id, exit);
   } catch (err) {
     task.terminal.write(`\r\n\x1b[31m${String(err)}\x1b[0m\r\n`);

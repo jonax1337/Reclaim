@@ -175,6 +175,33 @@ jobs:
           name: Reclaim ${{ steps.version.outputs.tag }}
           draft: true
           generate_release_notes: true
+          body: |
+            ## Install
+
+            One-liner in PowerShell — picks installer or portable for you and bypasses Edge's "publisher unknown" prompt:
+
+            ```powershell
+            irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
+            ```
+
+            Or pick the mode upfront (non-interactive):
+
+            ```powershell
+            $env:RECLAIM_MODE = 'portable'; irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
+            # Valid: install | portable | msi
+            ```
+
+            ### Manual download
+
+            | Asset | When to use |
+            | --- | --- |
+            | `Reclaim_${{ steps.version.outputs.version }}_x64-setup.exe` | NSIS installer — recommended for most users (~2 MB stub, downloads Webview2 if needed) |
+            | `Reclaim-Portable-v${{ steps.version.outputs.version }}.exe` | Single-exe portable — no install, stateless on disk |
+            | `Reclaim_${{ steps.version.outputs.version }}_x64_en-US.msi` | MSI installer for managed deployment (Intune / GPO) |
+
+            The `.sig` files and `latest.json` are for Reclaim's built-in auto-updater — you don't need to download them manually.
+
+            ---
           files: |
             staging/*.exe
             staging/*.exe.sig

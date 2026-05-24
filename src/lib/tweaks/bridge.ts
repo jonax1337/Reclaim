@@ -970,6 +970,119 @@ export async function launchActivationScript(): Promise<void> {
   await invoke("launch_activation_script");
 }
 
+export type UnattendRegistryTweak = {
+  hive: "HKCU" | "HKLM" | "HKCR" | "HKU";
+  path: string;
+  name: string;
+  type: "DWORD" | "SZ" | "EXPANDSZ";
+  value: number | string;
+};
+
+export type UnattendConfig = {
+  language: string;
+  keyboard: string;
+  system_locale: string;
+  user_locale: string;
+  timezone: string;
+  geo_id: string;
+  username: string;
+  password: string | null;
+  autologon: boolean;
+  computer_name: string;
+  organization: string;
+  edition: string | null;
+  product_key: string | null;
+  bypass_tpm_check: boolean;
+  bypass_secure_boot_check: boolean;
+  bypass_ram_check: boolean;
+  bypass_storage_check: boolean;
+  bypass_cpu_check: boolean;
+  bypass_network_requirement: boolean;
+  skip_ms_account: boolean;
+  skip_eula: boolean;
+  skip_oobe_privacy: boolean;
+  disable_telemetry: boolean;
+  disable_advertising_id: boolean;
+  disable_location: boolean;
+  disable_tailored_experiences: boolean;
+  disable_find_my_device: boolean;
+  disable_inking_typing: boolean;
+  disable_diagnostic_data: boolean;
+  disable_cortana: boolean;
+  debloat_appx_patterns: string[];
+  registry_tweaks: UnattendRegistryTweak[];
+};
+
+export type Win11Edition = { key: string; label: string };
+
+export async function generateAutounattendXml(config: UnattendConfig): Promise<string> {
+  return invoke<string>("generate_autounattend_xml", { config });
+}
+
+export async function saveAutounattendXml(path: string, xml: string): Promise<void> {
+  await invoke("save_autounattend_xml", { path, xml });
+}
+
+export async function listWin11Editions(): Promise<Win11Edition[]> {
+  return invoke<Win11Edition[]>("list_win11_editions");
+}
+
+export type IsoTools = {
+  oscdimgPath: string | null;
+  dismAvailable: boolean;
+  ready: boolean;
+  adkHint: string;
+};
+
+export async function isoCheckTools(): Promise<IsoTools> {
+  const raw = await invoke<{
+    oscdimg_path: string | null;
+    dism_available: boolean;
+    ready: boolean;
+    adk_hint: string;
+  }>("iso_check_tools");
+  return {
+    oscdimgPath: raw.oscdimg_path,
+    dismAvailable: raw.dism_available,
+    ready: raw.ready,
+    adkHint: raw.adk_hint,
+  };
+}
+
+export async function downloadAdkSetup(): Promise<string> {
+  return invoke<string>("download_adk_setup");
+}
+
+export async function launchAdkInstaller(path: string): Promise<void> {
+  await invoke("launch_adk_installer", { path });
+}
+
+export type AdkDownloadProgress = { downloaded: number; total: number };
+
+export async function isoBuild(
+  taskId: string,
+  inputIso: string,
+  outputIso: string,
+  autounattendXml: string,
+  cols: number,
+  rows: number,
+  onEvent: (e: StreamEvent) => void,
+): Promise<number> {
+  const channel = new Channel<StreamEvent>();
+  channel.onmessage = onEvent;
+  return invoke<number>("iso_build", {
+    taskId,
+    req: {
+      input_iso: inputIso,
+      output_iso: outputIso,
+      autounattend_xml: autounattendXml,
+    },
+    cols,
+    rows,
+    onEvent: channel,
+  });
+}
+
 export async function installWindowsUpdates(ids: string[]): Promise<WuInstallResult> {
   const r = await invoke<{
     ok: boolean;

@@ -31,6 +31,7 @@
     Globe,
     KeyRound,
     Lock,
+    Disc3,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
@@ -132,7 +133,10 @@
     },
     {
       label: "Install",
-      items: [{ href: "/apps", label: "Apps", icon: Download }],
+      items: [
+        { href: "/apps", label: "Apps", icon: Download },
+        { href: "/iso-builder", label: "Install media", icon: Disc3 },
+      ],
     },
     {
       label: "Customize",

@@ -180,6 +180,39 @@
     );
   }
 
+  /* Status-tinted variants of hero-glow — used when the hero conveys a
+     binary state (e.g. licensed = success, unlicensed = warning) and the
+     default primary tint would clash with the in-card status badge. */
+  .hero-glow-success {
+    background: radial-gradient(
+      40rem 18rem at 10% -10%,
+      color-mix(in oklch, var(--success) 14%, transparent),
+      transparent 70%
+    );
+  }
+  [data-theme="dark"] .hero-glow-success {
+    background: radial-gradient(
+      40rem 18rem at 10% -10%,
+      color-mix(in oklch, var(--success) 22%, transparent),
+      transparent 70%
+    );
+  }
+
+  .hero-glow-warning {
+    background: radial-gradient(
+      40rem 18rem at 10% -10%,
+      color-mix(in oklch, oklch(0.74 0.16 75) 16%, transparent),
+      transparent 70%
+    );
+  }
+  [data-theme="dark"] .hero-glow-warning {
+    background: radial-gradient(
+      40rem 18rem at 10% -10%,
+      color-mix(in oklch, oklch(0.74 0.16 75) 22%, transparent),
+      transparent 70%
+    );
+  }
+
   .card-inset {
     box-shadow:
       0 1px 0 0 oklch(1 0 0 / 30%) inset,

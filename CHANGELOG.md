@@ -2,6 +2,32 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.13.0
+
+### Added
+
+- **Install media builder (`/iso-builder`)** — New route under the **Install** sidebar group that generates a customized `autounattend.xml` and (optionally) repacks an existing Windows 11 ISO with it baked in. Two-phase workflow:
+  - **Phase 1 — autounattend.xml generator.** Configure locale (6 presets: DE / EN-US / EN-GB / FR / ES / IT — auto-fills language, keyboard, timezone, GeoID), local admin account (no MS-account flow), Windows edition (12 KMS client setup keys for SKU selection), install bypasses (TPM / Secure Boot / RAM / Storage / CPU / BypassNRO / skip MS account / EULA / OOBE privacy prompts) and OOBE privacy defaults (telemetry, ad ID, location, tailored experiences, find-my-device, inking/typing, diagnostic data cap, Cortana). Picks any Reclaim profile (built-in + custom) as the debloat source — its registry tweaks and AppX removals are emitted as `<FirstLogonCommands>` so the XML is self-contained. Save via dialog, drop on a Rufus/Ventoy USB.
+  - **Phase 2 — ISO repack.** Picks an existing Win11 ISO, mounts it, injects the generated autounattend.xml at the root and `\sources`, and repacks as a hybrid BIOS+UEFI bootable ISO via `oscdimg.exe` from the Windows ADK Deployment Tools. PTY-streamed progress to the global terminal panel.
+- **ADK auto-installer.** When `oscdimg.exe` isn't found, the UI now offers a one-click "Install Deployment Tools (auto)" button. Streams Microsoft's official `adksetup.exe` web-stub (~1.5 MB) from the stable fwlink, launches it with `/features OptionId.DeploymentTools /ceip off /norestart` so only the ~200 MB feature we actually need installs (not the full 3 GB ADK). Inline download progress bar plus a "Re-check" button.
+- **PowerShell one-line installer (`install.ps1`)** — `irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex` fetches the latest release from GitHub, lets you pick installer / portable / MSI (or honors `$env:RECLAIM_MODE`), downloads to %TEMP%, strips Mark-of-the-Web via `Unblock-File`, and launches with UAC. Bypasses Edge's "publisher unknown" prompt the same way [ChrisTitus' WinUtil](https://christitus.com/winutil/) does. Documented in README and auto-included in every release's notes via the workflow.
+- **Compositional `Select` UI primitive** in `src/lib/ui/select/` (shadcn-svelte pattern over bits-ui) — `Select.Root` / `Trigger` / `Content` / `Group` / `Label` / `Item`. Styled trigger with chevron, animated portal content, item check-indicator, group headings.
+- **XML preview dialog** (`src/lib/components/XmlPreviewDialog.svelte`) — wide modal (`min(1280px, calc(100vw-2rem))`) with browser-native XML syntax highlighting (tags violet, attrs rose, values sky, comments green-italic, declarations fuchsia, CDATA amber, dark-mode variants of each), file-meta strip (line + char count), Copy-to-clipboard button, and a Save-to-disk action.
+
+### Changed
+
+- **Bloatware catalog: 63 → 144 patterns.** Brings parity with Win11Debloat's full Apps.json (147 entries). New group `oem` for HP / Lenovo / Dell pre-installs (25 entries). +17 missing Microsoft apps (3DBuilder, Bing Food/Health/Travel/Translator, Copilot+ AIHub for 24H2, PCManager, Messaging, 3DViewer, Journal, PowerBI, NetworkSpeedTest, News, Sway, Print3D, DevHome, MicrosoftFamily). +33 third-party games and apps not covered by existing wildcards (Duolingo, Plex, Hulu, Pandora, Shazam, Viber, XING, Fitbit, BubbleWitch, Asphalt8, Caesars Slots, Cooking Fever, FarmVille2, March of Empires, NYT Crossword, Royal Revolt, Adobe Photoshop Express, SketchBook, PicsArt, Phototastic, Polarr, Flipboard, …). +17 opt-in Microsoft utility entries (Calculator, Notepad, Photos, Camera, Snipping Tool, Paint, Paint 3D, Store, Terminal, Whiteboard, RemoteDesktop, …) gated behind explicit warnings — `recommended: false`, never auto-selected.
+- **Activation status hero glow** now tints with the actual license status (success-green when licensed, amber when unlicensed) instead of the static violet accent. Matches the in-card status badge so the whole section reads as one unit.
+- **Sidebar:** new entry under **Install** → "Install media" (`Disc3` icon). 32 → 33 routes.
+
+### Internal
+
+- New Rust modules `src-tauri/src/unattend.rs` (pure XML synthesis from typed config; `generate_autounattend_xml`, `save_autounattend_xml`, `list_win11_editions`) and `src-tauri/src/iso_builder.rs` (`iso_check_tools`, `iso_build`, `download_adk_setup`, `launch_adk_installer`). All path inputs strictly validated; PowerShell pipeline scripts are static templates with validated path interpolation only.
+- New frontend helpers in `src/lib/unattend/` — `profileMapping.ts` translates a Reclaim profile's tweak IDs and bloatware patterns into `<FirstLogonCommands>` payloads; `xmlHighlight.ts` is a 60-line regex tokenizer that emits class-only HTML for the preview dialog.
+- New `LogAction` variant: `iso.unattend.save`.
+- 96 Tauri commands across 21 Rust modules (was 91 / 20).
+- Release workflow (`release.yml`) now auto-injects the install one-liner + an asset-legend table at the top of every release's notes via `body:` (prepended to `generate_release_notes`).
+
 ## v0.12.1
 
 ### Fixed

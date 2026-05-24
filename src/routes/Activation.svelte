@@ -154,7 +154,10 @@
 {:else}
   <!-- Status hero card -->
   <section
-    class="relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6 hero-glow"
+    class={[
+      "relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6",
+      isLicensed ? "hero-glow-success" : isUnlicensed ? "hero-glow-warning" : "hero-glow",
+    ]}
   >
     <div class="px-7 py-6 flex flex-wrap items-start gap-5">
       <div

@@ -4,6 +4,25 @@ A modern Windows 11 debloater and tweak suite — **live state detection**, **re
 
 > Inspired by [Win11Debloat](https://github.com/Raphire/Win11Debloat) and [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil), but built from scratch with a focus on transparency, reversibility, and modern UX.
 
+## Install
+
+One-liner in PowerShell — picks the installer or portable build for you, downloads from the latest GitHub release, and launches it:
+
+```powershell
+irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
+```
+
+Non-interactive (pick the mode upfront):
+
+```powershell
+$env:RECLAIM_MODE = 'portable'; irm "https://github.com/jonax1337/reclaim/raw/main/install.ps1" | iex
+# Valid: install | portable | msi
+```
+
+Why a PowerShell one-liner instead of "download the .exe"? Reclaim is unsigned and Edge would otherwise show a "publisher unknown" prompt for the installer. Going through PS skips the browser's reputation check entirely — the same trick [ChrisTitus' WinUtil](https://christitus.com/winutil/) uses.
+
+Manual download is also fine — grab the asset you want from [Releases](https://github.com/jonax1337/reclaim/releases/latest).
+
 ## What it does
 
 **151 reversible tweaks** across 10 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
