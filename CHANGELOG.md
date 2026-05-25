@@ -2,6 +2,49 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.20.0
+
+Install Media gets a real **Task Sequence editor** with Simple + Advanced modes, custom commands at any Setup hook, winget app installation, driver-folder injection, fully-automated zero-click install, and a USB-drive serial number that's actually identifying instead of `000000000005||`.
+
+### Added
+
+- **Install Media → Task Sequence editor (`/install-media`, replaces `/iso-builder`).** Two modes selectable from the page header:
+  - **Simple mode (default).** Profile dropdown (built-in `PROFILES` + your `customProfiles` from `/profiles`) + 4 inputs (locale, username, password) + one **Fully automated** toggle. Build/Flash one-click. Everything else is sane defaults (all bypasses, all OOBE skips, all privacy on, Win 11 Pro). One screen, zero learning curve.
+  - **Advanced mode.** Full Task Sequence editor: 11 step types arranged in a drag-and-droppable list, each with an enable/disable switch and a delete button. Add-step modal with all 11 types. Each step expands to its own typed config UI. Six built-in templates (Privacy Maximum, Gaming Rig, Office Workstation, Bare Minimum, Blank Slate, **Fully Automated (zero clicks)**) populate the step list.
+- **Eleven step types** mapped to the right Setup hook automatically. The user reasons in terms of "install drivers" / "remove bloatware", the converter routes each step to `windowsPE` / `specialize` / `oobeSystem` / `setupcomplete` / `firstlogon` as appropriate:
+  - `meta` — locale + username + password + computer name + organization + autologon. Bound to the standard `Microsoft-Windows-Setup` / `Microsoft-Windows-Shell-Setup` / `Microsoft-Windows-International-Core` components.
+  - `bypass` — TPM / Secure Boot / RAM / Storage / CPU / Network requirement skips, emitted as `LabConfig` reg writes in the windowsPE pass.
+  - `edition` — Win 11 SKU picker with KMS client setup keys + custom-key override.
+  - `oobe-skip` — Hide EULA / online-account-screens / privacy prompts in the OOBE pass.
+  - `privacy` — 8 OOBE privacy defaults (telemetry, ad-ID, location, tailored experiences, Find My Device, inking/typing, diagnostic data, Cortana).
+  - `disk-setup` — Auto-wipe + GPT-partition a specific disk number. Off by default + explicit confirmation checkbox; this is what flips the install from "Setup asks for disk" to "zero clicks".
+  - `driver-inject` — Folder picker. Contents are copied into `\$OEM$\$1\Drivers\` on the boot medium during ISO build / USB flash; Windows Setup auto-installs every `.inf` it finds.
+  - `debloat-appx` — Grouped multi-select against the bloatware catalog (consumer / office / gaming / communication / media / system / oem / other). Patterns end up in `setupcomplete.cmd` for two-pass AppX removal as SYSTEM after OOBE.
+  - `reg-tweaks` — Grouped multi-select against the tweak catalog, filtered to entries with at least one RegOp (shell-only tweaks can't be applied via unattend).
+  - `apps-install` — Winget IDs from the apps catalog. Get `winget install --exact --id --silent` appended to `setupcomplete.cmd` after AppX removal.
+  - `custom-cmd` — Free-form shell command attached to any of the 5 Setup hooks via a dropdown. Description shown in setup logs.
+- **Fully-automated mode.** Zero-click install: Simple-mode toggle (or the "Fully Automated" template in Advanced) emits a `<DiskConfiguration>` block that wipes a specific disk number, defaults the password to `Reclaim!` if you didn't set one, enables AutoLogon, and pre-selects everything for OOBE. Plug in stick, boot, walk away, return to a logged-in desktop with full debloat applied. The DiskConfiguration is only emitted when the disk-setup step is enabled AND its confirmation checkbox is ticked — `<DiskConfiguration>` does NOT come back by default, you have to explicitly opt in (we burned three patch versions on this exact mistake in v0.18.x).
+- **USB drive serial numbers are now meaningful.** Reads `Get-Disk .UniqueId` instead of just `.SerialNumber` and pulls the 24-char hardware-derived hex ID out of the `USBSTOR\DISK&VEN_…&PROD_…\<HARDWAREID>&0` PNP-style path. For well-behaved firmware that's identical to the sticker serial; for garbage firmware (Kingston DataTraveler etc. that reports literal `0000000005` + uninitialized control bytes) Windows synthesizes a stable hash from VID/PID/etc. and we surface that. Falls back to a sanitized raw `SerialNumber` if `UniqueId` parsing fails. 10 unit tests covering the cleanup heuristics + the PNP-ID extractor.
+- **New Tauri command `generate_setupcomplete_cmd`** alongside the existing `generate_autounattend_xml` — the Task Sequence build/flow needs both files emitted from a single config.
+- **`UnattendConfig` gained three new extension fields**: `custom_commands: Vec<CustomCommand>` (hook + command + description), `winget_apps: Vec<String>`, `disk_auto_setup: Option<DiskAutoSetup>` (disk number). All `#[serde(default)]` so the existing CLI / GUI call sites keep working without changes.
+
+### Changed
+
+- **Default `selectedEditionKey`** was the old retail-generic `VK7JG-NPHTM-…` key from before v0.18.2's KMS-list rewrite — not present in the new editions list, so the picker silently showed "Pick an edition" on first paint. Default is now `W269N-WFGWX-…` (Windows 11 Pro KMS client setup key). Resolves on first paint without user touching it.
+- **Sidebar route entry renamed** from "/iso-builder" to "/install-media". The label "Install media" stays the same. The old route is fully removed — anyone bookmarking it (in-app) gets a NotFound; the old `IsoBuilder.svelte` file is deleted.
+- **All step / template / UI text English-only** (project convention) — initial Task Sequence build had German strings sprinkled in from the conversation; cleaned up.
+
+### Fixed
+
+- **Step-component dropdowns now use the project's bits-ui `Select` primitive** instead of native HTML `<select>`. First v0.20-pre iteration used `<select>` which broke the Mica/dark-theme look completely; this matches IsoBuilder's pre-v0.18 styling and the rest of the app. Goes for the locale picker, edition picker, hook picker, template picker.
+- **StepCard padding** — was inheriting `Card`'s default `gap-6 py-6` which made every step row enormously tall. Now uses the `overflow-hidden gap-0 py-0 card-inset` row-list pattern from `CLAUDE.md` with tight `px-5 py-3` headers.
+
+### Notes
+
+- The Advanced mode's drag-and-drop uses native HTML5 DnD (no extra library). Per-row drag handle + drop indicator on the StepCard.
+- localStorage persistence for both stores: `reclaim.task-sequence` (advanced) and `reclaim.install-media-simple` (simple-mode state + mode flag). Switching modes preserves both — your Simple-mode profile/password/locale are still set when you switch back from Advanced.
+- The setupcomplete.cmd output from v0.20 also runs winget installs and custom-setupcomplete-hook commands in addition to the two-pass AppX sweep from v0.19. Single log file: `C:\Windows\Setup\Scripts\setupcomplete.log`.
+
 ## v0.19.0
 
 **Aggressive bloatware killer for Install-Media.** v0.18.3 finally got the schema right and the install completed, but real-world testing showed: ~85 of 96 AppX patterns missed (renamed packages on Win11 25H2), Microsoft Teams survived (`MicrosoftTeams` is gone, the new package is `MSTeams_8wekyb3d8bbwe` and the pattern wasn't marked `recommended: true`), WhatsApp wasn't even in the pattern list, and Sponsored Apps (Spotify / Disney+ / TikTok / Netflix / Instagram / LinkedIn) get pushed by Microsoft Store automatically after the first network-connect — by the time setupcomplete.cmd runs, the download has already started.

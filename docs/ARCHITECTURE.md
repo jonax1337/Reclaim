@@ -72,8 +72,11 @@ Lite-mode signal: items with `adminOnly: true` get a `ShieldAlert` indicator.
 | `sysinfo.rs` | Windows version detection (build-num based for Win11), `is_elevated` via TokenElevation, `relaunch_elevated` (Start-Process RunAs + exit current) |
 | `tweaks.rs` | `run_ps` (the shared PS runner with CREATE_NO_WINDOW), registry read/write/delete, AppX list/remove, restore point, explorer restart, base64 encoder for elevated wrap |
 | `sysquery.rs` | Hardware info (WMI/CIM JSON), startup apps (Run keys + StartupApproved binary), services list/control |
-| `winupdate.rs` | `Microsoft.Update.Session` COM API: search + install |
+| `winupdate.rs` | `Microsoft.Update.Session` COM API: search + install; streaming variant (`install_windows_updates_stream`) emits per-update phase + percent events |
 | `driver_search.rs` | Open child `WebviewWindow` with vendor URL + `initialization_script` that fills the form |
+| `unattend.rs` | `autounattend.xml` generator + `setupcomplete.cmd` body generator. Wire format = `UnattendConfig`. Routes `custom_commands` to the right Setup hook (`windowsPE` / `specialize` → RunSynchronous in correct component; `oobeSystem` / `firstlogon` → FirstLogonCommand; `setupcomplete` → appended to script). Conditional emission: `<DiskConfiguration>` only when `disk_auto_setup: Some(_)`, `<UserAccounts>` only with non-empty password, `<ImageInstall>` only when `edition` or `disk_auto_setup` set. Pre-OOBE sponsored-apps blocker (HKLM CloudContent + HKU\.DEFAULT ContentDeliveryManager writes) emitted in specialize whenever AppX patterns are present |
+| `iso_builder.rs` | ADK `oscdimg.exe` ISO repack. Mounts source ISO, robocopy contents to work dir, drops `autounattend.xml` at root + `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` in the work dir, oscdimg-rebuilds as hybrid bootable ISO |
+| `usb_flash.rs` | USB flasher. `list_usb_drives` enumerates `Get-Disk` USB entries, extracts a stable hardware ID from `.UniqueId` (vs the often-garbage iSerialNumber descriptor). `usb_flash_iso` runs the diskpart + DISM /Split-Image pipeline in a PTY (ConPTY): clean disk, init GPT, single FAT32 partition (cap 32 GiB), robocopy ISO contents, split install.wim > 4 GB into install*.swm chunks, optionally drop autounattend.xml + setupcomplete.cmd onto the stick |
 
 `run_ps` is shared (`pub(crate)`). All other modules' shell ops go through it.
 

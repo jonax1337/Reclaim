@@ -138,7 +138,7 @@
       label: "Install",
       items: [
         { href: "/apps", label: "Apps", icon: Download },
-        { href: "/iso-builder", label: "Install media", icon: Disc3 },
+        { href: "/install-media", label: "Install media", icon: Disc3 },
       ],
     },
     {

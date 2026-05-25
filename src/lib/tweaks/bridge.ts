@@ -1011,6 +1011,17 @@ export type UnattendConfig = {
   disable_cortana: boolean;
   debloat_appx_patterns: string[];
   registry_tweaks: UnattendRegistryTweak[];
+  /** Custom commands routed by hook into the right unattend pass. */
+  custom_commands?: Array<{
+    hook: "windowsPE" | "specialize" | "oobeSystem" | "setupcomplete" | "firstlogon";
+    command: string;
+    description: string;
+  }>;
+  /** Winget IDs installed silently via setupcomplete.cmd after OOBE. */
+  winget_apps?: string[];
+  /** Opt-in fully-automated disk wipe (UEFI/GPT layout). When set, Setup
+   *  installs without asking the user where Windows goes. */
+  disk_auto_setup?: { disk_number: number } | null;
 };
 
 export type Win11Edition = { key: string; label: string };

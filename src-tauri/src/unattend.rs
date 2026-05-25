@@ -69,6 +69,38 @@ pub struct UnattendConfig {
     // Debloat commands derived from the selected Reclaim profile
     pub debloat_appx_patterns: Vec<String>,
     pub registry_tweaks: Vec<RegistryTweak>,
+    /// Free-form custom commands routed to a specific Setup hook (Task
+    /// Sequence feature). Each command is emitted at its hook's correct
+    /// location (RunSynchronous for windowsPE/specialize, FirstLogonCommand
+    /// for oobeSystem/firstlogon, appended to setupcomplete.cmd for setup-
+    /// complete).
+    #[serde(default)]
+    pub custom_commands: Vec<CustomCommand>,
+    /// Winget IDs to install silently via setupcomplete.cmd after OOBE.
+    #[serde(default)]
+    pub winget_apps: Vec<String>,
+    /// Opt-in auto disk wipe + partition. When None, Setup asks the user
+    /// where to install. When Some, fully unattended install (zero clicks).
+    #[serde(default)]
+    pub disk_auto_setup: Option<DiskAutoSetup>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct CustomCommand {
+    pub hook: String, // "windowsPE" | "specialize" | "oobeSystem" | "setupcomplete" | "firstlogon"
+    pub command: String,
+    pub description: String,
+}
+
+/// Fully-automated disk setup: emit `<DiskConfiguration>` + `<InstallTo>` so
+/// Setup wipes a specific disk, partitions UEFI/GPT (ESP + MSR + OS), and
+/// installs without asking the user where to put Windows. Only emitted when
+/// the user explicitly opts in (Task Sequence disk-setup step with
+/// `confirmed: true`). Without this, Setup asks interactively which is the
+/// safe default.
+#[derive(Deserialize, Clone)]
+pub struct DiskAutoSetup {
+    pub disk_number: u32,
 }
 
 /// Generate a complete autounattend.xml as a string. Pure function; safe to
@@ -254,32 +286,92 @@ fn pass_windows_pe(c: &UnattendConfig) -> String {
     // command-line limit on RunSynchronousCommand).
     s.push_str("\n      <UseConfigurationSet>true</UseConfigurationSet>\n");
 
-    // No <DiskConfiguration>: forcing a layout against Disk 0 wipes the wrong
-    // disk on any system where the install target doesn't enumerate as 0 (most
-    // modern multi-disk setups, NVMe + SATA, USB-boot scenarios). Setup will
-    // ask the user once where to install — the only interactive step in an
-    // otherwise unattended flow, and the safe default.
-
-    // Image install: pre-select the edition by /IMAGE/NAME but leave the
-    // destination unspecified — Setup will fall back to interactive disk
-    // picking, which is exactly the safe default we want without a
-    // DiskConfiguration block. WillShowUI=OnError makes that explicit.
-    if let Some(edition) = &c.edition {
-        let edition_esc = xml_escape(edition);
+    // Disk configuration — only emitted when the user explicitly opted into
+    // "fully automated mode" by enabling + confirming the disk-setup step in
+    // the Task Sequence. Without it, Setup asks the user where to install
+    // (one interactive click, safe on multi-disk systems).
+    if let Some(disk) = &c.disk_auto_setup {
+        let n = disk.disk_number;
         s.push_str(&format!(
-            r#"      <ImageInstall>
-        <OSImage>
-          <InstallFrom>
+            r#"      <DiskConfiguration>
+        <Disk wcm:action="add">
+          <DiskID>{n}</DiskID>
+          <WillWipeDisk>true</WillWipeDisk>
+          <CreatePartitions>
+            <CreatePartition wcm:action="add">
+              <Order>1</Order>
+              <Type>EFI</Type>
+              <Size>300</Size>
+            </CreatePartition>
+            <CreatePartition wcm:action="add">
+              <Order>2</Order>
+              <Type>MSR</Type>
+              <Size>16</Size>
+            </CreatePartition>
+            <CreatePartition wcm:action="add">
+              <Order>3</Order>
+              <Type>Primary</Type>
+              <Extend>true</Extend>
+            </CreatePartition>
+          </CreatePartitions>
+          <ModifyPartitions>
+            <ModifyPartition wcm:action="add">
+              <Order>1</Order>
+              <PartitionID>1</PartitionID>
+              <Label>System</Label>
+              <Format>FAT32</Format>
+            </ModifyPartition>
+            <ModifyPartition wcm:action="add">
+              <Order>2</Order>
+              <PartitionID>2</PartitionID>
+            </ModifyPartition>
+            <ModifyPartition wcm:action="add">
+              <Order>3</Order>
+              <PartitionID>3</PartitionID>
+              <Label>Windows</Label>
+              <Letter>C</Letter>
+              <Format>NTFS</Format>
+            </ModifyPartition>
+          </ModifyPartitions>
+        </Disk>
+      </DiskConfiguration>
+"#
+        ));
+    }
+
+    // Image install: ImageInstall wraps both InstallFrom (edition picker by
+    // /IMAGE/NAME) and InstallTo. When disk_auto_setup is set we point
+    // InstallTo at the OS partition (DiskID=N PartitionID=3 from our layout
+    // above). Otherwise we omit InstallTo so Setup prompts.
+    let has_install_content = c.edition.is_some() || c.disk_auto_setup.is_some();
+    if has_install_content {
+        s.push_str("      <ImageInstall>\n        <OSImage>\n");
+        if let Some(edition) = &c.edition {
+            let edition_esc = xml_escape(edition);
+            s.push_str(&format!(
+                r#"          <InstallFrom>
             <MetaData wcm:action="add">
               <Key>/IMAGE/NAME</Key>
               <Value>{edition_esc}</Value>
             </MetaData>
           </InstallFrom>
-          <WillShowUI>OnError</WillShowUI>
-        </OSImage>
-      </ImageInstall>
 "#
-        ));
+            ));
+        }
+        if let Some(disk) = &c.disk_auto_setup {
+            let n = disk.disk_number;
+            s.push_str(&format!(
+                r#"          <InstallTo>
+            <DiskID>{n}</DiskID>
+            <PartitionID>3</PartitionID>
+          </InstallTo>
+"#
+            ));
+        } else {
+            // No fixed target — show UI on partition selection.
+            s.push_str("          <WillShowUI>OnError</WillShowUI>\n");
+        }
+        s.push_str("        </OSImage>\n      </ImageInstall>\n");
     }
 
     // UserData (EULA + product key for edition selection)
@@ -322,18 +414,36 @@ fn pass_windows_pe(c: &UnattendConfig) -> String {
     if c.bypass_cpu_check {
         bypass_cmds.push("reg add HKLM\\System\\Setup\\LabConfig /v BypassCPUCheck /t REG_DWORD /d 1 /f".into());
     }
-    if !bypass_cmds.is_empty() {
+    // Custom commands targeting the windowsPE hook (Task Sequence feature).
+    let pe_customs: Vec<&CustomCommand> =
+        c.custom_commands.iter().filter(|cc| cc.hook == "windowsPE").collect();
+
+    if !bypass_cmds.is_empty() || !pe_customs.is_empty() {
         s.push_str("      <RunSynchronous>\n");
-        for (i, cmd) in bypass_cmds.iter().enumerate() {
+        let mut order = 1usize;
+        for cmd in &bypass_cmds {
             s.push_str(&format!(
                 r#"        <RunSynchronousCommand wcm:action="add">
-          <Order>{}</Order>
+          <Order>{order}</Order>
           <Path>cmd /c {}</Path>
         </RunSynchronousCommand>
 "#,
-                i + 1,
                 xml_escape(cmd)
             ));
+            order += 1;
+        }
+        for cc in &pe_customs {
+            s.push_str(&format!(
+                r#"        <RunSynchronousCommand wcm:action="add">
+          <Order>{order}</Order>
+          <Path>{}</Path>
+          <Description>{}</Description>
+        </RunSynchronousCommand>
+"#,
+                xml_escape(&cc.command),
+                xml_escape(&cc.description),
+            ));
+            order += 1;
         }
         s.push_str("      </RunSynchronous>\n");
     }
@@ -473,11 +583,24 @@ fn pass_specialize(c: &UnattendConfig) -> String {
     // Windows-Deployment/{specialize,auditUser,oobeSystem}).
     s.push_str("    </component>\n");
 
-    if !priv_cmds.is_empty() {
+    // Custom commands targeting the specialize hook (Task Sequence feature).
+    let spec_customs: Vec<&CustomCommand> = c
+        .custom_commands
+        .iter()
+        .filter(|cc| cc.hook == "specialize")
+        .collect();
+
+    if !priv_cmds.is_empty() || !spec_customs.is_empty() {
         s.push_str(&component_open(COMPONENT_DEPLOY));
         s.push_str("\n      <RunSynchronous>\n");
-        for (i, cmd) in priv_cmds.iter().enumerate() {
-            s.push_str(&run_sync_cmd(i + 1, &xml_escape(&format!("cmd /c {cmd}"))));
+        let mut order = 1usize;
+        for cmd in &priv_cmds {
+            s.push_str(&run_sync_cmd(order, &xml_escape(&format!("cmd /c {cmd}"))));
+            order += 1;
+        }
+        for cc in &spec_customs {
+            s.push_str(&run_sync_cmd(order, &xml_escape(&cc.command)));
+            order += 1;
         }
         s.push_str("      </RunSynchronous>\n");
         s.push_str("    </component>\n");
@@ -510,10 +633,23 @@ fn run_sync_cmd(order: usize, path_xml: &str) -> String {
 /// SYSTEM after `oobeSystem` completes.
 #[tauri::command]
 pub async fn generate_setupcomplete_cmd(config: UnattendConfig) -> Result<String, String> {
-    Ok(build_setupcomplete_script(&config.debloat_appx_patterns))
+    let setup_customs: Vec<&CustomCommand> = config
+        .custom_commands
+        .iter()
+        .filter(|cc| cc.hook == "setupcomplete")
+        .collect();
+    Ok(build_setupcomplete_script(
+        &config.debloat_appx_patterns,
+        &setup_customs,
+        &config.winget_apps,
+    ))
 }
 
-fn build_setupcomplete_script(patterns: &[String]) -> String {
+fn build_setupcomplete_script(
+    patterns: &[String],
+    custom_setup_cmds: &[&CustomCommand],
+    winget_apps: &[String],
+) -> String {
     let mut out = String::new();
     // CRLF throughout — this file ends up as a Windows .cmd. Some Win11 cmd
     // builds choke on LF-only line endings in batch files.
@@ -552,6 +688,43 @@ fn build_setupcomplete_script(patterns: &[String]) -> String {
             out.push_str("ping 127.0.0.1 -n 61 >nul\r\n");
         }
     }
+
+    // Winget apps — silent install. Winget is bundled on Win11 24H2+; on
+    // earlier builds the user gets a "winget not found" error in the log but
+    // setupcomplete.cmd continues. Each app is its own line so one failure
+    // doesn't take the rest down.
+    if !winget_apps.is_empty() {
+        out.push_str("echo --- Installing winget apps --- >> \"%LOG%\"\r\n");
+        for id in winget_apps.iter().filter(|s| !s.is_empty()) {
+            // Strip cmd-significant chars from the id (winget IDs are
+            // alphanumeric + dots + hyphens, but be defensive).
+            let safe = id
+                .replace(['"', '\r', '\n', '|', '&', '<', '>'], "");
+            out.push_str(&format!(
+                "echo [winget] {safe} >> \"%LOG%\"\r\n\
+                 winget install --exact --id \"{safe}\" \
+                 --silent --accept-source-agreements --accept-package-agreements \
+                 >> \"%LOG%\" 2>&1\r\n"
+            ));
+        }
+    }
+
+    // Custom commands targeting the setupcomplete hook — appended verbatim
+    // after the AppX/winget passes. User-supplied; we don't escape (they're
+    // expected to know what they're doing).
+    if !custom_setup_cmds.is_empty() {
+        out.push_str("echo --- Custom commands (setupcomplete hook) --- >> \"%LOG%\"\r\n");
+        for cc in custom_setup_cmds {
+            let safe_desc = cc
+                .description
+                .replace(['\r', '\n'], " ");
+            out.push_str(&format!(
+                "echo [custom] {safe_desc} >> \"%LOG%\"\r\n{} >> \"%LOG%\" 2>&1\r\n",
+                cc.command
+            ));
+        }
+    }
+
     out.push_str("echo === Reclaim setupcomplete.cmd finished %date% %time% === >> \"%LOG%\"\r\n");
     out.push_str("exit /b 0\r\n");
     out
@@ -690,6 +863,13 @@ fn pass_oobe_system(c: &UnattendConfig) -> String {
 /// XML stays self-contained — no companion debloat.ps1 script needed.
 fn build_first_logon_commands(c: &UnattendConfig) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
+
+    // Custom commands targeting oobeSystem or firstlogon hooks (Task Sequence).
+    for cc in c.custom_commands.iter() {
+        if cc.hook == "oobeSystem" || cc.hook == "firstlogon" {
+            out.push((cc.command.clone(), cc.description.clone()));
+        }
+    }
 
     // OOBE privacy registry writes that have to be HKCU (per-user) rather
     // than HKLM — those run during first logon as the new user.

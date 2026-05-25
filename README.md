@@ -40,7 +40,7 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 
 ## What it does
 
-**167 reversible tweaks** across 11 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
+**200 reversible tweaks** across 13 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
 | Category | Count | Highlights |
 | --- | ---: | --- |
@@ -55,13 +55,20 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 | Browser (Edge) | 13 | skip first-run, no Bing in URL bar, no background mode, no shopping/wallet/Discover, hide rewards, clean New Tab page, sign-in optional |
 | Security | 6 | LSA Protection (RunAsPPL), Controlled Folder Access, Defender Attack Surface Reduction rules, extra hardening |
 
-**Bloatware remover** — 147 curated AppX patterns across 8 groups (consumer, office, gaming, communication, media, system, other, plus OEM bloat for HP / Lenovo / Dell). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
+**Bloatware remover** — 155+ curated AppX patterns across 8 groups (consumer, office, gaming, communication, media, system, other, plus OEM bloat for HP / Lenovo / Dell). v0.19.0 added explicit publisher-prefixed patterns for the Sponsored Apps that Microsoft Store auto-pushes after first network connect (WhatsApp / Spotify / Disney+ / Netflix / TikTok / Instagram / Facebook / LinkedIn). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
 
 **OneDrive removal** — Two-step flow: pick redirected folders (Documents/Desktop/Pictures/sync root) to back up via `robocopy`, then run the official `OneDriveSetup.exe /uninstall`, remove leftover folders, unpin the sidebar CLSID, and optionally write the `DisableFileSyncNGSC` group policy to prevent re-install.
 
 **Right-click menu editor** — Toggle shell-extension `ContextMenuHandlers` on/off. Aggregates Files / Folders / Folder-background / Drives / AllFileObjects, dedupes by CLSID, resolves friendly names from `HKCR\CLSID\<id>`. System entries dimmed by default with a "Show System" toggle.
 
-**App installer (winget)** — 67 curated apps across 8 groups (Browsers, Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended (16 picks), live upgrade-available badge with version diff. Streams stdout to an embedded xterm terminal.
+**App installer (winget)** — 106 curated apps across 8 groups (Browsers, Communication, Dev, System tools, Media, Office, Gaming, Utilities). Per-app install / upgrade / uninstall, BulkActionBar for multi-install, Select-Recommended (16 picks), live upgrade-available badge with version diff. Streams stdout to an embedded xterm terminal.
+
+**Install media (Task Sequence editor)** — Produces a bootable Windows 11 install medium with your chosen debloat + tweaks baked in, in two modes:
+
+- **Simple mode (default).** Pick a profile (built-in or custom from `/profiles`), set username/password/locale, toggle "Fully automated" if you want zero-clicks. Click **Build ISO** (repacks a Windows 11 ISO via Windows ADK `oscdimg.exe`) or **Flash USB** (writes directly to a USB stick — single FAT32 + DISM-split layout for install.wim > 4 GB, no Rufus needed). The generator emits both an `autounattend.xml` and a `setupcomplete.cmd` sidecar dropped into `\$OEM$\$$\Setup\Scripts\` so Windows Setup auto-copies the script into `%WINDIR%` during install.
+- **Advanced mode (Task Sequence).** Drag-and-droppable editor with 11 step types — locale & account, hardware-check bypasses, edition picker (KMS keys), OOBE skips, OOBE privacy defaults, auto disk wipe (opt-in for fully-automated), driver injection (folder picker → `\$OEM$\$1\Drivers\`), AppX debloat patterns, registry tweaks (from the catalog), winget apps to install post-OOBE, and free-form custom commands attached to any of the 5 Setup hooks (`windowsPE`, `specialize`, `oobeSystem`, `setupcomplete`, `firstlogon`). Six templates: Privacy Maximum / Gaming Rig / Office Workstation / Bare Minimum / Blank Slate / **Fully Automated (zero clicks)**.
+
+Sponsored-apps blockers fire in the specialize pass (before first network connect) — HKLM `CloudContent` + `WindowsStore\AutoDownload=2` + 18 `HKU\.DEFAULT\…\ContentDeliveryManager` writes — so apps like Spotify, Disney+, WhatsApp etc. don't even start downloading after install. AppX removal then runs two passes 60s apart in setupcomplete.cmd as SYSTEM to catch anything that snuck through.
 
 **Hosts & blocklists** — Curated builtin lists (Microsoft Telemetry, Office/Edge, MS Ads) plus on-demand StevenBlack remote lists. Sentinel-based merge (`# >>> Reclaim: Name` … `# <<< Reclaim: Name`) leaves your existing hosts entries untouched. Raw editor with auto `hosts.reclaim.bak` and one-click restore.
 
@@ -145,14 +152,20 @@ Produces NSIS + MSI installers in `src-tauri/target/release/bundle/`.
 src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
   lib/
     tweaks/
-      catalog.ts       167 typed tweak records (apply/revert/check ops)
-      bloatware.ts     147 AppX wildcard patterns (incl. OEM groups)
+      catalog.ts       200 typed tweak records (apply/revert/check ops)
+      bloatware.ts     155+ AppX wildcard patterns (incl. OEM + Sponsored Apps)
       profiles.ts      Built-in preset bundles
       bridge.ts        TS wrappers for every Tauri command
       executor.ts      applyTweak / revertTweak / getTweakState
       customProfiles.svelte.ts   localStorage-backed custom profile store
       profileEdit.svelte.ts      handoff state for ProfileBuilder
-    apps/catalog.ts    67 curated winget entries (8 groups)
+    apps/catalog.ts    106 curated winget entries (8 groups)
+    tasksequence/      Install-Media Task-Sequence editor:
+      types.ts           11 step-type discriminated union
+      templates.ts       6 built-in templates incl. Fully Automated
+      store.svelte.ts    Advanced-mode editable sequence
+      simpleStore.svelte.ts  Simple-mode state (profile + 4 inputs)
+      toUnattend.ts      Sequence → UnattendConfig converter
     hosts/             Builtin blocklists + remote sources
     network/           DoH provider presets, DNS helpers
     maintenance/       Operation catalog (op id → label/description)
@@ -179,7 +192,7 @@ src/                   Svelte 5 (runes) + Tailwind v4 + Bits UI
   routes/              33 routes (see below)
 
 src-tauri/src/
-  lib.rs               Plugin init + 108-command invoke_handler registry +
+  lib.rs               Plugin init + 118-command invoke_handler registry +
                        tray icon + close/exit handlers
   app_info.rs          Portable mode, app data dir, activity.log mirror
   cli.rs               Headless CLI dispatcher (--apply-profile / --admin-only
@@ -203,20 +216,26 @@ src-tauri/src/
   firewall.rs          Sentinel-grouped (`Reclaim:`) outbound firewall blocks
   driver_packages.rs   pnputil enum/rollback for OEM driver packages
   activation.rs        Live license state (WMI) + external MAS launcher
-  unattend.rs          autounattend.xml generator (FirstLogonCommands mapping)
-  iso_builder.rs       ADK oscdimg.exe ISO repack pipeline
+  unattend.rs          autounattend.xml + setupcomplete.cmd generator
+                       (FirstLogonCommands + RunSynchronous + $OEM$ sidecar
+                       routing; custom_commands hook-dispatch; winget apps;
+                       opt-in disk_auto_setup for fully-unattended installs)
+  iso_builder.rs       ADK oscdimg.exe ISO repack pipeline + $OEM$ inject
+  usb_flash.rs         USB flasher (single FAT32 + DISM /Split-Image for
+                       install.wim > 4 GB; hardware-ID extractor for stable
+                       per-stick serial display)
   service.rs           Tray-resident background tick loop + tray menu wiring
   persistence.rs       SYSTEM scheduled task installer (\Reclaim\Persist-Current)
                        for admin-tweak persistence + legacy-task cleanup
 ```
 
-### Routes (33 total)
+### Routes (36 total)
 
 Grouped in the sidebar as: Top · Clean up · Install · Customize · Network · Updates & drivers · System info · Licensing · App.
 
 - **Top:** Dashboard, Profiles (+ Profile Builder)
 - **Clean up:** Bloatware, OneDrive, AI & Copilot
-- **Install:** Apps (winget), ISO Builder (autounattend + ADK oscdimg repack)
+- **Install:** Apps (winget), Install Media (Task Sequence editor + autounattend.xml + setupcomplete.cmd + ADK oscdimg ISO repack + USB flasher)
 - **Customize:** Privacy, Defender*, Security hardening*, Browser (Edge)*, Explorer, Right-click menu*, Taskbar & Start, Search, Notifications, Performance
 - **Network:** Hosts & blocklists*, DNS & DoH*, Firewall*
 - **Updates & drivers:** Windows Update, Drivers, Update settings
@@ -245,7 +264,7 @@ Grouped in the sidebar as: Top · Clean up · Install · Customize · Network ·
 
 ## Roadmap
 
-Phases 1-5, 7 (System depth), 8 (Customize & drivers), 9 (Licensing launcher), 10 (Security hardening + portable build), 11 (Install media builder), 12 (CLI mode) and 13 (Persistence service + tray companion, incl. SYSTEM-context admin persistence) are shipped. There are no technical blockers left for v1.0.0 — the app ships English-only by design (i18n is not a blocker), so what remains is a polish + bugfix pass plus optional catalog/feature depth. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0 and [`docs/PLAN.md`](docs/PLAN.md) for post-v1.0 ideas. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
+Phases 1-5, 7 (System depth), 8 (Customize & drivers), 9 (Licensing launcher), 10 (Security hardening + portable build), 11 (Install media builder), 12 (CLI mode), 13 (Persistence service + tray companion), 14 (Developer / Memory / Gaming categories), 15 (Catalog depth + mass driver updates), 16 (USB flasher + Install-Media correctness, v0.18.x), 17 (Aggressive bloatware killer, v0.19.0) and 18 (Task Sequence editor for Install Media, v0.20.0) are shipped. There are no technical blockers left for v1.0.0 — the app ships English-only by design (i18n is not a blocker), so what remains is a polish + bugfix pass plus optional catalog/feature depth. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for what's left before v1.0.0 and [`docs/PLAN.md`](docs/PLAN.md) for post-v1.0 ideas. Note: as of v0.11.0 the activation launcher likely closes the winget / SignPath distribution paths; v1.0.0 will ship unsigned via GitHub Releases.
 
 ## Inspirations
 

@@ -57,6 +57,7 @@ pub async fn list_usb_drives() -> Result<Vec<UsbDrive>, String> {
                     FriendlyName   = [string]$_.FriendlyName
                     Model          = [string]$_.Model
                     SerialNumber   = [string]$_.SerialNumber
+                    UniqueId       = [string]$_.UniqueId
                     SizeBytes      = [int64]$_.Size
                     BusType        = [string]$_.BusType
                     PartitionStyle = [string]$_.PartitionStyle
@@ -98,6 +99,7 @@ struct RawUsbDrive {
     friendly_name: Option<String>,
     model: Option<String>,
     serial_number: Option<String>,
+    unique_id: Option<String>,
     size_bytes: Option<i64>,
     bus_type: Option<String>,
     partition_style: Option<String>,
@@ -108,11 +110,18 @@ struct RawUsbDrive {
 
 impl From<RawUsbDrive> for UsbDrive {
     fn from(r: RawUsbDrive) -> Self {
+        // Prefer the Windows-derived hardware ID from UniqueId (stable across
+        // reboots, identical to the real serial for well-behaved firmware,
+        // synthesized from other device props for garbage firmware that
+        // reports "0000000005" + control bytes). Fall back to the cleaned
+        // raw SerialNumber, then to nothing.
+        let serial = extract_pnp_hardware_id(r.unique_id.as_deref().unwrap_or(""))
+            .unwrap_or_else(|| clean_serial(r.serial_number.unwrap_or_default()));
         Self {
             disk_number: r.disk_number,
             friendly_name: r.friendly_name.unwrap_or_default(),
             model: r.model.unwrap_or_default(),
-            serial_number: r.serial_number.unwrap_or_default(),
+            serial_number: serial,
             size_bytes: r.size_bytes.unwrap_or(0).max(0) as u64,
             bus_type: r.bus_type.unwrap_or_default(),
             partition_style: r.partition_style.unwrap_or_default(),
@@ -120,6 +129,166 @@ impl From<RawUsbDrive> for UsbDrive {
             is_boot: r.is_boot.unwrap_or(false),
             is_offline: r.is_offline.unwrap_or(false),
         }
+    }
+}
+
+/// Pull the hardware-ID chunk out of a `Get-Disk` UniqueId / PNPDeviceID like:
+///
+///   `USBSTOR\DISK&VEN_KINGSTON&PROD_DATATRAVELER_3.0&REV_0000\E0D55EA574AE1571787B06CE&0:DESKTOP-FOO`
+///
+/// Windows derives this from the USB device's iSerialNumber when present, or
+/// falls back to a deterministic hash of other device descriptors when the
+/// firmware reports garbage. Either way it's stable, unique, and what
+/// Windows itself uses to identify the drive — closer to "the real serial"
+/// than what `Get-Disk .SerialNumber` returns for cheap sticks.
+fn extract_pnp_hardware_id(unique_id: &str) -> Option<String> {
+    if unique_id.is_empty() {
+        return None;
+    }
+    // Drop trailing ":MACHINE" suffix some PowerShell versions append.
+    let trimmed = unique_id.split(':').next().unwrap_or(unique_id);
+    // Hardware ID is between the LAST backslash and the trailing "&<digit>".
+    let after_last_backslash = trimmed.rsplit('\\').next()?;
+    let id = after_last_backslash
+        .rsplit_once('&')
+        .map(|(prefix, _suffix)| prefix)
+        .unwrap_or(after_last_backslash);
+    let cleaned = id.trim();
+    if cleaned.is_empty() {
+        return None;
+    }
+    Some(cleaned.to_string())
+}
+
+/// `Get-Disk`'s SerialNumber for USB devices is the raw iSerialNumber
+/// descriptor bytes, which on many sticks (Kingston DataTraveler in
+/// particular) contains trailing control bytes (`\0`, `\x7F`, pipes from
+/// uninitialized descriptor padding etc.) that render as garbage in the UI.
+/// On some bridge chips the serial is also returned as hex-encoded ASCII
+/// with byte-swapped pairs (per SCSI inquiry byte-order quirk).
+///
+/// Heuristic:
+///   1. Strip control chars, trim.
+///   2. Strip trailing non-alphanumeric padding (pipes, dashes, etc).
+///   3. If the result is an even-length all-hex string of mostly-printable
+///      bytes when decoded → hex-decode it (handles the SCSI-inquiry case).
+///   4. Trim again, return empty if nothing meaningful is left.
+fn clean_serial(raw: String) -> String {
+    let stripped: String = raw
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    let stripped = stripped.trim();
+    let stripped = stripped.trim_end_matches(|c: char| !c.is_alphanumeric());
+    let cleaned = stripped.trim();
+    if cleaned.is_empty() {
+        return String::new();
+    }
+    if let Some(decoded) = try_hex_ascii_decode(cleaned) {
+        return decoded;
+    }
+    cleaned.to_string()
+}
+
+fn try_hex_ascii_decode(s: &str) -> Option<String> {
+    if s.len() < 4 || s.len() % 2 != 0 {
+        return None;
+    }
+    if !s.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let bytes: Result<Vec<u8>, _> = (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect();
+    let bytes = bytes.ok()?;
+    // Reject if the decoded bytes don't look like printable ASCII —
+    // otherwise we'd "decode" a literal "12345678" hex serial that's
+    // already correct into garbage.
+    let printable_or_pad = bytes
+        .iter()
+        .filter(|&&b| (32..=126).contains(&b) || b == 0)
+        .count();
+    if printable_or_pad < bytes.len() {
+        return None;
+    }
+    let printable: usize = bytes.iter().filter(|&&b| (33..=126).contains(&b)).count();
+    if printable * 2 < bytes.len() {
+        return None;
+    }
+    let s: String = bytes
+        .iter()
+        .filter(|&&b| (32..=126).contains(&b))
+        .map(|&b| b as char)
+        .collect();
+    let cleaned = s.trim().trim_end_matches(|c: char| !c.is_alphanumeric()).to_string();
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{clean_serial, extract_pnp_hardware_id};
+
+    #[test]
+    fn extracts_kingston_hardware_id() {
+        assert_eq!(
+            extract_pnp_hardware_id(
+                "USBSTOR\\DISK&VEN_KINGSTON&PROD_DATATRAVELER_3.0&REV_0000\\E0D55EA574AE1571787B06CE&0:DESKTOP-FLGUE1D"
+            ),
+            Some("E0D55EA574AE1571787B06CE".into()),
+        );
+    }
+    #[test]
+    fn extracts_without_machine_suffix() {
+        assert_eq!(
+            extract_pnp_hardware_id(
+                "USBSTOR\\DISK&VEN_SANDISK&PROD_CRUZER&REV_1.0\\ABCDEF123456&0"
+            ),
+            Some("ABCDEF123456".into()),
+        );
+    }
+    #[test]
+    fn extract_returns_none_for_empty() {
+        assert_eq!(extract_pnp_hardware_id(""), None);
+    }
+    #[test]
+    fn extract_handles_no_backslash() {
+        assert_eq!(extract_pnp_hardware_id("RAWSERIAL&0"), Some("RAWSERIAL".into()));
+    }
+
+    #[test]
+    fn strips_trailing_pipes() {
+        assert_eq!(clean_serial("000000000005||".into()), "000000000005");
+    }
+    #[test]
+    fn strips_control_chars() {
+        assert_eq!(clean_serial("ABC123\u{0000}\u{0001}".into()), "ABC123");
+    }
+    #[test]
+    fn preserves_clean_alphanumeric() {
+        assert_eq!(clean_serial("AA0102030405".into()), "AA0102030405");
+    }
+    #[test]
+    fn empty_stays_empty() {
+        assert_eq!(clean_serial("".into()), "");
+        assert_eq!(clean_serial("   ".into()), "");
+        assert_eq!(clean_serial("||".into()), "");
+    }
+    #[test]
+    fn decodes_hex_ascii_when_meaningful() {
+        // "Hi" = 0x48 0x69 = "4869"
+        assert_eq!(clean_serial("4869".into()), "Hi");
+    }
+    #[test]
+    fn does_not_mangle_real_hex_serial() {
+        // Looks-like-hex but actually a serial — only decoded if the
+        // result is plausible ASCII. 8 zeros = 0x00 0x00 0x00 0x00 = all
+        // null → rejected (printable count == 0).
+        assert_eq!(clean_serial("00000000".into()), "00000000");
     }
 }
 
