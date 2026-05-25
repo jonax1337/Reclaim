@@ -2,6 +2,26 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.18.3
+
+**Actual root-cause fix for the "Der Computer wurde unerwartet neu gestartet" install crash that v0.18.1 and v0.18.2 chased without finding.** The unattend.xml was schema-invalid the whole time: `<RunSynchronous>` sat inside the `Microsoft-Windows-Shell-Setup` component during the `specialize` pass, but that element only belongs in `Microsoft-Windows-Setup` (windowsPE) or `Microsoft-Windows-Deployment` (specialize/auditUser/oobeSystem). Windows Setup parses the unattend.xml on the windeploy → setup.exe transition (the "Wir bereiten alles für Sie vor" loading screen), schema validation fails with `0x80220001 "The provided unattend file is not valid"`, setup.exe exits with `0x1F`, system reboots, next boot shows the unexpected-restart error. Reproduced 1:1 in the user's `setuperr.log`:
+
+```
+[setup.exe] SMI data results dump:
+  Source = Name: Microsoft-Windows-Shell-Setup, ... /settings/RunSynchronous
+  Description = Die Einstellung ist in dieser Komponente nicht definiert.
+[0x060432] IBS  The provided unattend file is not valid; hrResult = 0x80220001
+```
+
+### Fixed
+
+- **`<RunSynchronous>` moved out of the Shell-Setup component in the specialize pass into a dedicated `Microsoft-Windows-Deployment` component.** Shell-Setup keeps `<ComputerName>`, `<TimeZone>`, `<RegisteredOrganization>`, `<RegisteredOwner>` — all of which are valid for it. The privacy/OOBE reg writes that get emitted via RunSynchronous now sit in a separate Deployment component sibling in the same `<settings pass="specialize">` block.
+
+### Notes
+
+- The 50–54% crash point users reported is exactly where Setup invokes `setup.exe` from `windeploy.exe` to load the oobeSystem settings. That's the only place Setup re-parses the unattend.xml schema-strictly after install.
+- AppX-removal architecture from v0.18.2 (`$OEM$\$$\Setup\Scripts\setupcomplete.cmd`) is unchanged — that worked correctly, the crash before it was reached came from the schema bug. FirstLogonCommands volume reduction (batching 80+ separate commands into one cmd script) is not yet in this release; will follow if real-world testing shows it's needed.
+
 ## v0.18.2
 
 Second hotfix on the v0.18.x install-media line: v0.18.1 still crashed Setup mid-install with "Der Computer wurde unerwartet neu gestartet" on profiles with more than a handful of AppX patterns (Privacy Maximum hit it every time). Root cause: the workaround I shipped — base64-encoding the entire setupcomplete.cmd into a single `RunSynchronousCommand` `<Path>` in the specialize pass — produces a ~50 KB `cmd /c …` invocation. Windows Setup uses `CreateProcess` for those, which has an 8 KB command-line limit, so Setup blew up with `ERROR_FILENAME_EXCED_RANGE`, rebooted, and reported the unexpected-restart error on the next boot.

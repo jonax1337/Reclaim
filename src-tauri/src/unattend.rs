@@ -181,6 +181,15 @@ const COMPONENT_INTL_WINPE: &str = "Microsoft-Windows-International-Core-WinPE";
 const COMPONENT_SETUP: &str = "Microsoft-Windows-Setup";
 const COMPONENT_SHELL: &str = "Microsoft-Windows-Shell-Setup";
 const COMPONENT_INTL: &str = "Microsoft-Windows-International-Core";
+// Microsoft-Windows-Deployment is the component that owns <RunSynchronous>
+// in the specialize/auditUser/oobeSystem passes. Shell-Setup also exposes
+// RunSynchronous but only in auditUser — putting RunSynchronous into
+// Shell-Setup/specialize produces a schema-validation error
+// (0x80220001 "The provided unattend file is not valid"), Setup exits with
+// 0x1F during the oobeSystem→setup.exe transition, and the next boot
+// reports "computer was restarted unexpectedly". v0.18.0–v0.18.2 all had
+// this bug.
+const COMPONENT_DEPLOY: &str = "Microsoft-Windows-Deployment";
 
 const ARCH: &str = "amd64";
 const PUB_KEY_TOKEN: &str = "31bf3856ad364e35";
@@ -408,19 +417,20 @@ fn pass_specialize(c: &UnattendConfig) -> String {
     // ~50 KB `cmd /c …` invocation, which blew past Setup's CreateProcess
     // command-line limit and crashed specialize → reboot loop.
 
+    // Shell-Setup component is closed here — <RunSynchronous> does NOT belong
+    // inside it (only in Microsoft-Windows-Setup/windowsPE and Microsoft-
+    // Windows-Deployment/{specialize,auditUser,oobeSystem}).
+    s.push_str("    </component>\n");
+
     if !priv_cmds.is_empty() {
-        s.push_str("      <RunSynchronous>\n");
+        s.push_str(&component_open(COMPONENT_DEPLOY));
+        s.push_str("\n      <RunSynchronous>\n");
         for (i, cmd) in priv_cmds.iter().enumerate() {
             s.push_str(&run_sync_cmd(i + 1, &xml_escape(&format!("cmd /c {cmd}"))));
         }
         s.push_str("      </RunSynchronous>\n");
+        s.push_str("    </component>\n");
     }
-
-    s.push_str("    </component>\n");
-
-    // No Deployment/Reseal block: <Reseal> is only valid in auditUser/generalize
-    // passes, not specialize. Emitting it there made the XML schema-invalid
-    // and aborted unattended setup on Win11 24H2/25H2.
 
     s.push_str("  </settings>\n");
     s
