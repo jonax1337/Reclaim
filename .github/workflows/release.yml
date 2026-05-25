@@ -50,6 +50,12 @@ jobs:
       - name: Type check
         run: pnpm exec svelte-check
 
+      # Regenerate src-tauri/data/*.json from the TS catalog so the embedded
+      # CLI catalog (cli.rs `include_str!`) can never drift from the GUI
+      # source-of-truth, even if someone forgets `pnpm catalog:export` locally.
+      - name: Export catalog JSON
+        run: pnpm catalog:export
+
       - name: Build Tauri bundle
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
