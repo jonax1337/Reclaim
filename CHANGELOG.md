@@ -2,6 +2,36 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.19.0
+
+**Aggressive bloatware killer for Install-Media.** v0.18.3 finally got the schema right and the install completed, but real-world testing showed: ~85 of 96 AppX patterns missed (renamed packages on Win11 25H2), Microsoft Teams survived (`MicrosoftTeams` is gone, the new package is `MSTeams_8wekyb3d8bbwe` and the pattern wasn't marked `recommended: true`), WhatsApp wasn't even in the pattern list, and Sponsored Apps (Spotify / Disney+ / TikTok / Netflix / Instagram / LinkedIn) get pushed by Microsoft Store automatically after the first network-connect — by the time setupcomplete.cmd runs, the download has already started.
+
+### Added
+
+- **Pre-OOBE sponsored-apps killer.** New batch of HKLM + HKU\\.DEFAULT writes injected into the specialize-pass `Microsoft-Windows-Deployment/RunSynchronous` block whenever the profile carries any AppX patterns. Specialize runs BEFORE the OOBE network-connect — this is the only window where we can stop Microsoft Store from fetching the consumer-apps manifest at all. Writes:
+  - HKLM\\…\\CloudContent: `DisableWindowsConsumerFeatures`, `DisableCloudOptimizedContent`, `DisableConsumerAccountStateContent`, `DisableSoftLanding`, `DisableThirdPartySuggestions` all = 1
+  - HKLM\\…\\WindowsStore\\AutoDownload = 2 (blocks Store auto-download)
+  - HKU\\.DEFAULT\\…\\ContentDeliveryManager: 18 SubscribedContent / ContentDelivery / PreInstalled / Suggestions / RotatingLockScreen / SoftLanding switches all = 0. Default-user-hive writes propagate as the template for every account created later, so the admin's first profile already has these off from creation.
+- **Two-pass removal in setupcomplete.cmd.** Pass 1 runs the AppX-removal sweep, then `ping 127.0.0.1 -n 61` sleeps 60s for any in-flight Store installs to finish, then Pass 2 mops up. Each pass now hits both `Get-AppxProvisionedPackage` (kills image baseline for any future user account) AND `Get-AppxPackage -AllUsers` (kills the freshly-created admin's already-installed copies). Logs to `setupcomplete.log` per pass for audit.
+- **+8 sponsored-app patterns** explicitly added, both wildcard and publisher-prefixed forms:
+  - WhatsApp Desktop (`*WhatsApp*`, `5319275A.WhatsAppDesktop`)
+  - Instagram (`Facebook.InstagramBeta`)
+  - Facebook (`Facebook.Facebook`)
+  - LinkedIn (`7EE7776C.LinkedInforWindows`)
+  - TikTok (`BytedancePte.Ltd.TikTok`)
+  - Spotify publisher form (`SpotifyAB.SpotifyMusic` — wildcard already existed)
+  - Disney+ publisher form (`Disney.37853FC22B2CE`)
+  - Netflix publisher form (`4DF9E0F8.Netflix`)
+- **Copilot pattern audit.** Added catch-all `*Copilot*` wildcard and `MicrosoftWindows.Client.AIX` (the 25H2 Copilot+ AI Experience component).
+
+### Fixed
+
+- **`MSTeams` pattern is now `recommended: true`.** Was in `bloatware.ts` since v0.13.0 but not marked recommended, so Privacy Maximum silently excluded it. Result: Teams survived every install attempt. Now both `MicrosoftTeams` (legacy consumer) AND `MSTeams` (current new Teams) ship in Privacy Maximum's debloat list.
+
+### Notes
+
+- Verified via real-install log (`C:\\Windows\\Setup\\Scripts\\setupcomplete.log`): of v0.18.3's ~96 patterns, 13 actually matched and got removed (BingNews/Weather/Search, GetHelp, OfficeHub, Solitaire, XboxGamingOverlay etc). The other ~83 missed for three reasons that v0.19.0 addresses: renamed packages (Teams, Copilot), missing patterns (WhatsApp), and sponsored apps that download AFTER setupcomplete runs.
+
 ## v0.18.3
 
 **Actual root-cause fix for the "Der Computer wurde unerwartet neu gestartet" install crash that v0.18.1 and v0.18.2 chased without finding.** The unattend.xml was schema-invalid the whole time: `<RunSynchronous>` sat inside the `Microsoft-Windows-Shell-Setup` component during the `specialize` pass, but that element only belongs in `Microsoft-Windows-Setup` (windowsPE) or `Microsoft-Windows-Deployment` (specialize/auditUser/oobeSystem). Windows Setup parses the unattend.xml on the windeploy → setup.exe transition (the "Wir bereiten alles für Sie vor" loading screen), schema validation fails with `0x80220001 "The provided unattend file is not valid"`, setup.exe exits with `0x1F`, system reboots, next boot shows the unexpected-restart error. Reproduced 1:1 in the user's `setuperr.log`:
