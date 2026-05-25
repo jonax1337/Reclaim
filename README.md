@@ -1,5 +1,18 @@
 # Reclaim Your Windows
 
+[![Release](https://img.shields.io/github/v/release/jonax1337/reclaim?display_name=tag&sort=semver)](https://github.com/jonax1337/reclaim/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/jonax1337/reclaim/latest/total)](https://github.com/jonax1337/reclaim/releases/latest)
+[![Release build](https://img.shields.io/github/actions/workflow/status/jonax1337/reclaim/release.yml?label=release)](https://github.com/jonax1337/reclaim/actions/workflows/release.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/jonax1337/reclaim/check.yml?branch=main&label=ci)](https://github.com/jonax1337/reclaim/actions/workflows/check.yml)
+[![License](https://img.shields.io/github/license/jonax1337/reclaim)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/jonax1337/reclaim?style=flat)](https://github.com/jonax1337/reclaim/stargazers)
+
+![Windows 11](https://img.shields.io/badge/Windows-11-0078D6?logo=windows11&logoColor=white)
+![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?logo=tauri&logoColor=white)
+![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?logo=svelte&logoColor=white)
+![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+
 A modern Windows 11 debloater and tweak suite — **live state detection**, **reversible by design**, **Mica UI**. No GeForce Experience, no Adrenalin, no DSA, no telemetry. Just the OS you paid for.
 
 > Inspired by [Win11Debloat](https://github.com/Raphire/Win11Debloat) and [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil), but built from scratch with a focus on transparency, reversibility, and modern UX.
