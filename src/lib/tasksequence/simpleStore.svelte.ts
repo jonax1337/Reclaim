@@ -116,14 +116,11 @@ export function buildSimpleConfig(
     }
   }
 
-  let appxPatterns: string[] = [];
-  if (profile) {
-    if (profile.bloatwarePatterns && profile.bloatwarePatterns.length > 0) {
-      appxPatterns = [...profile.bloatwarePatterns];
-    } else {
-      appxPatterns = BLOATWARE.filter((b) => b.recommended).map((b) => b.pattern);
-    }
-  }
+  // Simple-mode debloat is uniform across all profiles — the curated set of
+  // bloatware patterns we recommend killing (BLOATWARE entries marked
+  // recommended:true). Profiles control TWEAKS only. Users who want a
+  // different cut switch to advanced mode and edit the debloat-appx step.
+  const appxPatterns = BLOATWARE.filter((b) => b.recommended).map((b) => b.pattern);
 
   const password = state.password || (state.fullyAutomated ? "Reclaim!" : "");
 

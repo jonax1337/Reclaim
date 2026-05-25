@@ -10,7 +10,7 @@ class ProfileEditStore {
   }
 
   startEdit(p: Profile) {
-    this.draft = { ...p, tweakIds: [...p.tweakIds], bloatwarePatterns: p.bloatwarePatterns ? [...p.bloatwarePatterns] : undefined };
+    this.draft = { ...p, tweakIds: [...p.tweakIds] };
   }
 
   clear() {

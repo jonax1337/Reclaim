@@ -15,6 +15,11 @@ src-tauri/gen/schemas
 # Local-only scraped data
 .nvidia-series.xml
 
+# Test harness output — sweeps, install-media artifacts, scratch reports.
+# Reproducible via scripts/test-tweaks-in-vm.ps1, scripts/test-install-media.ps1,
+# scripts/gen-unattend-config.mjs. Never committed.
+test-output/
+
 # Claude Code internal state
 .claude/
 

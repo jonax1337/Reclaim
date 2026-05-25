@@ -29,13 +29,22 @@ async function readRegOp(op: RegOp): Promise<string | number | null> {
 }
 
 export async function getTweakState(tweak: Tweak): Promise<TweakState> {
+  // When the tweak has explicit check[], honour both reg AND shell ops. Shell
+  // apply is destructive, so we only fall back to apply[] for reg-only
+  // inference — never run shell ops as a side-effect-free probe.
   const checks = tweak.check ?? tweak.apply.filter((o): o is RegOp => o.kind === "reg");
   if (checks.length === 0) return "unknown";
+
   for (const c of checks) {
-    if (c.kind !== "reg") continue;
-    const v = await readRegOp(c);
-    if (v === null) return "off";
-    if (v !== c.value) return "off";
+    if (c.kind === "reg") {
+      const v = await readRegOp(c);
+      if (v === null) return "off";
+      if (v !== c.value) return "off";
+    } else {
+      // shell check: exit 0 ⇒ this aspect is "on"; non-zero ⇒ "off".
+      const res = await runPowershell(c.script, c.elevated ?? false);
+      if (!res.success) return "off";
+    }
   }
   return "on";
 }

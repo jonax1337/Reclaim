@@ -1,6 +1,6 @@
 [package]
 name = "reclaim"
-version = "0.20.1"
+version = "1.0.0"
 description = "Reclaim Your Windows — Win11 debloat & privacy tool"
 authors = ["Jonas Laux"]
 edition = "2021"

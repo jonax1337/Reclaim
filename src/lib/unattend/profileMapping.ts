@@ -6,8 +6,9 @@ import type { UnattendRegistryTweak } from "$lib/tweaks/bridge";
 export type ProfileMappingResult = {
   /** RegOps that translate cleanly into `reg add` commands. */
   registryTweaks: UnattendRegistryTweak[];
-  /** AppX wildcards from the profile (explicit) or — if none specified — the
-   *  recommended bloatware patterns. */
+  /** Recommended bloatware patterns (BLOATWARE entries with recommended:true)
+   *  — the debloat step is standardized across profiles. Profiles control
+   *  TWEAKS only. */
   appxPatterns: string[];
   /** Tweak ids that were skipped because their `apply` step relies on a
    *  PowerShell script. The UI surfaces these so the user knows what won't
@@ -39,12 +40,7 @@ export function mapProfileToUnattend(profile: Profile): ProfileMappingResult {
     if (hasShell) skippedShellTweaks.push(id);
   }
 
-  let appxPatterns: string[];
-  if (profile.bloatwarePatterns && profile.bloatwarePatterns.length > 0) {
-    appxPatterns = [...profile.bloatwarePatterns];
-  } else {
-    appxPatterns = BLOATWARE.filter((b) => b.recommended).map((b) => b.pattern);
-  }
+  const appxPatterns = BLOATWARE.filter((b) => b.recommended).map((b) => b.pattern);
 
   return { registryTweaks, appxPatterns, skippedShellTweaks };
 }

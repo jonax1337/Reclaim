@@ -41,7 +41,7 @@ export type Tweak = {
   description: string;
   apply: TweakOp[];
   revert?: TweakOp[];
-  check?: RegOp[];
+  check?: TweakOp[];
   recommended?: boolean;
   requiresRestart?: "explorer" | "logon" | "system";
   warning?: string;
@@ -640,8 +640,20 @@ export const PRIVACY_TWEAKS: Tweak[] = [
     description:
       "Disables the scheduled task that scans installed software and reports compatibility data to Microsoft.",
     recommended: true,
-    apply: [{ kind: "shell", script: "Disable-ScheduledTask -TaskName 'Microsoft Compatibility Appraiser' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' | Out-Null" }],
-    revert: [{ kind: "shell", script: "Enable-ScheduledTask -TaskName 'Microsoft Compatibility Appraiser' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' | Out-Null" }],
+    // try/catch: Disable-ScheduledTask treats "task not found" as terminating
+    // and surfaces a non-zero exit even with -ErrorAction SilentlyContinue.
+    // Win11 25H2 removed this task entirely; absence already achieves the goal.
+    apply: [{ kind: "shell", script: "try { Disable-ScheduledTask -TaskName 'Microsoft Compatibility Appraiser' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction Stop | Out-Null } catch { }; exit 0" }],
+    revert: [{ kind: "shell", script: "try { Enable-ScheduledTask -TaskName 'Microsoft Compatibility Appraiser' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction Stop | Out-Null } catch { }; exit 0" }],
+    check: [
+      {
+        // Missing task on Win11 25H2+ counts as "goal achieved" — Microsoft
+        // already removed the privacy threat from the image.
+        kind: "shell",
+        script:
+          "$t = Get-ScheduledTask -TaskName 'Microsoft Compatibility Appraiser' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction SilentlyContinue; if (-not $t -or $t.State -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "program-data-updater-off",
@@ -649,8 +661,15 @@ export const PRIVACY_TWEAKS: Tweak[] = [
     title: "Disable ProgramDataUpdater task",
     description:
       "Disables the Application Experience task that updates AIT (Application Impact Telemetry) data.",
-    apply: [{ kind: "shell", script: "Disable-ScheduledTask -TaskName 'ProgramDataUpdater' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' | Out-Null" }],
-    revert: [{ kind: "shell", script: "Enable-ScheduledTask -TaskName 'ProgramDataUpdater' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' | Out-Null" }],
+    apply: [{ kind: "shell", script: "try { Disable-ScheduledTask -TaskName 'ProgramDataUpdater' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction Stop | Out-Null } catch { }; exit 0" }],
+    revert: [{ kind: "shell", script: "try { Enable-ScheduledTask -TaskName 'ProgramDataUpdater' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction Stop | Out-Null } catch { }; exit 0" }],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$t = Get-ScheduledTask -TaskName 'ProgramDataUpdater' -TaskPath '\\Microsoft\\Windows\\Application Experience\\' -ErrorAction SilentlyContinue; if (-not $t -or $t.State -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "clipboard-history-off",
@@ -1375,6 +1394,16 @@ export const EXPLORER_TWEAKS: Tweak[] = [
           "Remove-Item -Path 'HKCU:\\Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}' -Recurse -Force -ErrorAction SilentlyContinue; New-Item -Path 'HKCU:\\Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}' -Force | Out-Null; Set-ItemProperty -Path 'HKCU:\\Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}' -Name 'System.IsPinnedToNameSpaceTree' -Value 0 -Type DWord",
       },
     ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Remove-Item -Path 'HKCU:\\Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}' -Recurse -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Classes\\CLSID\\{e88865ea-0e1c-4e20-9aa6-edcd0212c87c}", name: "System.IsPinnedToNameSpaceTree", type: "DWORD", value: 0 },
+    ],
   },
   {
     id: "hide-home",
@@ -1388,6 +1417,16 @@ export const EXPLORER_TWEAKS: Tweak[] = [
         script:
           "New-Item -Path 'HKCU:\\Software\\Classes\\CLSID\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}' -Force | Out-Null; Set-ItemProperty -Path 'HKCU:\\Software\\Classes\\CLSID\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}' -Name 'System.IsPinnedToNameSpaceTree' -Value 0 -Type DWord",
       },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Remove-Item -Path 'HKCU:\\Software\\Classes\\CLSID\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}' -Recurse -Force -ErrorAction SilentlyContinue",
+      },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Classes\\CLSID\\{f874310e-b6b7-47dc-bc84-b9e6b38f5903}", name: "System.IsPinnedToNameSpaceTree", type: "DWORD", value: 0 },
     ],
   },
   {
@@ -1682,26 +1721,16 @@ export const TASKBAR_TWEAKS: Tweak[] = [
     description: "Removes the weather / news widget from the taskbar.",
     recommended: true,
     requiresRestart: "explorer",
+    // Win11 25H2 LOCKED the legacy HKCU\Software\Microsoft\Windows\
+    // CurrentVersion\Explorer\Advanced!TaskbarDa value — reg.exe and PS both
+    // get ERROR_ACCESS_DENIED there. The modern (and now only) reliable
+    // mechanism is the Dsh HKLM policy. Side effect: this tweak now requires
+    // admin where it used to be user-local.
     apply: [
-      {
-        kind: "reg",
-        hive: "HKCU",
-        path: explorerAdv,
-        name: "TaskbarDa",
-        type: "DWORD",
-        value: 0,
-        defaultValue: 1,
-      },
+      { kind: "reg", hive: "HKLM", path: "SOFTWARE\\Policies\\Microsoft\\Dsh", name: "AllowNewsAndInterests", type: "DWORD", value: 0, defaultValue: 1 },
     ],
     check: [
-      {
-        kind: "reg",
-        hive: "HKCU",
-        path: explorerAdv,
-        name: "TaskbarDa",
-        type: "DWORD",
-        value: 0,
-      },
+      { kind: "reg", hive: "HKLM", path: "SOFTWARE\\Policies\\Microsoft\\Dsh", name: "AllowNewsAndInterests", type: "DWORD", value: 0 },
     ],
   },
   {
@@ -2505,6 +2534,9 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
           "Set-Service -Name DiagTrack -StartupType Automatic; Start-Service -Name DiagTrack",
       },
     ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\DiagTrack", name: "Start", type: "DWORD", value: 4 },
+    ],
   },
   {
     id: "diagtrack-tasks-off",
@@ -2526,6 +2558,16 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
           "$tasks = @('\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser','\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater','\\Microsoft\\Windows\\Application Experience\\StartupAppTask','\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator','\\Microsoft\\Windows\\Customer Experience Improvement Program\\UsbCeip','\\Microsoft\\Windows\\Autochk\\Proxy','\\Microsoft\\Windows\\DiskDiagnostic\\Microsoft-Windows-DiskDiagnosticDataCollector'); foreach ($t in $tasks) { schtasks /Change /TN $t /Enable 2>$null }",
       },
     ],
+    check: [
+      {
+        kind: "shell",
+        // Win11 25H2 may have moved/removed some of these tasks. We declare
+        // "on" when at least one of the tracked tasks exists AND every
+        // existing one is Disabled. Missing tasks count as already-mitigated.
+        script:
+          "$tasks = @('\\Microsoft\\Windows\\Application Experience\\Microsoft Compatibility Appraiser','\\Microsoft\\Windows\\Application Experience\\ProgramDataUpdater','\\Microsoft\\Windows\\Customer Experience Improvement Program\\Consolidator'); $found = 0; foreach ($t in $tasks) { $st = Get-ScheduledTask -TaskPath ([System.IO.Path]::GetDirectoryName($t) + '\\') -TaskName ([System.IO.Path]::GetFileName($t)) -ErrorAction SilentlyContinue; if ($st) { $found++; if ($st.State -ne 'Disabled') { exit 1 } } }; if ($found -eq 0) { exit 1 } else { exit 0 }",
+      },
+    ],
   },
   {
     id: "hibernation-off",
@@ -2534,8 +2576,22 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
     description:
       "Removes hiberfil.sys (frees gigabytes of disk space). Also disables Fast Startup as a side-effect.",
     requiresRestart: "system",
-    apply: [{ kind: "shell", script: "powercfg -h off" }],
-    revert: [{ kind: "shell", script: "powercfg -h on" }],
+    // Hyper-V VMs (and some platforms) refuse `powercfg -h on` because the
+    // firmware doesn't advertise hibernation support. Wrap to swallow that
+    // platform-side rejection — applying off and reverting on are both
+    // best-effort against the firmware's actual capability.
+    apply: [{ kind: "shell", script: "$null = powercfg -h off 2>&1; exit 0" }],
+    revert: [{ kind: "shell", script: "$null = powercfg -h on 2>&1; exit 0" }],
+    check: [
+      {
+        // HibernateEnabled is set to 0 by `powercfg -h off`. Missing key on
+        // platforms where the firmware never supported hibernation (e.g.
+        // Hyper-V Gen2 VMs) — that counts as "tweak achieved its goal".
+        kind: "shell",
+        script:
+          "try { $v = (Get-ItemProperty 'HKLM:\\System\\CurrentControlSet\\Control\\Power' -Name HibernateEnabled -ErrorAction Stop).HibernateEnabled; if ($v -eq 0) { exit 0 } else { exit 1 } } catch { exit 0 }",
+      },
+    ],
   },
   {
     id: "reserved-storage-off",
@@ -2545,8 +2601,32 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
       "Frees roughly 7 GB by removing the storage Windows reserves for updates. Updates still install, just without the pre-allocated buffer.",
     recommended: true,
     requiresRestart: "system",
-    apply: [{ kind: "shell", script: "DISM /Online /Set-ReservedStorageState /State:Disabled | Out-Null" }],
-    revert: [{ kind: "shell", script: "DISM /Online /Set-ReservedStorageState /State:Enabled | Out-Null" }],
+    // DISM /Set-ReservedStorageState can return non-zero exit codes even when
+    // the toggle succeeded (e.g. servicing-stack reentrancy "operation in
+    // progress" — surfaces 5005/0x800f0805 on second run). We swallow DISM's
+    // exit code and judge success by the actual reserved-storage state
+    // afterward via the locale-stable PS cmdlet.
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "$null = DISM /Online /Set-ReservedStorageState /State:Disabled 2>&1; if ((Get-WindowsReservedStorageState -ErrorAction SilentlyContinue).ReservedStorageState -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "$null = DISM /Online /Set-ReservedStorageState /State:Enabled 2>&1; if ((Get-WindowsReservedStorageState -ErrorAction SilentlyContinue).ReservedStorageState -eq 'Enabled') { exit 0 } else { exit 1 }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "try { if ((Get-WindowsReservedStorageState -ErrorAction Stop).ReservedStorageState -eq 'Disabled') { exit 0 } else { exit 1 } } catch { exit 1 }",
+      },
+    ],
   },
   {
     id: "ntfs-last-access-off",
@@ -2556,6 +2636,14 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
       "Stops NTFS from updating the 'last accessed' timestamp on every file read. Tiny IO win, mostly relevant on HDDs.",
     apply: [{ kind: "shell", script: "fsutil behavior set DisableLastAccess 1 | Out-Null" }],
     revert: [{ kind: "shell", script: "fsutil behavior set DisableLastAccess 2 | Out-Null" }],
+    check: [
+      {
+        // fsutil reports "DisableLastAccess = N (User Disabled, ...)". 1 = on, 2 = off (user default).
+        kind: "shell",
+        script:
+          "$o = fsutil behavior query DisableLastAccess 2>&1 | Out-String; if ($o -match 'DisableLastAccess\\s*=\\s*1') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "ssd-scheduled-defrag-off",
@@ -2565,6 +2653,13 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
       "Disables the weekly ScheduledDefrag task. Win11 only runs ReTrim on SSDs anyway, but if you prefer manual control.",
     apply: [{ kind: "shell", script: "Disable-ScheduledTask -TaskName 'ScheduledDefrag' -TaskPath '\\Microsoft\\Windows\\Defrag\\' | Out-Null" }],
     revert: [{ kind: "shell", script: "Enable-ScheduledTask -TaskName 'ScheduledDefrag' -TaskPath '\\Microsoft\\Windows\\Defrag\\' | Out-Null" }],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$t = Get-ScheduledTask -TaskName 'ScheduledDefrag' -TaskPath '\\Microsoft\\Windows\\Defrag\\' -ErrorAction SilentlyContinue; if ($t -and $t.State -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "ipv6-teredo-off",
@@ -2573,6 +2668,14 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
     description: "Disables the legacy Teredo IPv6-over-IPv4 transition tunnel.",
     apply: [{ kind: "shell", script: "netsh interface teredo set state disabled | Out-Null" }],
     revert: [{ kind: "shell", script: "netsh interface teredo set state default | Out-Null" }],
+    check: [
+      {
+        // Get-NetTeredoConfiguration returns a structured Type enum independent of UI locale.
+        kind: "shell",
+        script:
+          "try { if ((Get-NetTeredoConfiguration -ErrorAction Stop).Type -eq 'Disabled') { exit 0 } else { exit 1 } } catch { exit 1 }",
+      },
+    ],
   },
   {
     id: "ndu-off",
@@ -2591,6 +2694,13 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
     description: "Switches the active power plan to High Performance.",
     apply: [{ kind: "shell", script: "powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c | Out-Null" }],
     revert: [{ kind: "shell", script: "powercfg /setactive 381b4222-f694-41f0-9685-ff5bb260df2e | Out-Null" }],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$o = powercfg /getactivescheme 2>&1 | Out-String; if ($o -match '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "menu-show-delay-zero",
@@ -2622,6 +2732,9 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
     warning: "Start menu file search becomes much slower without indexing.",
     apply: [{ kind: "shell", script: "Set-Service -Name 'WSearch' -StartupType Disabled; Stop-Service -Name 'WSearch' -Force -ErrorAction SilentlyContinue" }],
     revert: [{ kind: "shell", script: "Set-Service -Name 'WSearch' -StartupType Automatic; Start-Service -Name 'WSearch' -ErrorAction SilentlyContinue" }],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\WSearch", name: "Start", type: "DWORD", value: 4 },
+    ],
   },
   {
     id: "maps-broker-off",
@@ -2644,6 +2757,9 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
           "Set-Service -Name 'MapsBroker' -StartupType Manual -ErrorAction SilentlyContinue",
       },
     ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\MapsBroker", name: "Start", type: "DWORD", value: 4 },
+    ],
   },
   {
     id: "retail-demo-off",
@@ -2665,6 +2781,9 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
         script:
           "Set-Service -Name 'RetailDemo' -StartupType Manual -ErrorAction SilentlyContinue",
       },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\RetailDemo", name: "Start", type: "DWORD", value: 4 },
     ],
   },
   {
@@ -2689,6 +2808,11 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
           "@('XblAuthManager','XblGameSave','XboxNetApiSvc') | ForEach-Object { Set-Service -Name $_ -StartupType Manual -ErrorAction SilentlyContinue }",
       },
     ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\XblAuthManager", name: "Start", type: "DWORD", value: 4 },
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\XblGameSave", name: "Start", type: "DWORD", value: 4 },
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\XboxNetApiSvc", name: "Start", type: "DWORD", value: 4 },
+    ],
   },
   {
     id: "wmp-network-sharing-off",
@@ -2711,6 +2835,16 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
           "Set-Service -Name 'WMPNetworkSvc' -StartupType Manual -ErrorAction SilentlyContinue",
       },
     ],
+    check: [
+      // Service is optional in modern Win11 (removed by some editions). When
+      // the service key is absent, treat the tweak as already-achieved (the
+      // service that the tweak targets doesn't exist on this system).
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name 'WMPNetworkSvc' -ErrorAction SilentlyContinue; if (-not $svc -or $svc.StartType -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "dmwap-push-off",
@@ -2730,6 +2864,13 @@ export const PERFORMANCE_TWEAKS: Tweak[] = [
         kind: "shell",
         script:
           "Set-Service -Name 'dmwappushservice' -StartupType Manual -ErrorAction SilentlyContinue",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name 'dmwappushservice' -ErrorAction SilentlyContinue; if (-not $svc -or $svc.StartType -eq 'Disabled') { exit 0 } else { exit 1 }",
       },
     ],
   },
@@ -3059,6 +3200,13 @@ export const SECURITY_TWEAKS: Tweak[] = [
     revert: [
       { kind: "shell", script: "Set-MpPreference -EnableControlledFolderAccess Disabled" },
     ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$v = (Get-MpPreference -ErrorAction SilentlyContinue).EnableControlledFolderAccess; if ($v -eq 1) { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   asrRule({
     id: "asr-block-email-executable-content",
@@ -3199,6 +3347,17 @@ export const SECURITY_TWEAKS: Tweak[] = [
     description:
       "Disables the SMB version 1 file-sharing protocol on both server (incoming) and client (outgoing) ends. SMB1 is the protocol that WannaCry and NotPetya weaponized — Microsoft has been removing it by default since 2019. On Win11 24H2 it's already gone; this tweak is idempotent.",
     recommended: true,
+    check: [
+      {
+        // On Win11 24H2+ SMB1 is already removed at the image level. We
+        // declare "on" when the optional feature is Disabled OR absent AND
+        // the server config disables SMB1. Either condition alone is enough
+        // because Microsoft can ship images where the feature is removed.
+        kind: "shell",
+        script:
+          "$feat = Get-WindowsOptionalFeature -Online -FeatureName SMB1Protocol -ErrorAction SilentlyContinue; $srv = Get-SmbServerConfiguration -ErrorAction SilentlyContinue; $featOk = (-not $feat) -or ($feat.State -ne 'Enabled'); $srvOk = (-not $srv) -or (-not $srv.EnableSMB1Protocol); if ($featOk -and $srvOk) { exit 0 } else { exit 1 }",
+      },
+    ],
     apply: [
       {
         kind: "shell",
@@ -3259,6 +3418,13 @@ export const SECURITY_TWEAKS: Tweak[] = [
           "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces' | ForEach-Object { Set-ItemProperty -Path $_.PSPath -Name NetbiosOptions -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue }",
       },
     ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$ifaces = Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NetBT\\Parameters\\Interfaces' -ErrorAction SilentlyContinue; if (-not $ifaces) { exit 1 }; foreach ($i in $ifaces) { $v = (Get-ItemProperty -Path $i.PSPath -Name NetbiosOptions -ErrorAction SilentlyContinue).NetbiosOptions; if ($v -ne 2) { exit 1 } }; exit 0",
+      },
+    ],
     revert: [
       {
         kind: "shell",
@@ -3281,8 +3447,33 @@ export const MEMORY_TWEAKS: Tweak[] = [
       "Stops Windows from compressing in-memory pages before paging them out. On systems with 16+ GB RAM this trims a small amount of CPU overhead at the cost of slightly more disk paging.",
     warning:
       "Do not disable on machines with less than 8 GB RAM — paging overhead will spike. Compression is a net win on most modern systems; only flip this off if you have measured a benefit.",
-    apply: [{ kind: "shell", script: "Disable-MMAgent -MemoryCompression" }],
-    revert: [{ kind: "shell", script: "Enable-MMAgent -MemoryCompression" }],
+    // Disable-MMAgent / Enable-MMAgent talk to the PS_MMAgent WMI provider
+    // that lives inside the SysMain service. If `sysmain-off` was applied
+    // first, the cmdlet errors out with "Windows System Error 1058 — service
+    // disabled". Both apply and revert temporarily start SysMain to talk to
+    // the provider, then restore SysMain's previous startup state.
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; try { Disable-MMAgent -MemoryCompression } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; try { Enable-MMAgent -MemoryCompression } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }",
+      },
+    ],
+    check: [
+      {
+        // Get-MMAgent also needs SysMain running; same trick for the probe.
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; $on = $false; try { $on = (Get-MMAgent -ErrorAction Stop).MemoryCompression -eq $false } catch { } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }; if ($on) { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "sysmain-off",
@@ -3293,6 +3484,9 @@ export const MEMORY_TWEAKS: Tweak[] = [
     recommended: true,
     warning:
       "Re-enable if you boot from a spinning HDD — SysMain measurably speeds up app launches on slow disks.",
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\SysMain", name: "Start", type: "DWORD", value: 4 },
+    ],
     apply: [
       {
         kind: "shell",
@@ -3328,8 +3522,28 @@ export const MEMORY_TWEAKS: Tweak[] = [
     title: "Enable RAM page combining",
     description:
       "Re-enables the kernel's page combining feature (dedupes identical RAM pages, saves a few percent of RAM on busy systems). On by default on Windows 11 Pro and Home — only use this if someone has previously disabled it.",
-    apply: [{ kind: "shell", script: "Enable-MMAgent -PageCombining" }],
-    revert: [{ kind: "shell", script: "Disable-MMAgent -PageCombining" }],
+    // Same SysMain-dependency trick as memory-compression-off.
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; try { Enable-MMAgent -PageCombining } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; try { Disable-MMAgent -PageCombining } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service -Name SysMain -ErrorAction SilentlyContinue; $wasDisabled = $svc -and ($svc.StartType -eq 'Disabled'); if ($wasDisabled) { Set-Service -Name SysMain -StartupType Manual; Start-Service -Name SysMain -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }; $on = $false; try { $on = (Get-MMAgent -ErrorAction Stop).PageCombining -eq $true } catch { } finally { if ($wasDisabled) { Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue; Set-Service -Name SysMain -StartupType Disabled } }; if ($on) { exit 0 } else { exit 1 }",
+      },
+    ],
   },
   {
     id: "clear-pagefile-shutdown-on",
@@ -3377,8 +3591,8 @@ export const GAMING_TWEAKS: Tweak[] = [
       "Asks the scheduler to prioritize the foreground game over background work (Windows Update, indexing, etc.) and stops some notifications during play. On by default — toggle here if you turned it off and want it back.",
     recommended: true,
     apply: [
-      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AutoGameModeEnabled", type: "DWORD", value: 1, defaultValue: 1 },
-      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AllowAutoGameMode", type: "DWORD", value: 1, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AutoGameModeEnabled", type: "DWORD", value: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AllowAutoGameMode", type: "DWORD", value: 1 },
     ],
     check: [
       { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "AutoGameModeEnabled", type: "DWORD", value: 1 },
@@ -3473,6 +3687,13 @@ export const GAMING_TWEAKS: Tweak[] = [
           "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { New-ItemProperty -Path $_.PSPath -Name TcpAckFrequency -PropertyType DWord -Value 1 -Force | Out-Null; New-ItemProperty -Path $_.PSPath -Name TCPNoDelay -PropertyType DWord -Value 1 -Force | Out-Null }",
       },
     ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$ifaces = Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' -ErrorAction SilentlyContinue; if (-not $ifaces) { exit 1 }; foreach ($i in $ifaces) { $p = Get-ItemProperty -Path $i.PSPath -ErrorAction SilentlyContinue; if ($p.TcpAckFrequency -ne 1 -or $p.TCPNoDelay -ne 1) { exit 1 } }; exit 0",
+      },
+    ],
     revert: [
       {
         kind: "shell",
@@ -3490,6 +3711,13 @@ export const GAMING_TWEAKS: Tweak[] = [
     requiresRestart: "system",
     warning:
       "Boot-time setting — requires a reboot. If a game has stuttering or audio drops after the next boot, revert this. Some motherboards refuse the change at boot and just keep HPET on (no harm done).",
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$o = bcdedit /enum '{current}' 2>&1 | Out-String; if ($o -match 'useplatformclock\\s+No' -and $o -match 'disabledynamictick\\s+Yes') { exit 0 } else { exit 1 }",
+      },
+    ],
     apply: [
       {
         kind: "shell",

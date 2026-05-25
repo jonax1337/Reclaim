@@ -28,7 +28,7 @@
   import Profiles from "./routes/Profiles.svelte";
   import ProfileBuilder from "./routes/ProfileBuilder.svelte";
   import OneDrive from "./routes/OneDrive.svelte";
-  import ContextMenu from "./routes/ContextMenu.svelte";
+  import Recovery from "./routes/Recovery.svelte";
   import Defender from "./routes/Defender.svelte";
   import Security from "./routes/Security.svelte";
   import Specs from "./routes/Specs.svelte";
@@ -79,7 +79,7 @@
     ["/profiles", Profiles],
     ["/profile-builder", ProfileBuilder],
     ["/onedrive", OneDrive],
-    ["/context-menu", ContextMenu],
+    ["/recovery", Recovery],
     ["/defender", Defender],
     ["/security", Security],
     ["/updates", Updates],

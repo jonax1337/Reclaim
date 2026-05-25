@@ -153,6 +153,22 @@
     });
   });
 
+  // When the panel re-opens after being hidden, the host div goes from
+  // display:none (0×0) back to its real size. ResizeObserver will fire on
+  // its own, but xterm needs a fit() right away so the user sees correct
+  // dimensions instead of a flicker of stale geometry.
+  $effect(() => {
+    if (!tasks.panelOpen) return;
+    requestAnimationFrame(() => {
+      const t = tasks.tasks.find((x) => x.id === tasks.activeTabId);
+      if (!t) return;
+      try {
+        t.fit.fit();
+        resizeTask(t, t.terminal.cols, t.terminal.rows);
+      } catch {}
+    });
+  });
+
   function tryCloseTab(t: Task, e: Event) {
     e.stopPropagation();
     if (t.status === "running") {
@@ -175,10 +191,18 @@
   }
 </script>
 
-{#if tasks.tasks.length > 0 && tasks.panelOpen}
+{#if tasks.tasks.length > 0}
+  <!--
+    Wrapper STAYS mounted whenever tasks exist — hiding it with display:none
+    (via the inline style below) is critical for xterm. If we toggle this with
+    {#if panelOpen}, Svelte unmounts the host div and the terminal's rendered
+    rows + viewport get destroyed even though the Terminal object survives in
+    tasks.svelte.ts. Reopening the panel would then show an empty terminal.
+  -->
   <div
     class="fixed left-60 right-0 bottom-0 z-30 bg-background border-t border-hairline-strong shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex flex-col"
-    style="height: {tasks.panelHeight}px"
+    style:display={tasks.panelOpen ? "flex" : "none"}
+    style:height="{tasks.panelHeight}px"
   >
     <button
       type="button"
@@ -311,7 +335,9 @@
   </div>
 {/if}
 
-<!-- Floating restore button when panel hidden but tasks exist -->
+<!-- Floating restore button when panel hidden but tasks exist.
+     Kept as a separate sibling so we don't have to mount/unmount the heavy
+     terminal wrapper above. -->
 {#if tasks.tasks.length > 0 && !tasks.panelOpen}
   <button
     type="button"

@@ -4,7 +4,7 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v0.20.0.** Phases 1-5 shipped, Phase 6 partially shipped, Phases 7-15 shipped, Phase 16 (USB-stick flasher + Install-Media correctness pass + WU streaming, v0.18.0–v0.18.3), Phase 17 (Aggressive bloatware killer, v0.19.0) and Phase 18 (Task Sequence editor for Install Media, v0.20.0) shipped. For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md); for what's left before v1.0.0 see [`docs/ROADMAP.md`](docs/ROADMAP.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
+**v1.0.0 — first stable release.** All phases shipped. The v1.0.0 release adds a `/recovery` route (advanced restart targets + Windows System Restore point management), a headless `reclaim.exe --gen-install-media` CLI, shell-check support in the executor (so non-reg-observable tweaks like `Disable-MMAgent` / `Get-WindowsReservedStorageState` now have a working state probe), and a full QA pass that confirmed 199/200 tweaks roundtrip cleanly on Win 11 25H2 plus 121/121 recommended bloatware patterns purged via an end-to-end IM install. Bloatware is now decoupled from profiles — every ISO build uses the same `recommended:true` filter; profiles control tweaks only. The `/context-menu` Shell-Extension manager was removed (the `classic-context-menu` reg tweak is unaffected). For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
 
 Headline numbers:
 - **200 reversible tweaks** across 13 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security, memory, gaming) — comparable to Sophia Script's function count

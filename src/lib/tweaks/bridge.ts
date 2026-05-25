@@ -115,6 +115,36 @@ export async function restartExplorer(): Promise<PsResult> {
   return invoke<PsResult>("restart_explorer");
 }
 
+// ─── Recovery: restart targets + System Restore points ─────────────────────
+
+export type RestorePoint = {
+  sequence_number: number;
+  description: string;
+  creation_time: string;
+  restore_point_type: string;
+  event_type: string;
+};
+
+export async function listRestorePoints(): Promise<RestorePoint[]> {
+  return invoke<RestorePoint[]>("list_restore_points");
+}
+
+export async function revertToRestorePoint(sequenceNumber: number): Promise<string> {
+  return invoke<string>("revert_to_restore_point", { sequenceNumber });
+}
+
+export type AdvancedRestartMode = "menu" | "firmware" | "safe-minimal" | "safe-network";
+
+export type AdvancedRestartResult = {
+  success: boolean;
+  message: string;
+  undo_hint: string;
+};
+
+export async function advancedRestart(mode: AdvancedRestartMode): Promise<AdvancedRestartResult> {
+  return invoke<AdvancedRestartResult>("advanced_restart", { mode });
+}
+
 export type StartupApp = {
   id: string;
   name: string;
@@ -676,22 +706,6 @@ export async function openProperties(command: string): Promise<void> {
  * whose path can't be resolved (e.g. orphaned Run keys, UWP monikers). */
 export async function resolveCommands(commands: string[]): Promise<Record<string, string>> {
   return invoke<Record<string, string>>("resolve_commands", { commands });
-}
-
-export type ContextMenuEntry = {
-  clsid: string;
-  name: string;
-  friendly: string | null;
-  disabled: boolean;
-  categories: string[];
-};
-
-export async function contextMenuList(): Promise<ContextMenuEntry[]> {
-  return invoke<ContextMenuEntry[]>("context_menu_list");
-}
-
-export async function contextMenuToggle(clsid: string, disabled: boolean): Promise<void> {
-  await invoke("context_menu_toggle", { clsid, disabled });
 }
 
 export type OneDriveStatus = {

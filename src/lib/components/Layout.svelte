@@ -25,7 +25,6 @@
     BellRing,
     Wrench,
     Wand2,
-    MousePointer2,
     Clock,
     Flame,
     Globe,
@@ -35,6 +34,7 @@
     MemoryStick,
     Gamepad2,
     Code2,
+    LifeBuoy,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
   import { Toaster, Titlebar, toast, Dialog, Button, StatusPill } from "$lib/ui";
@@ -149,7 +149,6 @@
         { href: "/security", label: "Security hardening", icon: Lock, adminOnly: true },
         { href: "/browser", label: "Browser (Edge)", icon: Globe, adminOnly: true },
         { href: "/explorer", label: "Explorer", icon: FolderOpen },
-        { href: "/context-menu", label: "Right-click menu", icon: MousePointer2, adminOnly: true },
         { href: "/taskbar", label: "Taskbar & Start", icon: Bell },
         { href: "/search", label: "Search", icon: Search },
         { href: "/notifications", label: "Notifications", icon: BellRing },
@@ -188,6 +187,7 @@
         { href: "/services", label: "Services", icon: Cog, adminOnly: true },
         { href: "/scheduled-tasks", label: "Scheduled tasks", icon: Clock, adminOnly: true },
         { href: "/maintenance", label: "Maintenance", icon: Wrench, adminOnly: true },
+        { href: "/recovery", label: "Recovery", icon: LifeBuoy, adminOnly: true },
       ],
     },
     {

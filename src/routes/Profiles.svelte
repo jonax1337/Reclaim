@@ -244,9 +244,6 @@
             {:else}
               <Badge variant="outline">{stats.applied} / {stats.total} applied · {stats.percent}%</Badge>
             {/if}
-            {#if p.bloatwarePatterns?.length}
-              <Badge variant="outline">{p.bloatwarePatterns.length} bloatware</Badge>
-            {/if}
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
           {#if stats.total > 0}

@@ -35,7 +35,7 @@ export const BLOATWARE: BloatwareEntry[] = [
   { pattern: "Microsoft.MicrosoftOfficeHub", title: "Office Hub", description: "Office promo entry in the Start menu", group: "office", recommended: true, icon: "microsoft-office" },
   { pattern: "Microsoft.MicrosoftStickyNotes", title: "Sticky Notes", description: "Sticky Notes app", group: "office", icon: "microsoft-windows" },
   { pattern: "Microsoft.PowerAutomateDesktop", title: "Power Automate", description: "Workflow automation tool", group: "office", icon: "microsoft-power-automate" },
-  { pattern: "Microsoft.Todos", title: "Microsoft To Do", description: "Task list app", group: "office", icon: "microsoft-to-do" },
+  { pattern: "Microsoft.Todos", title: "Microsoft To Do", description: "Task list app", group: "office", recommended: true, icon: "microsoft-to-do" },
   { pattern: "Microsoft.Office.OneNote", title: "OneNote", description: "OneNote (Store version)", group: "office", icon: "microsoft-onenote" },
   { pattern: "Microsoft.Office.Sway", title: "Sway", description: "Presentation and storytelling app", group: "office", recommended: true, icon: "microsoft-office" },
   { pattern: "Microsoft.MicrosoftJournal", title: "Microsoft Journal", description: "Digital note-taking app for pen input", group: "office", recommended: true, icon: "microsoft-windows" },

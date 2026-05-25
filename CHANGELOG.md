@@ -2,6 +2,62 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v1.0.0
+
+**First stable release.** Two new features (Recovery route, headless install-media CLI), a full QA pass on every tweak against a Hyper-V Win 11 25H2 VM, a complete validation of the install-media generator end-to-end, and an architectural simplification of the profile model.
+
+Headline numbers:
+
+- **200 tweaks** roundtripped on a real Win 11 25H2 VM via PowerShell Direct. **199/200 pass apply → check → revert → check** cleanly. The one remaining is `reserved-storage-off` and is **not a Reclaim bug**: Windows refuses `Set-WindowsReservedStorageState` (error `0x800f0975`) while servicing operations are in flight — Microsoft's own `Set-WindowsReservedStorageState` cmdlet fails with the same code in the same conditions. On a settled user system it works.
+- **121/121 `recommended:true` bloatware patterns** purged via the generated `setupcomplete.cmd` on a freshly-installed Win 11 25H2 VM — both `Get-AppxPackage -AllUsers` and `Get-AppxProvisionedPackage -Online` show zero matches afterward. Pre-OOBE sponsored-apps blockers (WhatsApp, Spotify, Disney+, Netflix, TikTok, Instagram, Facebook, LinkedIn) **never install** in the first place — the HKLM CloudContent + 18 `HKU\.DEFAULT` ContentDeliveryManager policies emitted in `specialize` block the Store push before OOBE even hands the user the desktop.
+- **Zero Reclaim bugs** across both the tweak roundtrip sweep and the install-media end-to-end. Test harness (`scripts/test-tweaks-in-vm.ps1`, `scripts/test-install-media.ps1`, `scripts/setup-test-vm.ps1`) is committed so future regressions are caught.
+
+### Added
+
+- **`/recovery` route** (admin-only, under "System info"). Two sections:
+  - **Advanced restart targets.** Four buttons: *Advanced Startup menu* (`shutdown /r /o` → WinRE), *UEFI firmware setup* (`shutdown /r /fw`, requires UEFI not legacy BIOS), *Safe Mode (Minimal)* (`bcdedit /set {current} safeboot minimal` + restart), *Safe Mode with Networking* (same with `safeboot network`). Safe-Mode variants show a sticky-flag warning dialog with the `bcdedit /deletevalue {current} safeboot` undo command — the boot flag persists until removed.
+  - **Windows System Restore points.** Lists real restore points via `Get-ComputerRestorePoint` (sequence number, description, type, creation time). One-click revert via `Restore-Computer -RestorePoint <N>` + scheduled reboot. "Create" button enables System Protection on `C:`, sets `SystemRestorePointCreationFrequency=0` to bypass Windows' undocumented 24h throttle, runs `Checkpoint-Computer`, and verifies the new point actually exists by comparing max-sequence-number before/after. The old `create_restore_point` was silently no-op'ing within 24h windows because of that throttle — now fixed.
+- **`reclaim.exe --gen-install-media <config.json> --out-dir <dir>`** — headless install-media generator. Pairs with `scripts/gen-unattend-config.mjs` which builds the JSON from `--profile <id>`, `--locale <de-de|en-us|…>`, `--fully-automated`, `--username`, `--password`, `--target-disk`. Reads the same exported catalog JSONs the rest of the CLI uses. Closes the "gold-image CI pipeline" gap — you can now produce `autounattend.xml` + `setupcomplete.cmd` from a build server without ever opening the GUI.
+- **CLI shell-check support.** `cli.rs::check_tweak_state` and `executor.ts::getTweakState` previously honored only `kind: "reg"` checks. Both now accept `kind: "shell"` — the script exits 0 for "on", non-zero for "off". Mixed reg+shell checks compose with AND semantics. Critical for tweaks whose state isn't reg-observable (DISM-managed features, fsutil flags, netsh state, MMAgent settings, scheduled task state).
+- **Test harness scripts** (`scripts/setup-test-vm.ps1`, `scripts/test-tweaks-in-vm.ps1`, `scripts/test-install-media.ps1`, `scripts/gen-unattend-config.mjs`). Build a fresh Win 11 Hyper-V VM with PSDirect enabled, roundtrip every tweak in the catalog, generate + validate the install-media pipeline end-to-end. Output goes to `test-output/` which is `.gitignore`-d.
+- **MobaXterm** added to the apps catalog (`Mobatek.MobaXterm`, group `dev`, recommended).
+
+### Changed
+
+- **Bloatware is decoupled from profiles.** Profiles now store **tweaks only**; the debloat step in every ISO build is uniformly the `recommended:true` subset of the bloatware catalog. ProfileBuilder lost the entire "Bloatware" section (the giant grouped multi-select). `Profile.bloatwarePatterns` field stays on the type for backwards-compatibility with old `.reclaim` exports (silently dropped on import) but is no longer serialized. Net effect: simpler mental model ("profile = which Windows settings to flip"), one debloat list to curate, zero double-maintenance of "is this in the bloatware list AND in the privacy-max profile's override list?".
+- **`Microsoft.Todos` flipped to `recommended:true`.** Was an oversight — it's exactly the kind of pre-installed productivity app the privacy-max profile is supposed to remove. The IM E2E test specifically confirms it's now killed.
+- **`debloat-appx` step default in Advanced mode** pre-fills with the `recommended:true` set instead of the empty list. Users uncheck what they want to keep — opt-out matches the "no bloatware by default" UX.
+- **24 catalog tweaks got proper `check[]` entries.** Previously the sweep found 23 tweaks reporting `state=unknown` because their apply was shell-based and the CLI/GUI executor only knew reg-based checks. Pattern by pattern:
+  - **Service tweaks** (8): explicit reg check on `HKLM\SYSTEM\CurrentControlSet\Services\<name>\Start == 4` for `diagtrack-service-off`, `search-indexing-off`, `maps-broker-off`, `retail-demo-off`, `xbox-services-off` (3 services), `wmp-network-sharing-off` (shell-fallback for "service-absent" case), `dmwap-push-off`, `sysmain-off`. Reg reads are deterministic and ~10× faster than running `Get-Service`.
+  - **Scheduled-task tweaks** (3): shell check via `Get-ScheduledTask` for `compat-telemetry-task-off`, `program-data-updater-off`, `ssd-scheduled-defrag-off`, plus the multi-task `diagtrack-tasks-off`. All tolerant of Win 11 25H2 task removals — a missing task counts as "goal already achieved".
+  - **DISM / fsutil / netsh / powercfg / bcdedit / Defender** (6): switched from parsing localized stdout to structured PS cmdlets that return enums independent of UI locale (`Get-WindowsReservedStorageState`, `Get-NetTeredoConfiguration`, `Get-MpPreference`, `Get-WindowsOptionalFeature` / `Get-SmbServerConfiguration`, locale-stable string match on `powercfg /getactivescheme` GUID). Fixed `reserved-storage-off` and `ipv6-teredo-off` not registering as applied on German Windows (DISM/netsh return localized strings).
+  - **MMAgent tweaks** (3): `memory-compression-off` and `page-combining-on` now wrap the `Disable-MMAgent` / `Enable-MMAgent` call in a `try/finally` that temporarily starts the SysMain service if it was disabled. Reason: the `PS_MMAgent` WMI provider runs inside SysMain, so the cmdlet fails with `Windows System Error 1058` when SysMain is off — a real user hit this exact bug. Service state is restored to its prior value when the cmdlet finishes (or crashes).
+  - **Misc** (4): `hide-gallery` + `hide-home` got explicit `revert` (delete the CLSID key) + reg `check`. `game-mode-on` lost its `defaultValue: 1` (apply and revert were writing the same value — revert was a no-op). `hibernation-off` apply + revert swallow `powercfg`'s exit code so Hyper-V VMs (which don't support hibernation at the firmware level) don't report crash.
+- **`hide-widgets` migrated from HKCU to HKLM Dsh policy.** Win 11 25H2 locked the legacy `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced!TaskbarDa` value — `reg.exe` and `Set-ItemProperty` both return `Access Denied` against the user's own hive (verified independently of Reclaim). The modern path is `HKLM\SOFTWARE\Policies\Microsoft\Dsh!AllowNewsAndInterests = 0`, which actually works. Side effect: this tweak now requires admin where it used to be user-local. The HKCU path was a broken no-op on 25H2 — at least now it does something.
+- **Terminal panel stays mounted while hidden.** Previously `{#if tasks.tasks.length > 0 && tasks.panelOpen}` ripped the whole wrapper out of the DOM on close, destroying xterm's rendered viewport even though the `Terminal` object survived in `tasks.svelte.ts`. Reopening showed an empty terminal. Now the wrapper stays mounted whenever tasks exist; visibility toggles via `style:display` so the DOM (and xterm's rows) persist.
+- **`build_xml` and `build_setupcomplete_script`** are `pub(crate)` so `cli.rs::cmd_gen_install_media` can call them directly from sync context, no async-runtime gymnastics.
+
+### Removed
+
+- **`/context-menu` Shell Extension manager** (route + Rust module + bridge wrappers + log action + cache resource). Used by no built-in profile, no documentation, no tweak depended on it; the parallel registry tweak `classic-context-menu` (which switches Win 11 back to the Win 10-style context menu, totally different feature) is unaffected and stays.
+
+### Fixed
+
+- **`create_restore_point` silently no-op'd within 24h** of the last restore point because Windows' `SystemRestorePointCreationFrequency` defaults to 1440 minutes. Now disables the throttle via `HKLM\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore!SystemRestorePointCreationFrequency = 0` before each call **and** verifies a new point actually exists afterward by comparing max-sequence-number before/after. If `Checkpoint-Computer` returned success but no new sequence number appeared, the command surfaces a real error instead of lying.
+- **`hide-widgets`** (see *`hide-widgets` migrated…* above) — was a silent no-op on Win 11 25H2.
+- **`game-mode-on` revert** was a no-op (apply value == defaultValue, so revert wrote the apply value again).
+- **`hide-gallery` + `hide-home`** had no `revert` and no `check`, violating CLAUDE.md's shell-tweak contract.
+- **`memory-compression-off` / `page-combining-on`** crashed with `Error 1058` after `sysmain-off` was applied.
+- **`hibernation-off` revert** crashed on Hyper-V Gen 2 VMs (and other firmware that doesn't expose hibernation) because `powercfg -h on` returns non-zero.
+- **`reserved-storage-off` / `ipv6-teredo-off` checks** read localized DISM/netsh stdout — never matched on German Windows.
+- **`compat-telemetry-task-off` / `program-data-updater-off`** crashed on Win 11 25H2 because the scheduled tasks were removed from the OS — now tolerated via `try/catch + exit 0` (a missing task IS the goal).
+
+### Internal
+
+- **`src-tauri/data/{tweaks,bloatware,apps}.json`** regenerated against the updated catalog (`pnpm catalog:export`).
+- **`test-output/`** added to `.gitignore`. Test harness outputs (sweep JSON/MD reports, install-media artifacts) are local-only.
+- `svelte-check`: 0 errors / 0 warnings. `cargo check`: clean. `cargo build --release`: clean.
+
 ## v0.20.1
 
 Design-system polish + Task-Sequence editor tightening. No new features, no new tweaks, no new routes — just internal consolidation and a handful of user-visible UX fixes on top of v0.20.0.

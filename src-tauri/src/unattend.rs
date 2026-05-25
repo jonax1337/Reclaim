@@ -232,7 +232,7 @@ fn component_open(name: &str) -> String {
     )
 }
 
-fn build_xml(c: &UnattendConfig) -> String {
+pub(crate) fn build_xml(c: &UnattendConfig) -> String {
     let mut out = String::with_capacity(8192);
     out.push_str(
         r#"<?xml version="1.0" encoding="utf-8"?>
@@ -645,7 +645,7 @@ pub async fn generate_setupcomplete_cmd(config: UnattendConfig) -> Result<String
     ))
 }
 
-fn build_setupcomplete_script(
+pub(crate) fn build_setupcomplete_script(
     patterns: &[String],
     custom_setup_cmds: &[&CustomCommand],
     winget_apps: &[String],

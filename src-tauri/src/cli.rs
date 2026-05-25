@@ -202,6 +202,11 @@ enum Command {
     RemoveBloat(Vec<String>),
     ImportProfile { path: String, apply: bool },
     ExportState,
+    /// Render autounattend.xml + setupcomplete.cmd from an UnattendConfig
+    /// JSON file. Pairs with `scripts/gen-unattend-config.mjs` which builds
+    /// the JSON from a profile id + locale + flags. Lets gold-image pipelines
+    /// produce install media without touching the GUI.
+    GenInstallMedia { from_json: String, out_dir: String },
 }
 
 fn parse_args(argv: &[String]) -> Result<Args, String> {
@@ -209,6 +214,8 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
     let mut i = 0;
     let mut import_apply = false;
     let mut import_path: Option<String> = None;
+    let mut gen_install_path: Option<String> = None;
+    let mut gen_install_out: Option<String> = None;
 
     while i < argv.len() {
         let arg = &argv[i];
@@ -254,6 +261,12 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             "--import-profile" => {
                 import_path = Some(next(&mut i, "--import-profile")?);
             }
+            "--gen-install-media" => {
+                gen_install_path = Some(next(&mut i, "--gen-install-media")?);
+            }
+            "--out-dir" => {
+                gen_install_out = Some(next(&mut i, "--out-dir")?);
+            }
             // Tolerated no-op flags used by other layers (main.rs / lib.rs handle them).
             // `--autostart` is appended by the autostart plugin when Windows boots Reclaim
             // from the Run key — it tells lib.rs to hide the main window on launch.
@@ -270,6 +283,12 @@ fn parse_args(argv: &[String]) -> Result<Args, String> {
             path,
             apply: import_apply,
         };
+    }
+
+    if let Some(from_json) = gen_install_path {
+        let out_dir = gen_install_out
+            .ok_or_else(|| "--gen-install-media requires --out-dir <dir>".to_string())?;
+        a.command = Command::GenInstallMedia { from_json, out_dir };
     }
 
     Ok(a)
@@ -447,20 +466,34 @@ fn revert_tweak_inner(t: &Tweak) -> Result<(), String> {
 }
 
 fn check_tweak_state(t: &Tweak) -> &'static str {
-    let checks: Vec<&RegOpData> = if let Some(c) = &t.check {
-        c.iter()
-            .filter_map(|o| if let TweakOp::Reg(r) = o { Some(r) } else { None })
-            .collect()
-    } else {
-        t.apply
-            .iter()
-            .filter_map(|o| if let TweakOp::Reg(r) = o { Some(r) } else { None })
-            .collect()
-    };
-    if checks.is_empty() {
+    // When the tweak supplies an explicit check[], honour both reg and shell
+    // ops (shell apply is destructive, so we only fall back to apply[] for
+    // reg-only inference — never run shell ops as a side-effect-free probe).
+    let (reg_checks, shell_checks): (Vec<&RegOpData>, Vec<&ShellOpData>) =
+        if let Some(c) = &t.check {
+            let mut regs = Vec::new();
+            let mut shells = Vec::new();
+            for op in c {
+                match op {
+                    TweakOp::Reg(r) => regs.push(r),
+                    TweakOp::Shell(s) => shells.push(s),
+                }
+            }
+            (regs, shells)
+        } else {
+            let regs = t
+                .apply
+                .iter()
+                .filter_map(|o| if let TweakOp::Reg(r) = o { Some(r) } else { None })
+                .collect();
+            (regs, Vec::new())
+        };
+
+    if reg_checks.is_empty() && shell_checks.is_empty() {
         return "unknown";
     }
-    for c in checks {
+
+    for c in &reg_checks {
         let loc = op_to_locator(c);
         let v = reg_read_sync(&loc);
         match v {
@@ -472,6 +505,17 @@ fn check_tweak_state(t: &Tweak) -> &'static str {
             }
         }
     }
+
+    // Shell checks: script exits 0 ⇒ this aspect is "on"; non-zero ⇒ "off".
+    // All shell checks must pass for the tweak to be "on". Order is preserved
+    // so a cheap probe (e.g. Get-Service) can short-circuit a slow one.
+    for s in &shell_checks {
+        let res = run_ps(&s.script);
+        if !res.success {
+            return "off";
+        }
+    }
+
     "on"
 }
 
@@ -957,6 +1001,55 @@ fn cmd_export_state(args: &Args, cat: &Catalog) -> ExitU8 {
     0
 }
 
+fn cmd_gen_install_media(args: &Args, from_json: &str, out_dir: &str) -> ExitU8 {
+    let json = match std::fs::read_to_string(from_json) {
+        Ok(s) => s,
+        Err(e) => {
+            err!("[fail] reading {}: {}", from_json, e);
+            return 1;
+        }
+    };
+    let cfg: crate::unattend::UnattendConfig = match serde_json::from_str(&json) {
+        Ok(c) => c,
+        Err(e) => {
+            err!("[fail] invalid UnattendConfig JSON: {}", e);
+            return 1;
+        }
+    };
+
+    if let Err(e) = std::fs::create_dir_all(out_dir) {
+        err!("[fail] creating {}: {}", out_dir, e);
+        return 1;
+    }
+
+    let xml = crate::unattend::build_xml(&cfg);
+    let xml_path = std::path::Path::new(out_dir).join("autounattend.xml");
+    if let Err(e) = std::fs::write(&xml_path, &xml) {
+        err!("[fail] writing {}: {}", xml_path.display(), e);
+        return 1;
+    }
+
+    let setup_customs: Vec<&crate::unattend::CustomCommand> = cfg
+        .custom_commands
+        .iter()
+        .filter(|cc| cc.hook == "setupcomplete")
+        .collect();
+    let cmd_body = crate::unattend::build_setupcomplete_script(
+        &cfg.debloat_appx_patterns,
+        &setup_customs,
+        &cfg.winget_apps,
+    );
+    let cmd_path = std::path::Path::new(out_dir).join("setupcomplete.cmd");
+    if let Err(e) = std::fs::write(&cmd_path, &cmd_body) {
+        err!("[fail] writing {}: {}", cmd_path.display(), e);
+        return 1;
+    }
+
+    out!(args, "[ok] wrote {}", xml_path.display());
+    out!(args, "[ok] wrote {}", cmd_path.display());
+    0
+}
+
 fn summary(args: &Args, op: &str, ok: usize, failed: usize, skipped: usize) {
     if args.silent {
         return;
@@ -1031,6 +1124,9 @@ pub fn run() -> ExitCode {
         Command::RemoveBloat(patterns) => remove_bloat_patterns(&args, patterns),
         Command::ImportProfile { path, apply } => cmd_import_profile(&args, &cat, path, *apply),
         Command::ExportState => cmd_export_state(&args, &cat),
+        Command::GenInstallMedia { from_json, out_dir } => {
+            cmd_gen_install_media(&args, from_json, out_dir)
+        }
     };
     ExitCode::from(code)
 }

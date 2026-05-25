@@ -222,6 +222,9 @@ export function profileAppliedStats(
 /* ------------------------------------------------------------------------- */
 
 export function toEnvelope(p: Profile): ProfileV1 {
+  // bloatwarePatterns is intentionally not serialized — debloat is a
+  // standardized step in the ISO builder, not per-profile data. The field
+  // stays on the Profile type for backwards compat with old .reclaim imports.
   return {
     schemaVersion: 1,
     id: p.id,
@@ -230,7 +233,6 @@ export function toEnvelope(p: Profile): ProfileV1 {
     description: p.description,
     gradient: p.gradient,
     tweakIds: p.tweakIds,
-    bloatwarePatterns: p.bloatwarePatterns,
     custom: true,
     createdAt: p.createdAt,
   };
@@ -279,6 +281,9 @@ export function parseEnvelope(raw: string): ImportResult {
     else unknownTweakIds.push(id);
   }
 
+  // Old .reclaim files may include bloatwarePatterns; we accept the field
+  // (validation above) but silently drop it — debloat is now ISO-wide, not
+  // profile-bound.
   const profile: Profile = {
     id: `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
     name: env.name!,
@@ -286,7 +291,6 @@ export function parseEnvelope(raw: string): ImportResult {
     description: env.description!,
     gradient: env.gradient!,
     tweakIds,
-    bloatwarePatterns: env.bloatwarePatterns,
     custom: true,
     createdAt: Date.now(),
   };

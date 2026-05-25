@@ -22,7 +22,6 @@ import {
   hasHostsBackup,
   listActiveBlocklists,
   getDnsServers,
-  contextMenuList,
   defenderStatus,
   defenderListExclusions,
   listScheduledTasks,
@@ -44,7 +43,6 @@ import {
   type PowerPlan,
   type HostsBlock,
   type AdapterDns,
-  type ContextMenuEntry,
   type DefenderStatus,
   type DefenderExclusions,
   type ScheduledTask,
@@ -238,13 +236,6 @@ export function hostsActiveResource(): Resource<HostsBlock[]> {
 export const K_DNS = "network.dns";
 export function dnsResource(): Resource<AdapterDns[]> {
   return cachedResource<AdapterDns[]>(K_DNS, getDnsServers, { ttl: SHORT });
-}
-
-// ─── Context Menu ────────────────────────────────────────────────────────────
-
-export const K_CTXMENU = "context-menu.list";
-export function contextMenuResource(): Resource<ContextMenuEntry[]> {
-  return cachedResource<ContextMenuEntry[]>(K_CTXMENU, contextMenuList, { ttl: MEDIUM });
 }
 
 // ─── Defender ────────────────────────────────────────────────────────────────

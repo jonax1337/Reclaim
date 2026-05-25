@@ -7,7 +7,6 @@
     Save,
     Sparkles,
     ChevronDown,
-    Package,
     Shield,
     Bell,
     FolderOpen,
@@ -20,7 +19,6 @@
     ALL_TWEAKS,
     type TweakCategory,
   } from "$lib/tweaks/catalog";
-  import { BLOATWARE, type BloatwareEntry } from "$lib/tweaks/bloatware";
   import {
     ICON_PRESETS,
     profileIconName,
@@ -39,7 +37,6 @@
   let description = $state(draft?.description ?? "");
   let gradient = $state(profileIconName({ gradient: draft?.gradient }));
   let selectedTweaks = $state<Set<string>>(new Set(draft?.tweakIds ?? []));
-  let selectedBloatware = $state<Set<string>>(new Set(draft?.bloatwarePatterns ?? []));
 
   onMount(() => {
     // Clear the draft after we read it — prevents stale state on next visit.
@@ -57,25 +54,10 @@
     { id: "updates", label: "Updates", icon: RefreshCw },
   ];
 
-  const BLOAT_GROUPS: { id: BloatwareEntry["group"]; label: string }[] = [
-    { id: "consumer", label: "Consumer apps" },
-    { id: "office", label: "Office" },
-    { id: "communication", label: "Communication" },
-    { id: "media", label: "Media" },
-    { id: "gaming", label: "Gaming" },
-    { id: "system", label: "System" },
-    { id: "other", label: "Other" },
-  ];
-
   function toggleTweak(id: string, on: boolean) {
     const next = new Set(selectedTweaks);
     on ? next.add(id) : next.delete(id);
     selectedTweaks = next;
-  }
-  function toggleBloat(pattern: string, on: boolean) {
-    const next = new Set(selectedBloatware);
-    on ? next.add(pattern) : next.delete(pattern);
-    selectedBloatware = next;
   }
   function selectAllTweaks(cat: TweakCategory, on: boolean) {
     const next = new Set(selectedTweaks);
@@ -83,13 +65,6 @@
       on ? next.add(t.id) : next.delete(t.id);
     }
     selectedTweaks = next;
-  }
-  function selectAllBloat(group: BloatwareEntry["group"], on: boolean) {
-    const next = new Set(selectedBloatware);
-    for (const b of BLOATWARE.filter((x) => x.group === group)) {
-      on ? next.add(b.pattern) : next.delete(b.pattern);
-    }
-    selectedBloatware = next;
   }
   function selectRecommended() {
     const next = new Set(selectedTweaks);
@@ -102,21 +77,11 @@
   function tweaksByCategory(cat: TweakCategory) {
     return ALL_TWEAKS.filter((t) => t.category === cat);
   }
-  function bloatByGroup(group: BloatwareEntry["group"]) {
-    return BLOATWARE.filter((b) => b.group === group);
-  }
 
   function countTweaksInCategory(cat: TweakCategory): number {
     let n = 0;
     for (const t of ALL_TWEAKS) {
       if (t.category === cat && selectedTweaks.has(t.id)) n++;
-    }
-    return n;
-  }
-  function countBloatInGroup(group: BloatwareEntry["group"]): number {
-    let n = 0;
-    for (const b of BLOATWARE) {
-      if (b.group === group && selectedBloatware.has(b.pattern)) n++;
     }
     return n;
   }
@@ -126,8 +91,8 @@
       toast.error("Name required");
       return;
     }
-    if (selectedTweaks.size === 0 && selectedBloatware.size === 0) {
-      toast.error("Pick at least one tweak or bloatware entry");
+    if (selectedTweaks.size === 0) {
+      toast.error("Pick at least one tweak");
       return;
     }
     const profile: Profile = {
@@ -137,7 +102,6 @@
       description: description.trim() || "User-defined profile.",
       gradient,
       tweakIds: [...selectedTweaks],
-      bloatwarePatterns: selectedBloatware.size > 0 ? [...selectedBloatware] : undefined,
       custom: true,
       createdAt: draft?.createdAt ?? Date.now(),
     };
@@ -153,7 +117,7 @@
 
 <PageHeader
   title={isEdit ? "Edit profile" : "New profile"}
-  description="Pick the tweaks and bloatware patterns this profile should apply. Saved locally — export to JSON to share."
+  description="Pick the tweaks this profile should apply. Saved locally — export to JSON to share. (Bloatware removal is a standardized step in the ISO builder, not per-profile.)"
 >
   {#snippet above()}
     <button
@@ -285,68 +249,3 @@
   </ListCard>
 </div>
 
-<div class="mb-6">
-  <SectionHeading title="Bloatware">
-    {#snippet actions()}
-      <span class="text-[11px] text-muted-foreground">
-        <span class="text-foreground font-medium">{selectedBloatware.size}</span> selected of {BLOATWARE.length}
-      </span>
-    {/snippet}
-  </SectionHeading>
-  <ListCard>
-    {#each BLOAT_GROUPS as g (g.id)}
-      {@const entries = bloatByGroup(g.id)}
-      {@const count = countBloatInGroup(g.id)}
-      {#if entries.length > 0}
-        <details class="group border-b last:border-b-0">
-          <summary
-            class="flex items-center gap-3 py-3 px-5 cursor-pointer hover:bg-accent/30 transition-colors list-none"
-          >
-            <ChevronDown class="size-4 text-muted-foreground transition-transform group-open:rotate-0 -rotate-90" />
-            <RowIcon icon={Package} size="sm" tone="muted" />
-            <span class="text-sm font-medium flex-1">{g.label}</span>
-            <Badge variant={count > 0 ? "default" : "outline"}>
-              {count} / {entries.length}
-            </Badge>
-            <TextLink
-              class="shrink-0"
-              onclick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                selectAllBloat(g.id, count !== entries.length);
-              }}
-            >
-              {count === entries.length ? "none" : "all"}
-            </TextLink>
-          </summary>
-          <div class="border-t bg-surface-1">
-            {#each entries as b (b.pattern)}
-              {@const checked = selectedBloatware.has(b.pattern)}
-              <label class="flex items-start gap-3 py-2.5 px-5 pl-12 border-b last:border-b-0 hover:bg-accent/20 transition-colors cursor-pointer">
-                <div class="pt-0.5">
-                  <Checkbox
-                    {checked}
-                    onCheckedChange={(v) => toggleBloat(b.pattern, !!v)}
-                  />
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm">{b.title}</span>
-                    {#if b.recommended}
-                      <Badge variant="success">
-                        <Sparkles class="size-2.5" />
-                        Recommended
-                      </Badge>
-                    {/if}
-                  </div>
-                  <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{b.description}</p>
-                  <p class="text-[10px] text-muted-foreground/60 mt-0.5 font-mono">{b.pattern}</p>
-                </div>
-              </label>
-            {/each}
-          </div>
-        </details>
-      {/if}
-    {/each}
-  </ListCard>
-</div>

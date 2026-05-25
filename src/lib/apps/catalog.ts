@@ -100,6 +100,7 @@ export const APPS: AppEntry[] = [
   { id: "Docker.DockerDesktop", name: "Docker Desktop", description: "Containers on Windows.", group: "dev", icon: "docker" },
   { id: "Microsoft.WindowsTerminal", name: "Windows Terminal", description: "Modern terminal for Windows.", group: "dev", recommended: true, icon: "selfhst:windows-terminal" },
   { id: "Microsoft.PowerShell", name: "PowerShell 7", description: "Cross-platform PowerShell (replaces 5.1).", group: "dev", icon: "powershell" },
+  { id: "Mobatek.MobaXterm", name: "MobaXterm", description: "All-in-one remote terminal — SSH, X server, RDP, SFTP, serial.", group: "dev", recommended: true, homepage: "https://mobaxterm.mobatek.net", icon: "favicon:mobaxterm.mobatek.net" },
   { id: "JetBrains.Toolbox", name: "JetBrains Toolbox", description: "Manager for IntelliJ, WebStorm, Rider, …", group: "dev", icon: "jetbrains-toolbox" },
   { id: "Postman.Postman", name: "Postman", description: "API development environment.", group: "dev", icon: "postman" },
   { id: "SublimeHQ.SublimeText.4", name: "Sublime Text 4", description: "Lightweight, fast text editor.", group: "dev", icon: "simple:sublimetext" },

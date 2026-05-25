@@ -24,7 +24,9 @@ export type LogAction =
   | "power.unlock"
   | "onedrive.backup"
   | "onedrive.uninstall"
-  | "context_menu.toggle"
+  | "recovery.restart"
+  | "recovery.restore_revert"
+  | "recovery.restore_create"
   | "defender.toggle"
   | "defender.exclusion.add"
   | "defender.exclusion.remove"
@@ -153,7 +155,9 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "power.unlock": "Power plan unlocked",
   "onedrive.backup": "OneDrive backup",
   "onedrive.uninstall": "OneDrive removed",
-  "context_menu.toggle": "Shell extension toggled",
+  "recovery.restart": "Advanced restart triggered",
+  "recovery.restore_revert": "System restore queued",
+  "recovery.restore_create": "Restore point created",
   "defender.toggle": "Defender setting toggled",
   "defender.exclusion.add": "Defender exclusion added",
   "defender.exclusion.remove": "Defender exclusion removed",

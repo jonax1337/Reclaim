@@ -405,13 +405,35 @@ pub async fn reg_delete_value(_locator: RegLocator) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn create_restore_point(description: String) -> PsResult {
+    // Two Windows footguns this script defends against:
+    //   1. `SystemRestorePointCreationFrequency` defaults to 1440 (minutes).
+    //      Windows silently no-ops Checkpoint-Computer if any restore point
+    //      was created in the last 24h. We set it to 0 so user-triggered
+    //      checkpoints actually happen.
+    //   2. Checkpoint-Computer's exit code can be 0 even when the restore
+    //      point was rejected. Verify by comparing the highest sequence
+    //      number before vs. after.
     let script = format!(
         r#"
 $ErrorActionPreference = 'Stop'
 try {{
     Enable-ComputerRestore -Drive "$env:SystemDrive\" -ErrorAction SilentlyContinue
-    Checkpoint-Computer -Description '{desc}' -RestorePointType 'MODIFY_SETTINGS'
-    "Wiederherstellungspunkt erstellt."
+    $regPath = 'HKLM:\Software\Microsoft\Windows NT\CurrentVersion\SystemRestore'
+    if (-not (Test-Path $regPath)) {{ New-Item -Path $regPath -Force | Out-Null }}
+    New-ItemProperty -Path $regPath -Name SystemRestorePointCreationFrequency -PropertyType DWord -Value 0 -Force | Out-Null
+
+    $before = (Get-ComputerRestorePoint -ErrorAction SilentlyContinue | Measure-Object -Property SequenceNumber -Maximum).Maximum
+    if ($null -eq $before) {{ $before = 0 }}
+
+    Checkpoint-Computer -Description '{desc}' -RestorePointType 'MODIFY_SETTINGS' -ErrorAction Stop
+
+    $after = (Get-ComputerRestorePoint -ErrorAction SilentlyContinue | Measure-Object -Property SequenceNumber -Maximum).Maximum
+    if ($null -eq $after) {{ $after = 0 }}
+    if ($after -le $before) {{
+        Write-Error 'Checkpoint-Computer returned without error but no new restore point was created. System Protection may be disabled at the GPO/policy layer.'
+    }} else {{
+        "Restore point created (sequence $after)."
+    }}
 }} catch {{
     Write-Error $_
 }}

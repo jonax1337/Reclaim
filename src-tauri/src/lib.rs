@@ -2,8 +2,8 @@ mod activation;
 mod app_info;
 #[cfg(windows)]
 pub mod cli;
-mod context_menu;
 mod defender;
+mod recovery;
 mod dev_features;
 mod driver_packages;
 mod driver_search;
@@ -194,8 +194,9 @@ pub fn run() {
             onedrive::onedrive_detect,
             onedrive::onedrive_backup,
             onedrive::onedrive_uninstall,
-            context_menu::context_menu_list,
-            context_menu::context_menu_toggle,
+            recovery::list_restore_points,
+            recovery::revert_to_restore_point,
+            recovery::advanced_restart,
             icons::get_file_icons,
             icons::get_appx_icons,
             icons::open_properties,

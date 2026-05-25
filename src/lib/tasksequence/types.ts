@@ -11,6 +11,7 @@
  */
 
 import type { UnattendRegistryTweak } from "$lib/tweaks/bridge";
+import { BLOATWARE } from "$lib/tweaks/bloatware";
 
 export type Hook =
   | "windowsPE"
@@ -240,7 +241,9 @@ export function defaultConfig(type: StepType): TaskStep["config"] {
     case "driver-inject":
       return { folderPath: "" };
     case "debloat-appx":
-      return { patterns: [] };
+      // Default: the curated set of recommended bloatware patterns. Matches
+      // the simple-mode default; users tweak from there in advanced mode.
+      return { patterns: BLOATWARE.filter((b) => b.recommended).map((b) => b.pattern) };
     case "reg-tweaks":
       return { tweakIds: [] };
     case "apps-install":
