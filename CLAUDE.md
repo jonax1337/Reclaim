@@ -4,45 +4,22 @@ Tauri 2 + Svelte 5 desktop tool that debloats Windows 11, surfaces hidden settin
 
 ## Current state
 
-**v1.0.0 — first stable release.** All phases shipped. The v1.0.0 release adds a `/recovery` route (advanced restart targets + Windows System Restore point management), a headless `reclaim.exe --gen-install-media` CLI, shell-check support in the executor (so non-reg-observable tweaks like `Disable-MMAgent` / `Get-WindowsReservedStorageState` now have a working state probe), and a full QA pass that confirmed 199/200 tweaks roundtrip cleanly on Win 11 25H2 plus 121/121 recommended bloatware patterns purged via an end-to-end IM install. Bloatware is now decoupled from profiles — every ISO build uses the same `recommended:true` filter; profiles control tweaks only. The `/context-menu` Shell-Extension manager was removed (the `classic-context-menu` reg tweak is unaffected). For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md). Post-v1.0 ideas in [`docs/PLAN.md`](docs/PLAN.md).
+**v1.0.0 — first stable release.** All phases shipped. The v1.0.0 release adds a `/recovery` route (advanced restart targets + Windows System Restore point management), a headless `reclaim.exe --gen-install-media` CLI, shell-check support in the executor (so non-reg-observable tweaks like `Disable-MMAgent` / `Get-WindowsReservedStorageState` now have a working state probe), and a full QA pass that confirmed 199/200 tweaks roundtrip cleanly on Win 11 25H2 plus 121/121 recommended bloatware patterns purged via an end-to-end IM install. Bloatware is now decoupled from profiles — every ISO build uses the same `recommended:true` filter; profiles control tweaks only. The `/context-menu` Shell-Extension manager was removed (the `classic-context-menu` reg tweak is unaffected). For a per-version diff see [`CHANGELOG.md`](CHANGELOG.md).
 
 Headline numbers:
-- **200 reversible tweaks** across 13 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security, memory, gaming) — comparable to Sophia Script's function count
-- **155+ bloatware patterns** across 8 groups (incl. OEM bloat for HP / Lenovo / Dell, plus +8 Sponsored-Apps publisher-prefixed entries added in v0.19.0 — WhatsApp, Spotify, Disney+, Netflix, TikTok, Instagram, Facebook, LinkedIn)
-- **106 winget apps** across 8 groups, every icon slug verified against its source repo (direct URLs HTTP-probed) before shipping
+- **200 reversible tweaks** across 12 categories (privacy, ai, search, explorer, taskbar, notifications, performance, updates, browser, security, memory, gaming) — comparable to Sophia Script's function count
+- **158 bloatware patterns** across 8 groups (incl. OEM bloat for HP / Lenovo / Dell, plus Sponsored-Apps publisher-prefixed entries — WhatsApp, Spotify, Disney+, Netflix, TikTok, Instagram, Facebook, LinkedIn)
+- **108 winget apps** across 8 groups, every icon slug verified against its source repo (direct URLs HTTP-probed) before shipping
 - **4 built-in profiles** + a full custom profile builder with `.reclaim` import/export
 - **6 Install-Media Task-Sequence templates** (Privacy Maximum / Gaming Rig / Office Workstation / Bare Minimum / Blank Slate / Fully Automated zero-clicks)
-- **36 routes** in an 11-group sidebar
-- **118 Tauri commands** across 27 Rust modules
+- **36 routes** across a 10-group sidebar
+- **137 Tauri commands** across 29 Rust modules
 - **CLI mode**: the same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile <file.reclaim>`, `--export-state`, `--admin-only` etc. for headless / gold-image / SYSTEM-task use.
 - **Install Media generator + USB flasher**: produces both autounattend.xml AND a `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` sidecar from a Task Sequence; ISO builder via Windows ADK `oscdimg.exe`; USB flasher with single-FAT32 + DISM-split layout (handles install.wim > 4 GB without third-party UEFI:NTFS shims).
 - **Tray companion**: lives in the system notification area, optionally autostarts with Windows (no UAC prompt at boot), re-applies HKCU drift after Windows updates, pushes WU + NVIDIA-driver toasts.
-- **SYSTEM persistence**: per-profile opt-in scheduled task (`\Reclaim\Persist-<id>`) runs as SYSTEM, re-applies HKLM + shell tweaks at logon + on the configured interval without ever prompting UAC.
+- **SYSTEM persistence**: single opt-in scheduled task `\Reclaim\Persist-Current` runs as SYSTEM, re-applies HKLM + shell tweaks at logon + on the configured interval without ever prompting UAC.
 
-Headline features built since v0.1.0:
-- Network & hosts (v0.2.0): hosts blocklists with sentinel-based merge, DNS/DoH provider presets, per-adapter DNS overrides.
-- Winget apps (v0.3.0): curated catalog with bulk install / upgrade / uninstall, live xterm output.
-- Tweak breadth (v0.4.0): +71 tweaks, new Notifications category.
-- System maintenance (v0.5.0): SFC / DISM / chkdsk / Defender / WinSxS / network reset, Power Plans manager, ConPTY-based PTY terminal.
-- Profile Builder (v0.6.0): custom profiles, `.reclaim` JSON envelope with schema versioning, import/export.
-- Polish (v0.7.0): portable mode, crash-safe activity.log mirror, auto-updater wiring.
-- OneDrive removal, right-click menu editor, real shell icons (EXE + AppX), NVIDIA driver auto-update with streaming download, CI/release pipeline (v0.8.0).
-- Defender combined route, Scheduled tasks browser, Recall data wipe, Mass file unblock, Telemetry firewall (v0.9.0).
-- Browser (Edge) tweaks + dedicated route, Driver rollback via pnputil, AMD/Intel smart vendor-page auto-find (v0.10.0).
-- Windows activation launcher: read-only license state + one-click elevated PowerShell window running the external MAS script (v0.11.0).
-- Security hardening route (LSA Protection, Controlled Folder Access, Defender ASR rules) + 12 extra privacy tweaks. Real portable build: dedicated single-exe variant via the `portable` Cargo feature, completely stateless on disk (v0.12.0).
-- Install media builder: autounattend.xml generator that maps any Reclaim profile to `<FirstLogonCommands>`, plus optional ISO repack via Windows ADK `oscdimg.exe` (auto-installer for the ADK Deployment Tools when missing). Bloatware catalog brought to parity with Win11Debloat (63 → 144 entries, new OEM group). PowerShell one-liner installer `install.ps1` that bypasses Edge's "publisher unknown" prompt the same way ChrisTitusTech/winutil does (v0.13.0).
-- CLI mode: same `reclaim.exe` accepts `--apply-profile`, `--apply-tweak`, `--remove-bloat`, `--import-profile`, `--export-state` etc. Build-time catalog export (`pnpm catalog:export`) ships TS catalog as `src-tauri/data/*.json` so headless and GUI share the exact same data (v0.14.0).
-- Persistence service + tray companion: system-tray icon, optional autostart, hide-to-tray on close, single-instance lock, background timer (Tokio interval, 6h default). HKCU drift detection + re-apply per persisted profile (Strict / Update-only modes), Windows-Update + NVIDIA-driver push notifications (24h throttled, battery-aware). Settings → Background Service section ties it all together (v0.15.0).
-- SYSTEM-context admin persistence + close-to-tray polish: per-profile opt-in scheduled task installed under `\Reclaim\Persist-<id>` runs `reclaim.exe --apply-profile <id> --admin-only` as SYSTEM at logon + interval — closes the v0.15.0 "HKLM-deferred" gap. Titlebar X now calls `win.hide()` directly when keep-in-tray is on (bypasses a Tauri 2 IPC-close bug on Windows where `prevent_close()` is ignored). Autostart no longer triggers UAC at boot. `RunEvent::ExitRequested → prevent_exit()` keeps the runtime alive if anything destroys the window externally (v0.15.1).
-- Auto-track persistence UX: dropped the per-profile "Keep applied" picker entirely. Single "Auto-persist active tweaks" toggle that auto-adds on `applyTweak`, auto-removes on `revertTweak`. Single SYSTEM task `\Reclaim\Persist-Current` with every tracked admin-id embedded in the action args, re-installed (with `-Force`) whenever the tracked set or interval changes. v0.15.1 → v0.15.2 migration resolves any leftover `persistedProfiles` in `service.json` to flat tweak ids and tears down old `\Reclaim\Persist-<profile-id>` tasks (v0.15.2).
-- Developer tab + Memory + Gaming categories: new `/developer` route under its own sidebar group (live state of WSL / VirtualMachinePlatform / HypervisorPlatform / Hyper-V / Sandbox via `Get-WindowsOptionalFeature`, enable/disable streamed through `run_pty_script`, read-only WSL distros list, Dev Drive support card). New `memory` tweak category (`/memory`, 5 tweaks — RAM compression, SysMain, Prefetch, Page Combining, ClearPageFileAtShutdown). New `gaming` tweak category (`/gaming`, 8 tweaks — Game Mode, MMCSS SystemResponsiveness, MMCSS Games priority block, Win32PrioritySeparation, ForegroundLockTimeout, NetworkThrottlingIndex, TCP ACK + NoDelay on all interfaces, HPET off). Gaming + Performance built-in profiles enriched with the relevant new tweaks. Dashboard surfaces all three new routes (v0.16.0).
-- Catalog depth + mass driver updates: +20 tweaks to reach 200 across privacy / explorer / performance / notifications / security / memory (NetBIOS off, SMB1 off, MapsBroker, RetailDemo, dmwap, WMP-network-sharing, Xbox services, balloon tips, file checkboxes, Nearby Sharing off, Office cloud content off, lock-screen Spotlight off, etc.). Apps catalog 67 → 106 (+39 across all 8 groups — Floorp, Opera, IntelliJ CE, Android Studio, Cursor, Zed, Bun, Deno, BleachBit, Autoruns, foobar2000, Krita, draw.io, Playnite, Battle.net, VeraCrypt, Wireshark, …) **with every icon slug verified** against its source repo (homarr-labs/dashboard-icons, simple-icons, selfh.st/icons) and direct `https://…` URLs HTTP-probed for non-empty 200s before shipping; 3 apps (lazygit, ExplorerPatcher, TreeSize Free) cut because no proper icon exists in any public source. `/drivers` gained a Windows Update driver-catalog scanner that classifies updates into Audio / Chipset / Display / Network / Storage / Input / Camera / Print / Other and bulk-installs via the existing `installWindowsUpdates` command — closes the "no non-GPU driver path" gap vs. WinUtil. Privacy Maximum + Performance profiles enriched (v0.17.0).
-- **USB-stick flasher** in Install Media — `Get-Disk | Where BusType -eq USB` enumeration with double-confirm dialog. Single FAT32 partition (cap 32 GiB due to Format-Volume limit), `dism /Split-Image /SWMFile install.swm /FileSize:3800` for install.wim > 4 GiB. Microsoft's native approach, no Rufus/UEFI:NTFS shim needed. New `usb_flash.rs` Rust module. Plus live Windows Update install progress (per-update phase + %) via `install_windows_updates_stream`. Plus **six bugs** in the v0.13.0 unattend.xml generator fixed that prevented unattended installs from completing: forced `<DiskConfiguration>`-on-Disk-0 wipe removed (Setup now asks once where to install), schema-invalid `<Reseal>` in specialize pass removed, KMS keys list rewritten against MS docs (Pro/Pro N were on wrong keys), deprecated `<SkipMachineOOBE>` + `<SkipUserOOBE>` removed (abort `oobeSystem` on 24H2/25H2), bogus `<HideLocalAccountScreen>` removed, blank-password local-account block conditionally skipped (24H2+ LSA refuses blank-password creation). AppX-removal moved into `setupcomplete.cmd` via `\$OEM$\$$\Setup\Scripts\` and the unattend now sets `<UseConfigurationSet>true</UseConfigurationSet>` so Setup auto-copies $OEM$ into `%WINDIR%`. AppX RunSynchronous was also moved out of the `Microsoft-Windows-Shell-Setup` component into a sibling `Microsoft-Windows-Deployment` component — Shell-Setup doesn't allow `<RunSynchronous>` as a child in specialize pass, and the resulting `0x80220001 "unattend file is not valid"` schema error was the root cause of the v0.18.x install-mid-reboot crashes (v0.18.0 → v0.18.3).
-- **Aggressive bloatware killer**: Pre-OOBE CloudContent + WindowsStore + 18 SubscribedContent / ContentDeliveryManager writes emitted in `specialize` as both HKLM policies and `HKU\.DEFAULT\…` (Default-user-hive template, propagates to every new account). Closes the Sponsored-Apps push-during-OOBE window before the Store fetches its consumer manifest. setupcomplete.cmd now runs TWO passes with a 60s sleep between them so apps that finished downloading mid-run get caught on the second pass; each pass hits both `Get-AppxProvisionedPackage` (image baseline) AND `Get-AppxPackage -AllUsers` (the freshly-created admin's copies). Plus the bloatware catalog got the v0.18.3 audit treatment: MSTeams was in `bloatware.ts` since v0.13.0 but not marked `recommended:true` (so Privacy Maximum silently excluded it) — fixed. `Microsoft.Copilot` got a wildcard sibling. WhatsApp / Spotify / Disney+ / Netflix / TikTok / Instagram / Facebook / LinkedIn added as explicit publisher-prefixed patterns (was wildcards only; sponsored-apps publisher namespaces are stable enough to target directly) (v0.19.0).
-- **Install Media → Task Sequence editor** (`/install-media`, replaces `/iso-builder`). Two modes selectable from the page header. **Simple mode (default)**: profile dropdown (built-in + custom) + 4 inputs + Fully-automated toggle, one-click Build/Flash. **Advanced mode**: drag-and-drop editor with 11 step types (`meta` / `bypass` / `edition` / `oobe-skip` / `privacy` / `disk-setup` / `driver-inject` / `debloat-appx` / `reg-tweaks` / `apps-install` / `custom-cmd`), each step a card with enable/disable + expandable typed config + delete; "Add step" modal; 6 built-in templates including **Fully Automated (zero clicks)**. Backend got `custom_commands` (hook + command + description, routed to the right Setup hook), `winget_apps` (appended to `setupcomplete.cmd` as silent `winget install`), and `disk_auto_setup` (emits `<DiskConfiguration>` only when explicitly opted in via the disk-setup step's confirmation checkbox). New `generate_setupcomplete_cmd` Tauri command alongside `generate_autounattend_xml`. Driver-injection step copies a user-picked folder into `\$OEM$\$1\Drivers\`. USB drive serial numbers now read `Get-Disk .UniqueId`'s hardware-derived hex ID instead of the often-garbage iSerialNumber descriptor — for Kingston DataTraveler "0000000005" + control bytes → `E0D55EA574AE1571787B06CE` (the Windows-stable ID). New `src/lib/tasksequence/` subsystem with types, store, simpleStore, converter, StepCard, and 11 step components (v0.20.0).
-
-**Still open for v1.0.0**: nothing language-related — English-only is the shipping stance and i18n is **not** a v1.0.0 blocker. What remains before v1.0.0 is feature/catalog depth + a polish pass (see [`docs/PLAN.md`](docs/PLAN.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md)). Code-signing is also not planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
+For the per-version evolution from v0.1.0 → v1.0.0 see [`CHANGELOG.md`](CHANGELOG.md). Code-signing is not planned — the v0.11.0 activation launcher (literal `get.activated.win` URL in the binary) likely closes both the winget-pkgs and SignPath Foundation paths, so v1.0.0 ships unsigned via GitHub Releases only.
 
 ## Stack
 
@@ -62,9 +39,9 @@ Headline features built since v0.1.0:
 
 ### `src/lib/tweaks/` — the catalog system
 
-- **`catalog.ts`** — every tweak is a typed `Tweak` record with `apply: TweakOp[]`, optional `revert`, optional `check[]`. `TweakOp` is either `RegOp` (hive/path/name/type/value/defaultValue) or `ShellOp` (PowerShell script). Tweaks are grouped per category and unioned into `ALL_TWEAKS`. Currently 123 entries across 8 categories.
-- **`bloatware.ts`** — 63 `BloatwareEntry` records with PowerShell wildcard patterns (`*Spotify*`). Frontend converts to regex via `patternMatches`. Groups: consumer, office, gaming, communication, media, system, other.
-- **`profiles.ts`** — `Profile` references tweaks by id; `resolveProfileTweaks` looks them up. Built-ins: Gaming (12), Privacy Maximum (41), Performance (17), Reclaim Basics (dynamic — every `recommended: true` tweak).
+- **`catalog.ts`** — every tweak is a typed `Tweak` record with `apply: TweakOp[]`, optional `revert`, optional `check[]`. `TweakOp` is either `RegOp` (hive/path/name/type/value/defaultValue) or `ShellOp` (PowerShell script). Tweaks are grouped per category and unioned into `ALL_TWEAKS`. Currently 200 entries across 12 categories.
+- **`bloatware.ts`** — 158 `BloatwareEntry` records with PowerShell wildcard patterns (`*Spotify*`). Frontend converts to regex via `patternMatches`. Groups: consumer, office, gaming, communication, media, system, oem, other.
+- **`profiles.ts`** — `Profile` references tweaks by id; `resolveProfileTweaks` looks them up. Built-ins: Gaming (18), Privacy Maximum (52), Performance (23), Reclaim Basics (dynamic — every `recommended: true` tweak).
 - **`customProfiles.svelte.ts`** — `$state`-based reactive store backed by localStorage key `reclaim.custom-profiles`. CRUD for user-created profiles.
 - **`profileEdit.svelte.ts`** — mini-store that carries a profile draft between `/profiles` (list) and `/profile-builder` (editor).
 - **`bridge.ts`** — TS wrappers around every Tauri command. All `invoke()` calls go through here. Grouped by domain (system / registry / tweak / bloatware / winupdate / drivers / hosts / dns / winget / maintenance / files / icons / context-menu / onedrive / app-info).
@@ -90,7 +67,7 @@ Headline features built since v0.1.0:
 
 ### `src/lib/` — domain helpers (non-catalog)
 
-- **`apps/catalog.ts`** — `AppEntry` type, 46 `UNIQUE_APPS`, `GROUP_LABELS`, `GROUP_ORDER`, 16 `RECOMMENDED_IDS`.
+- **`apps/catalog.ts`** — `AppEntry` type, 108 `UNIQUE_APPS`, `GROUP_LABELS`, `GROUP_ORDER`, `RECOMMENDED_IDS`.
 - **`hosts/`** — builtin blocklists (MS Telemetry, Office/Edge, MS Ads) and remote source URLs (StevenBlack lists).
 - **`network/`** — DoH provider presets (Cloudflare, Cloudflare-Families, Quad9, AdGuard, Google, Mullvad) + DNS helpers.
 - **`maintenance/`** — operation catalog (op id → label, description, expected duration, admin-required flag).
@@ -110,7 +87,7 @@ Button, Card, CardContent, CardHeader, CardTitle, CardDescription, Badge, Switch
 
 ### `src/lib/components/`
 
-- **`Layout.svelte`** — Titlebar (with elevate-button) + 10-group sidebar (top / Clean up / Install / Customize / Network / Updates & drivers / System info / Licensing / App) + main scroll area. Sidebar uses `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` for the Win11 chrome look.
+- **`Layout.svelte`** — Titlebar (with elevate-button) + 10-group sidebar (top / Clean up / Install / Customize / Network / Updates & drivers / Developer / System info / Licensing / App) + main scroll area. Sidebar uses `bg-surface-3 backdrop-blur-xl` for the Win11 chrome look.
 - **`ProfileCard.svelte`** — gradient-topped card with name, tagline, description, tweak-count, "Preview" button → confirm dialog → batch apply.
 - **`ProfileIcon.svelte`** — small gradient avatar used in the sidebar / profile lists.
 - **`TweakSection.svelte`** — header bar (active count + select-all + apply-recommended + revert-all) + Card list + BulkActionBar. Filters out admin-requiring tweaks in lite mode, shows banner.
@@ -126,19 +103,20 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **Top:** Dashboard (`/`), Profiles (`/profiles`)
 - **Clean up:** Bloatware (`/bloatware`), OneDrive (`/onedrive`), AI & Copilot (`/ai`)
 - **Install:** Apps (`/apps`), Install media (`/install-media`)
-- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Security hardening (`/security`)\*, Browser (`/browser`)\*, Explorer (`/explorer`), Right-click menu (`/context-menu`)\*, Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`)
+- **Customize:** Privacy (`/privacy`), Defender (`/defender`)\*, Security hardening (`/security`)\*, Browser (`/browser`)\*, Explorer (`/explorer`), Taskbar & Start (`/taskbar`), Search (`/search`), Notifications (`/notifications`), Performance (`/performance`), Memory & caching (`/memory`)\*, Gaming (`/gaming`)\*
 - **Network:** Hosts & blocklists (`/hosts`)\*, DNS & DoH (`/network`)\*, Firewall (`/firewall`)\*
 - **Updates & drivers:** Windows Update (`/windows-update`), Drivers (`/drivers`), Update settings (`/updates`)
-- **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*
+- **Developer:** Windows features (`/developer`)\*
+- **System info:** Specs (`/specs`), Startup apps (`/startup`), Services (`/services`)\*, Scheduled tasks (`/scheduled-tasks`)\*, Maintenance (`/maintenance`)\*, Recovery (`/recovery`)\*
 - **Licensing:** Activation (`/activation`)
 - **App:** Activity log (`/logs`), Settings (`/settings`)
 - Plus `/profile-builder` (entered from `/profiles`) and `NotFound` (`*`).
 
 \* admin required — hidden / locked in restricted mode, click-to-elevate buttons everywhere.
 
-### `src-tauri/src/` — 27 modules, 118 commands
+### `src-tauri/src/` — 29 modules, 137 commands
 
-- **`lib.rs`** — plugin init + `invoke_handler!` registry (107 commands). Uses the `Builder::build()? .run(|app_handle, event| ...)` pattern instead of plain `.run()` so `RunEvent::ExitRequested` can be intercepted with `prevent_exit()` — keeps the tray companion alive even if the main window is destroyed.
+- **`lib.rs`** — plugin init + `invoke_handler!` registry. Uses the `Builder::build()? .run(|app_handle, event| ...)` pattern instead of plain `.run()` so `RunEvent::ExitRequested` can be intercepted with `prevent_exit()` — keeps the tray companion alive even if the main window is destroyed.
 - **`cli.rs`** — headless CLI dispatcher. Parses argv, loads the embedded catalog JSON (`include_str!("../data/{tweaks,profiles,bloatware}.json")`, generated by `pnpm catalog:export`), and routes to the same registry / shell primitives the Tauri commands use. Entry: `cli::run() -> ExitCode`. Activated from `main.rs` whenever argv contains any `--`-flag besides `--no-elevate` and `--autostart`; the GUI elevate path is skipped. Calls `AttachConsole(ATTACH_PARENT_PROCESS)` first so the GUI-subsystem binary's println! lands in the parent terminal. Mirrors the GUI Activity Log to `%APPDATA%/Reclaim/activity.log` (same JSON-lines format). Supports `--admin-only` to filter `--apply-profile` / `--apply-tweak` to HKLM + shell ops only — used by the SYSTEM-running persistence scheduled task because `S-1-5-18`'s HKCU is not the user's hive.
 - **`app_info.rs`** — `is_portable()`, `app_data_dir()`, `log_append(LogLine)`, `read_activity_log()`, `read_app_file(name)`, `write_app_file(name, content)`. Atomic writes via `.tmp` + rename. Portable mode is **compile-time** via the `portable` Cargo feature (`const PORTABLE: bool = cfg!(feature = "portable")`) — no marker files. In portable builds every disk-write here no-ops and `app_data_dir()` returns `""`; state lives only in localStorage inside the Webview2 user-data folder.
 - **`sysinfo.rs`** — `get_system_info` (uses build-number for Win11 detection — `ProductName` is hardcoded to "Windows 10" by MS), `is_elevated` (windows-rs `TokenElevation`), `get_accent_color`, `relaunch_elevated` (`Start-Process -Verb RunAs`, then exit current). `try_elevate_at_startup` (called only from `main.rs` in release builds) skips when `--no-elevate` or `--autostart` is in argv — autostart entries must not pop UAC at every Windows login.
@@ -165,6 +143,8 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 - **`usb_flash.rs`** (v0.18.0+) — USB-stick flasher. Commands: `list_usb_drives()` (parses `Get-Disk` JSON; cleans the raw `SerialNumber` and extracts the 24-char hardware ID from `UniqueId`'s `USBSTOR\…\<HWID>&0` path for a stable per-stick identifier even on garbage firmware) and `usb_flash_iso(task_id, req, …)` (PTY-streamed `diskpart` + `dism /Split-Image` pipeline: clean + GPT-init the disk, single FAT32 partition capped at 32 GiB, robocopy ISO contents excluding install.wim, split install.wim into install*.swm if > 4 GiB, optionally drop autounattend.xml + `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` onto the stick). Rust-side disk-bus + system-disk checks before any destructive op; PS script re-verifies the same in defence in depth. 10 unit tests for the serial cleanup heuristics.
 - **`unattend.rs`** updates (v0.18.x – v0.20.0): `UnattendConfig` got `custom_commands: Vec<CustomCommand>` (routed per `hook` field into windowsPE-/specialize-`RunSynchronous`, oobeSystem-`FirstLogonCommand`, or appended to setupcomplete.cmd for the `setupcomplete` hook), `winget_apps: Vec<String>` (silent `winget install --exact --id …` lines appended to setupcomplete.cmd), and `disk_auto_setup: Option<DiskAutoSetup>` (only when Some, the windowsPE pass emits `<DiskConfiguration>` + `<InstallTo DiskID=N PartitionID=3>` for the fully-automated flow). New `generate_setupcomplete_cmd` command returns just the script body — both ISO builder + USB flasher use it. `pass_specialize` correctly emits `<RunSynchronous>` inside a dedicated `Microsoft-Windows-Deployment` component (Shell-Setup is not a valid parent for RunSynchronous in this pass — fixed v0.18.3). Pre-OOBE sponsored-apps blockers (HKLM CloudContent + WindowsStore + 18 HKU\.DEFAULT ContentDeliveryManager / SubscribedContent writes) emitted in specialize whenever any AppX patterns are present (v0.19.0). setupcomplete.cmd runs AppX removal in two passes with `ping 127.0.0.1 -n 61` between them so Microsoft-Store-pushed Sponsored Apps that finished mid-run get caught on the second pass (v0.19.0).
 - **`iso_builder.rs`** updates (v0.18.x – v0.20.0): `IsoBuildRequest` accepts an optional `setupcomplete_cmd` string; when non-empty the PS pipeline writes it to `<work_dir>\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` before the oscdimg repack so Windows Setup auto-copies it into `%WINDIR%` during install.
+- **`recovery.rs`** — `/recovery` route backend. Advanced restart targets (`shutdown /r /o` boot to recovery menu, UEFI firmware, safe-mode flavors) plus Windows System Restore point management (`Get-ComputerRestorePoint`, `Enable-ComputerRestore`, `Checkpoint-Computer`, `Restore-Computer`). Restore-point creation throttle (`SystemRestorePointCreationFrequency`) is read/written through static PowerShell.
+- **`dev_features.rs`** — `/developer` route backend. `list_optional_features` parses `Get-WindowsOptionalFeature -Online` (WSL / VirtualMachinePlatform / HypervisorPlatform / Microsoft-Hyper-V / Containers-DisposableClientVM) into typed JSON; `set_optional_feature(name, enable, restart_needed)` streams the enable/disable through `run_pty_script`. `list_wsl_distros` runs `wsl --list --verbose` and parses the table.
 
 ## Critical conventions
 
@@ -187,7 +167,7 @@ Routed by `svelte-spa-router`. Grouped in the sidebar as follows:
 // in catalog.ts
 {
   id: "kebab-case-id",
-  category: "privacy",   // or one of the 8 categories
+  category: "privacy",   // or one of the 12 categories
   title: "Short title",
   description: "One-sentence what+why.",
   recommended: true,     // optional
@@ -303,8 +283,8 @@ base64 = "0.22"
 
 ## Further reading
 
-- `CHANGELOG.md` — per-version diff from v0.1.0 to v0.8.0.
-- `docs/ROADMAP.md` — phased plan (Phases 1-6) with shipped vs open items.
+- `CHANGELOG.md` — per-version diff from v0.1.0 to v1.0.0.
 - `docs/ARCHITECTURE.md` — deeper dive on the tweak engine + bridge layer.
-- `docs/CONTRIBUTING.md` — workflow for contributors.
+- `docs/DESIGN_SYSTEM.md` — UI tokens, surfaces, and the Mica/glass layering rules.
+- `.github/CONTRIBUTING.md` — workflow for contributors.
 - `README.md` — user-facing overview.
