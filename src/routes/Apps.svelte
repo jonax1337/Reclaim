@@ -7,12 +7,13 @@
     BulkActionBar,
     Dialog,
     PageHeader,
-    toast,
+    SectionHeading,
+    EmptyState,
+    ListCard, SearchInput, SelectableListRow, RowIcon, toast,
   } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
-    Search,
     Sparkles,
     Download,
     ArrowUpCircle,
@@ -338,16 +339,9 @@
 </PageHeader>
 
 {#if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — winget calls need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — winget calls need the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Querying winget — this can take a moment on first run…
-  </div>
+  <EmptyState loading>Querying winget — this can take a moment on first run…</EmptyState>
 {:else if !wingetReady}
   <Card class="card-inset">
     <div class="px-6 py-16 flex flex-col items-center text-center gap-4">
@@ -369,15 +363,7 @@
   </Card>
 {:else}
   <div class="flex flex-wrap items-center gap-2 mb-4">
-    <div class="flex-1 min-w-[12rem] relative">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-      <input
-        type="text"
-        bind:value={filter}
-        placeholder="Filter apps…"
-        class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </div>
+    <SearchInput class="flex-1 min-w-[12rem]" bind:value={filter} placeholder="Filter apps…" />
   </div>
 
   <div class="flex flex-col gap-6">
@@ -385,13 +371,12 @@
       {@const entries = groups[g]}
       {#if entries.length > 0}
         <section>
-          <div class="flex items-center justify-between mb-2 px-1">
-            <h2 class="text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
-              {GROUP_LABELS[g]}
-            </h2>
-            <span class="text-[10px] text-muted-foreground/60">{entries.length}</span>
-          </div>
-          <Card class="overflow-hidden gap-0 py-0 card-inset">
+          <SectionHeading title={GROUP_LABELS[g]} class="px-1">
+            {#snippet actions()}
+              <span class="text-[10px] text-muted-foreground/60">{entries.length}</span>
+            {/snippet}
+          </SectionHeading>
+          <ListCard>
             {#each entries as entry (entry.id)}
               {@const st = states[entry.id]}
               {@const installed = !!st?.installed}
@@ -400,17 +385,10 @@
               {@const isBusy = busyOne.has(entry.id)}
               {@const line = lastLine[entry.id]}
               {@const showIcon = entry.icon && !iconFailed.has(entry.icon)}
-              <label
-                class="relative flex items-start gap-4 py-3 px-5 border-b last:border-b-0 transition-colors {installed && !isBusy
-                  ? 'opacity-60 hover:opacity-80'
-                  : 'hover:bg-accent/40 cursor-pointer'} {isSelected ? 'bg-primary/[0.04]' : ''}"
+              <SelectableListRow
+                selected={isSelected}
+                disabled={installed && !isBusy}
               >
-                <span
-                  class="absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all {isSelected
-                    ? 'bg-primary opacity-100'
-                    : 'opacity-0'}"
-                  aria-hidden="true"
-                ></span>
                 <div class="pt-0.5">
                   <Checkbox
                     checked={isSelected}
@@ -418,7 +396,7 @@
                     onCheckedChange={(v) => toggleSelected(entry.id, !!v)}
                   />
                 </div>
-                <div class="grid place-items-center size-9 rounded-md bg-accent/40 overflow-hidden shrink-0">
+                <RowIcon tone="image">
                   {#if showIcon}
                     <img
                       src={iconUrl(entry.icon!)}
@@ -430,7 +408,7 @@
                   {:else}
                     <Package class="size-4 text-muted-foreground" />
                   {/if}
-                </div>
+                </RowIcon>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium">{entry.name}</span>
@@ -494,9 +472,9 @@
                     </Button>
                   {/if}
                 </div>
-              </label>
+              </SelectableListRow>
             {/each}
-          </Card>
+          </ListCard>
         </section>
       {/if}
     {/each}

@@ -1,485 +1,262 @@
-# Reclaim — Design System (scaffold)
+# Reclaim — Design System
 
-> Living spec. Goal: every route composes a small set of primitives + recipes from this
-> document, and no longer hand-rolls `<header class="mb-6"><h1 class="text-3xl …">…`,
-> `<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger">…`, hand-painted
-> "icon tile" boxes, ad-hoc amber banners, or its own stat card shape.
+> Every route composes from a small set of primitives in `src/lib/ui/`. No more
+> hand-rolled `<header class="mb-6"><h1 class="text-3xl …">…`, manual `card-inset
+> overflow-hidden gap-0 py-0` wrappers, or one-off amber banners.
 >
-> **Status**: scaffold only. Tokens, primitives and recipes below describe the *current*
-> visual language so we have a target to converge on. The "Inventory" section flags what
-> is already a real component vs. what still lives inline in routes and needs to be
-> extracted.
-
----
-
-## 0. Why we need this
-
-Quick audit of the current tree:
-
-- `rounded-(xl|2xl|lg|md|full)` appears **154 times** across 42 files.
-- `px-*`, `py-*`, `gap-*` appear **227+ times** across just 15 route files.
-- `<h1 class="text-3xl font-semibold tracking-tight">` is hand-typed on **every route**
-  (Privacy, Activation, Settings, …) — there is no `<PageHeader />` primitive.
-- The "stat tile" pattern (`<Card class="card-inset"><CardContent>` + tiny uppercase
-  label + big tabular number + sparkline/progress) is hand-rolled on Dashboard,
-  ProfileCard and a few other places with subtle differences (line height, label
-  letter-spacing, icon size).
-- The "icon tile" pattern (`grid place-items-center size-9/10 rounded-lg
-  bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5`) is
-  hand-rolled on Dashboard categories *and* ProfileCard.
-- The "uppercase section divider" (`text-xs font-semibold uppercase text-muted-foreground
-  tracking-[0.12em]` with optional `text-[11px]` right-aligned hint) appears on
-  Dashboard twice and elsewhere with slightly different tracking (`0.12em` vs `0.16em`
-  vs `0.18em`).
-- Amber/admin banner styling exists as a real component (`AdminBanner.svelte`) but is
-  **also** re-implemented inline in `TweakSection.svelte` with slightly different
-  padding and radius.
-
-This document defines the canonical version of each, so the next pass can replace
-inline soup with one component or one recipe.
+> **Status**: implemented. The original scaffold from earlier in the project has
+> been built out. Migration plan §7 is fully shipped — see [§5 below](#5--migration-status).
 
 ---
 
 ## 1. Foundation — tokens
 
 Source of truth: `src/app.css` (`@theme inline` + `:root` / `[data-theme="dark"]`).
-Tailwind v4 picks them up via `var(--…)`. **Do not introduce new raw `oklch(…)` /
-`#hex` literals in components** — always reference a token.
+**Do not introduce new raw `oklch(…)` / `#hex` literals in components** — always
+reference a token.
 
 ### 1.1 Color tokens
 
 | Token | Tailwind class | Use |
 |---|---|---|
-| `--background` | `bg-background` | Window body (light: 99% lum near-white, dark: 13% lum) |
+| `--background` | `bg-background` | Window body |
 | `--foreground` | `text-foreground` | Default body text |
-| `--card` | `bg-card`, `bg-card/95` | Card surface — almost always with `/95` + `backdrop-blur-md` to sit over Mica |
+| `--card` | `bg-card`, `bg-card/95` | Card surface (almost always `/95` + `backdrop-blur-md` to sit over Mica) |
 | `--card-foreground` | `text-card-foreground` | Text inside cards |
 | `--popover` | `bg-popover` | Dropdown menus, dialogs, select content |
-| `--primary` | `bg-primary`, `text-primary`, `border-primary` | Brand purple (oklch 0.56 / 0.21 / 285). Selection highlight, recommended badge tint, active state bar |
+| `--primary` | `bg-primary`, `text-primary` | Brand purple, selection highlight, recommended badge, active state bar |
 | `--primary-foreground` | `text-primary-foreground` | Text on primary surfaces |
 | `--secondary` | `bg-secondary` | Quiet button background |
 | `--muted` | `bg-muted` | Progress-bar track, subtle bg |
-| `--muted-foreground` | `text-muted-foreground` | All secondary copy, hint text, "/ {total}" markers |
-| `--accent` | `bg-accent` | Hover backgrounds (`hover:bg-accent/40`, `hover:bg-accent/60`) |
-| `--destructive` | `bg-destructive`, `text-destructive` | Delete, uninstall, "revert all", warning toasts |
-| `--success` | `text-success`, `bg-success/15` | Licensed, "Recommended" badge |
-| `--warning` | (currently expressed as `bg-amber-500/10` + amber-700/400) | **Inconsistent** — see §1.2 |
-| `--border` | `border` (default), `border-foreground/10` (cards/hero override) | Hairlines |
+| `--muted-foreground` | `text-muted-foreground` | All secondary copy, hint text |
+| `--accent` | `bg-accent` | Hover backgrounds (`hover:bg-accent/40`, `/60`) |
+| `--destructive` | `bg-destructive`, `text-destructive` | Delete, uninstall, "revert all" |
+| `--success` | `text-success`, `bg-success/15` | Licensed, "Recommended" badge, "No bloatware" |
+| `--border` | `border` (default) | Default hairline |
 | `--ring` | `focus-visible:ring-ring/50` | Focus rings (3px) |
 
-### 1.2 The amber problem (warning color)
+### 1.1b Surface ladder
 
-`--warning` exists in `app.css` (oklch ~0.74/0.16/75) but **components don't use it**.
-Both `AdminBanner.svelte` and the inline admin warning in `TweakSection.svelte`
-reach for raw Tailwind `amber-500/40`, `amber-600`, `amber-900` etc. The Badge
-component's `warning` variant uses a mix of `bg-warning/20` + `text-amber-700`.
+For chrome surfaces (panel backgrounds, hover variants, selectable-tile rest state, etc.).
+These replaced the ~80 raw `bg-foreground/[0.0X]` usages that were scattered through the
+codebase. **All seven are derived from `--foreground` via `color-mix`** — they
+automatically invert in dark mode.
 
-**Action item** (later, not this PR): pick one. Either
-1. Drop `--warning` and standardise on Tailwind `amber-*` everywhere, or
-2. Define `--warning-foreground`, `--warning-surface`, `--warning-border` and use them
-   in the `warning` Badge variant, AdminBanner and any inline amber banner.
+| Token | Alpha | Tailwind | Use |
+|---|---|---|---|
+| `--surface-1` | 2% | `bg-surface-1` | SelectableTile rest, lowest-emphasis surface |
+| `--surface-2` | 3% | `bg-surface-2` | Subtle info banner bg, code preview |
+| `--surface-3` | 4% | `bg-surface-3` | Hover variant of surface-1, sidebar bg |
+| `--surface-4` | 6% | `bg-surface-4` | IconTile chip, footnote box, gradient swatch |
+| `--surface-chrome` | 2.5% | `bg-surface-chrome` | Titlebar, panel header, footer chrome |
+| `--hairline` | 8% | `border-hairline`, `divide-hairline` | Default border for surface boxes |
+| `--hairline-strong` | 10% | `border-hairline-strong` | Card border, hero border |
 
-### 1.3 Radii
+**Warning color**: handled via direct Tailwind `amber-*` (light: `text-amber-{600,700,900}`,
+dark: `text-amber-{200,300,400}`, surface: `bg-amber-500/{10,15,25}`, border: `border-amber-500/40`).
+This is the project's convention and is consistent across `AdminBanner`, `InfoBanner` warning tone,
+`StatusPill` warning tone, `StatusAvatar` warning tone, `Badge` warning variant, and TweakRow's
+warning text. Same goes for `red-*` (used in DiskSetup error banner via `InfoBanner tone="error"`).
 
-| Token | Tailwind | Used for |
-|---|---|---|
-| `--radius-sm` (≈6px) | `rounded-sm` | rarely used today |
-| `--radius-md` (≈8px) | `rounded-md` | Buttons, inputs, Badge |
-| `--radius-lg` (≈10px, base `--radius`) | `rounded-lg` | Inner panels, icon tiles, small cards |
-| `--radius-xl` (≈14px) | `rounded-xl` | Cards (`Card.svelte` hardcodes `rounded-xl`) |
-| — | `rounded-2xl` (16px) | Hero section, BulkActionBar pill |
-| — | `rounded-full` | Progress-bar fill, status dots, sidebar pills |
+### 1.2 Radii
 
-Avoid `rounded`, `rounded-md/2xl` mixed inside the same widget. Pick one per surface
-level (page-level = 2xl, card = xl, controls = md).
-
-### 1.4 Typography
-
-`--font-sans` is Geist Variable; `--font-mono` is Geist Mono Variable. Body is 14px
-with `font-feature-settings: "cv11", "ss01"`. `optimizeLegibility` is on.
-
-The `@layer base` already sets `h1` (1.875rem / 2.25rem, font-semibold, tracking
-−0.02em), `h2` (1.25rem / 1.75rem) and `h3` (1rem / 1.5rem). **But** every route
-overrides `<h1>` with `text-3xl font-semibold tracking-tight`, which is *almost* the
-same but not identical. We should either:
-
-- delete the route-level override and trust the global `h1`, or
-- bake the override into a `<PageHeader />` primitive (recommended — see §3.1).
-
-Canonical scale we want to converge on:
-
-| Role | Class recipe |
+| Class | Used for |
 |---|---|
-| Page title | `text-[1.875rem] leading-tight font-semibold tracking-tight` (matches global `h1`) |
-| Section heading (above a grid of cards) | `text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]` |
-| Card title (large) | `text-base font-semibold tracking-tight` (matches `<CardTitle />`) |
-| Row title (TweakRow, list item) | `text-sm font-medium` |
-| Body copy | inherit (14px) |
-| Subtext / hint | `text-xs text-muted-foreground` (use `leading-relaxed` if multi-line) |
-| Tiny caps label ("ACTIVE TWEAKS") | `text-xs text-muted-foreground uppercase tracking-wider` |
-| Hyper-tiny caps ("3 entries") | `text-[10px] text-muted-foreground/70 uppercase tracking-wider` |
-| Eyebrow above hero title | `text-[10px] font-semibold uppercase tracking-[0.18em] text-primary` |
-| Tabular numbers (counts, percentages, versions) | always add `tabular-nums` |
+| `rounded-md` | Buttons, inputs, Badge |
+| `rounded-lg` | Inner panels, IconTile, small Cards |
+| `rounded-xl` | Cards (baked into `<Card>`), InfoBanner `size="md"` |
+| `rounded-2xl` | Hero (`<HeroBanner>`), BulkActionBar pill, StatusAvatar, InfoBanner `size="lg"` |
+| `rounded-full` | StatusPill, MetricBar fill, status dots |
 
-The three tracking values (`0.12em` / `0.16em` / `0.18em`) are currently used
-intentionally to express hierarchy (section heading → eyebrow → category-card
-"entries"). Keep them — but pick one per role and stick to it.
+### 1.3 Typography
 
-### 1.5 Spacing
+Geist Variable (sans) + Geist Mono Variable (mono). Body 14px with
+`font-feature-settings: "cv11", "ss01"`.
 
-| Token | Purpose |
+| Role | Class recipe | Primitive |
+|---|---|---|
+| Page title | `text-3xl font-semibold tracking-tight` | `<PageHeader>` |
+| Section heading | `text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70` | `<SectionHeading>` |
+| Card title | `text-base font-semibold tracking-tight` | `<CardTitle>` |
+| Row title | `text-sm font-medium` | (use directly) |
+| Body / row description | `text-xs text-muted-foreground leading-relaxed` | (use directly) |
+| Tiny caps label | `text-xs text-muted-foreground uppercase tracking-wider` | (use directly — in StatTile labels) |
+| Hyper-tiny caps | `text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70` | sidebar group label, sublist divider, dropdown group label — specialized chrome, not abstracted |
+| Tabular numbers | always add `tabular-nums` | — |
+
+### 1.4 Spacing scale
+
+| Value | Purpose |
 |---|---|
 | `gap-1.5` | Icon-to-label inside Badge / chip |
 | `gap-2` | Header right-side button cluster, badge row |
 | `gap-3` | Card-internal three-block layout (icon · text · arrow) |
-| `gap-4` | **Grid gap for stat-tile rows** (Dashboard stats) |
-| `gap-3` | **Grid gap for category cards / profile cards** |
+| `gap-4` | Stat-tile rows (Dashboard) |
+| `gap-3` | Category/profile card grids |
 | `gap-6` | Outer page section spacing, default Card content spacing |
-| `mb-6` | **Page header bottom margin** — always |
-| `mb-8` | After the top stat row, before "Profiles" heading |
-| `mb-3` | After a section heading, before the grid it labels |
+| `mb-6` | Page header bottom, between sections |
+| `mb-8` | After top stat row, before subsection heading |
+| `mb-3` | After section heading, before grid |
+| `mb-2` | After SectionHeading default |
 
-If you find yourself writing `mb-7` or `gap-5`, stop. Pick one of the values above.
+If you write `mb-7` or `gap-5`, you've drifted. Pick a value above.
 
-### 1.6 Elevation / surfaces
+### 1.5 Elevation / surfaces
 
-| Surface | Recipe |
+| Surface | Recipe / primitive |
 |---|---|
-| Page body | Mica via `tauri.conf.json`; body has `oklch(0.99 0 0 / 94%)` / dark `oklch(0.14 0.006 285 / 82%)`. Don't override. |
+| Page body | Mica via `tauri.conf.json`; body has translucent fallback |
 | Sidebar | `bg-foreground/[0.04] backdrop-blur-xl sidebar-bg` |
-| Hero (Dashboard top, Activation hero) | `rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm hero-glow` (or `hero-glow-success` / `hero-glow-warning`) |
-| Card | `bg-card/95 backdrop-blur-md text-card-foreground rounded-xl border border-foreground/8 py-6 gap-6 shadow-sm` — baked into `<Card />` |
-| Card with subtle inner highlight | add `card-inset` class (defined in `app.css @layer utilities`) — light: top inner highlight + soft shadow; dark: brighter top edge + drop shadow |
-| Hover-lift | `hover:-translate-y-0.5 hover:shadow-md transition-all duration-200` — used on ProfileCard, category cards, AdminBanner |
-| BulkActionBar (floating pill) | `fixed bottom-5 … rounded-2xl border-foreground/10 bg-card/85 backdrop-blur-xl pl-4 pr-2 py-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.35)]` |
-| Toast / dialog | `<Dialog />` and `<Toaster />` from `lib/ui/`. Don't roll your own modal. |
+| Hero banner | `<HeroBanner tone>` — wraps the hero shell + glow |
+| Card | `<Card>` — `rounded-xl border bg-card/95 backdrop-blur-md py-6 gap-6 shadow-sm` |
+| Card with subtle inner highlight | add `card-inset` class — `<Card class="card-inset">` |
+| List card | `<ListCard>` — `<Card>` with `overflow-hidden gap-0 py-0 card-inset` baked in |
+| Hover-lift | `hover:-translate-y-0.5 hover:shadow-md transition-all duration-200` (used by CategoryCard, ProfileCard) |
+| Floating | `<BulkActionBar>`, Dialog — fixed position with stronger shadow |
 
-`card-inset` is the visual "lift" that distinguishes a flat Card from one that should
-feel tappable / interactive. Use it on stat tiles, category cards, profile cards,
-list-of-rows cards. **Don't** use it on form Cards inside Settings or Maintenance —
-those want the plain shadow.
+### 1.6 Iconography
 
-### 1.7 Iconography
+- `@lucide/svelte` everywhere. Custom SVG only for `OneDriveIcon`.
+- Sizes: `size-2.5` in Badge, `size-3` in StatusPill, `size-3.5` in row hints,
+  `size-4` standard inline / IconTile / Button slot, `size-5` hero icon,
+  `size-6` loading spinner, `size-8` StatusAvatar icon.
 
-- Library: `@lucide/svelte` only. No mixing with other icon sets except `OneDriveIcon`
-  (custom SVG for brand fidelity).
-- Default size inside a Button is `size-4` (Button.svelte handles this via
-  `[&_svg:not([class*='size-'])]:size-4`).
-- Inline within text / row: `size-3.5` (refresh spinner, arrow-right hint) or `size-4`.
-- Inside a 9px / 10px **icon tile** (see §3.5): `size-4`.
-- Inside a Badge: `size-2.5`.
-- Hero icon (when used): `size-5`.
-
-### 1.8 Motion
+### 1.7 Motion
 
 | Utility | When |
 |---|---|
-| `animate-route` | Mounted on the route-level root for fade-in (180ms ease-out) — already wired in Layout |
+| `animate-route` | Mounted on route root for fade-in (180ms) — Layout-managed |
 | `animate-enter` | Single element fade+rise (220ms) |
-| `stagger` | Apply on a container; children fade+rise with 30ms staggered delay up to 9 |
-| `transition-all duration-200` | Hover lifts on cards |
-| `transition-colors` | Subtle hover background changes |
-| `fly={{ y: 24, duration: 240, easing: cubicOut }}` | BulkActionBar mount/unmount |
+| `stagger` | Container; children fade+rise with 30ms staggered delay |
+| `transition-all duration-200` | Hover lifts |
+| `fly={{ y: 24, duration: 240, easing: cubicOut }}` | BulkActionBar |
 
-All animations honour `prefers-reduced-motion` (defined in `app.css @layer
-utilities`). Don't add a new `@keyframes` without adding it to the reduced-motion
-override.
+All honor `prefers-reduced-motion` via `app.css @layer utilities`.
 
 ---
 
-## 2. Primitives — what already exists in `lib/ui/`
+## 2. Primitives — `src/lib/ui/`
 
-| Primitive | File | Variants | Notes |
-|---|---|---|---|
-| `Button` | `Button.svelte` | `default` / `destructive` / `outline` / `secondary` / `ghost` / `link` × size `default` / `sm` / `lg` / `icon` | Use for **every** button-shaped thing. No `<button class="rounded-md bg-primary …">` in routes. |
-| `Card` | `Card.svelte` | — (one shape) | Wraps `bg-card/95 backdrop-blur-md`, `rounded-xl`, `border`, `py-6`, `gap-6`. Override `py-0 gap-0` for list-of-rows. |
-| `CardHeader` / `CardTitle` / `CardDescription` / `CardContent` | `lib/ui/Card*.svelte` | — | Composition slots. Header/Content have `px-6`; Content adds nothing else. |
-| `Badge` | `Badge.svelte` | `default` / `secondary` / `outline` / `success` / `warning` / `destructive` | Always pairs with a `size-2.5` Lucide icon inside |
-| `Switch` | `Switch.svelte` | — | Bound to `checked` + `onCheckedChange`. Mark its parent with `data-no-select` if it lives in a click-to-select row |
-| `Checkbox` | `Checkbox.svelte` | — | Same `data-no-select` rule |
-| `Dialog` | `Dialog.svelte` | — | Use for confirmations, previews, raw-hosts editor |
-| `Select.*` | `lib/ui/select/` | — | Bits-UI wrapper |
-| `Titlebar` | `Titlebar.svelte` | — | Custom drag-region + traffic-light buttons |
-| `Toaster` + `toast` | `Toaster.svelte`, `toast.svelte.ts` | `success` / `error` / `warning` / `action` / `show` | Don't `alert()` and don't write inline banners for transient feedback |
-| `BulkActionBar` | `BulkActionBar.svelte` | — | Floating selection actions — pass children as `<Button size="sm" …>` |
+### Foundational
+
+| Primitive | API highlights |
+|---|---|
+| `Button` | `variant: default \| destructive \| outline \| secondary \| ghost \| link`, `size: default \| sm \| lg \| icon`, `href` for link variant |
+| `Card`, `CardHeader`, `CardTitle`, `CardDescription`, `CardContent` | Composition slots. Override `py-0 gap-0` for list cards (or use `<ListCard>`) |
+| `Badge` | `variant: default \| secondary \| outline \| success \| warning \| destructive` |
+| `Switch`, `Checkbox` | `bind:checked` + `onCheckedChange`. Mark parent with `data-no-select` if inside a click-to-select row |
+| `Dialog` | Confirmations, previews, raw editors |
+| `Select.*` | Bits-UI wrapper |
+| `Titlebar` | Custom drag-region + traffic lights |
+| `Toaster` + `toast` | `success / error / warning / action / show` |
+| `BulkActionBar` | Floating selection-actions bar |
+
+### Layout primitives
+
+| Primitive | API highlights | Used at |
+|---|---|---|
+| `PageHeader` | `title` (string), `description` (string) OR children snippet, `actions` snippet, `above` snippet (for back-link) | every route header (~30 sites) |
+| `SectionHeading` | `title`, `hint` for right-side text, `actions` snippet for right button, `inline` snippet for `(suffix)`, `level: h2 \| h3 \| h4`, `class` for margin overrides | 33 sites |
+| `HeroBanner` | `tone: default \| success \| warning \| none`, `withDots` (Dashboard's dot pattern) | Dashboard, Activation, OneDrive (2×) |
+| `EmptyState` | `loading` → spinner, `icon` → custom icon, `iconClass`, `class` for `py-16` overrides — defaults to Card-wrapped centered message | ~30 sites across 18 files |
+| `ListCard` | `<Card>` with `overflow-hidden gap-0 py-0 card-inset` baked in | 28 list shells |
+| `ListRow` | `align: start \| center`, `density: sm \| md` (py-3 / py-4), `interactive` (cursor-pointer) | 10 simple rows; complex rows (TweakRow, Apps/Bloatware selectable rows, Defender/Firewall/WindowsUpdate state-driven rows) intentionally not migrated |
+| `AdminBanner` | `title`, `description` (md), `hint` (sm), `size: sm \| md`, `requireAutoCheck`, `declinedToast` | Top-of-route admin banner + TweakSection's inline "X tweaks hidden" small variant |
+
+### Visual primitives
+
+| Primitive | API highlights | Used at |
+|---|---|---|
+| `MetricBar` | `value` (0-100), `size: sm \| md`, `tone: primary \| success \| warning` | Dashboard StatTile, ProfileCard, Profiles list (2×), Specs RAM |
+| `IconTile` | `size: sm (8) \| md (9) \| lg (10)`, `radius: md \| lg`, `interactive` (group-hover effect) | Dashboard categories (via CategoryCard), ProfileCard, Profiles rows (2×) |
+| `StatTile` | `label`, `icon` (Component), `value`, `total` (shown as `/N`), `loading` (Loader2 spinner), `hint`, `footer` snippet | Dashboard (3×) |
+| `CategoryCard` | `href`, `icon`, `label`, `description`, `count`, `countSuffix` (default "entries") | Dashboard (14× per iteration) |
+| `StatusPill` | `tone: neutral \| muted \| success \| warning`, `icon` (Component) or children, `onclick` (renders `<button>`) vs span, `style` (for `-webkit-app-region`) | Layout titlebar (3×: Terminal, Admin, Elevate), Developer feature pills (2×) |
+| `StatusAvatar` | `tone: neutral \| muted \| success \| warning \| primary`, `icon` (Component) or children — size-16 rounded-2xl hero icon | Activation hero, OneDrive (2× — uninstall confirmation + hero) |
+| `InfoBanner` | `tone: info \| warning \| success \| error`, `size: xs \| sm \| md \| lg`, `icon` override, `iconClass` override | Activation 3×, OneDrive dialog, ContextMenu help text, InstallMedia 3× (error/warning xs variants), DiskSetupStep error |
+| `SelectableTile` | `selected`, `onclick`, `tone: default \| danger`, `size: sm \| md` — the click-to-toggle option card used everywhere in Task Sequence steps | 7 task sequence step files (Bypass, Privacy, OobeSkip, DiskSetup, AppsInstall, RegTweaks, DebloatAppx) |
+| `DataField` | `label`, `value` or children, `mono` (font-mono tabular-nums), `class` — the "tiny caps label + value" pair | Specs CPU (4×), Specs GPU (4×), AI status grid (4×) — more sites to migrate as encountered |
+| `CheckboxLabel` | `bind:checked`, `disabled`, `icon` (optional inline), `label`, children for description | OneDrive backup + uninstall (6×), AI Recall wipe options (2×) |
+| `SearchInput` | `bind:value`, `placeholder`, `class` (for container width) | 6 sites (Apps, Bloatware, ContextMenu, ScheduledTasks, Services, Startup) |
+| `SegmentedControl<T>` | Generic over string union. `options: {value, label, icon}[]`, `value`, `onChange` | Settings theme picker |
 
 ---
 
-## 3. Recipes & missing primitives
+## 3. Page recipes
 
-This is the section to act on next. Each subsection describes a pattern that is
-currently inline-Tailwind on 2+ routes, and proposes the primitive to extract.
-
-### 3.1 `<PageHeader />` — *missing, extract*
-
-**Current state:** every route opens with hand-typed markup:
+### 3.1 Tweak-category page (Privacy, Search, AI, Explorer, …)
 
 ```svelte
-<header class="mb-6">
-  <h1 class="text-3xl font-semibold tracking-tight">Privacy</h1>
-  <p class="text-sm text-muted-foreground mt-1">Telemetry, advertising ID, …</p>
-</header>
-```
+<script lang="ts">
+  import TweakSection from "$lib/components/TweakSection.svelte";
+  import { PageHeader } from "$lib/ui";
+  import { PRIVACY_TWEAKS } from "$lib/tweaks/catalog";
+</script>
 
-or with a refresh button:
-
-```svelte
-<header class="mb-6 flex flex-wrap items-end justify-between gap-4">
-  <div>
-    <h1 …>Windows activation</h1>
-    <p …>Current license status …</p>
-  </div>
-  <Button variant="outline" onclick={reload} disabled={loading}>…</Button>
-</header>
-```
-
-**Target API** (no code change yet — for reference):
-
-```svelte
-<PageHeader title="Privacy" description="Telemetry, advertising ID, activity history.">
-  {#snippet actions()}
-    <Button variant="outline" onclick={reload} disabled={loading}>
-      <RefreshCw class={loading ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  {/snippet}
-</PageHeader>
-```
-
-### 3.2 `<SectionHeading />` — *missing, extract*
-
-**Current state:** Dashboard repeats this twice (above Profiles, above Categories):
-
-```svelte
-<div class="flex items-center justify-between mb-3">
-  <h2 class="text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
-    Profiles
-  </h2>
-  <span class="text-[11px] text-muted-foreground">one-click setups</span>
-</div>
-```
-
-**Target API:**
-
-```svelte
-<SectionHeading title="Profiles" hint="one-click setups" />
-```
-
-### 3.3 `<HeroBanner />` — *missing, extract (used 2× today, will grow)*
-
-**Current state:** Dashboard rolls a 56-line block; Activation has a smaller variant.
-
-```svelte
-<section class="relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6 hero-glow">
-  <div class="absolute inset-0 -z-10 opacity-[0.04] [background-image:radial-gradient(circle_at_1px_1px,_currentColor_1px,_transparent_0)] [background-size:16px_16px]"></div>
-  …eyebrow + h1 + accent bar + description + meta + actions slot…
-</section>
-```
-
-**Target API:**
-
-```svelte
-<HeroBanner
-  eyebrow="Take back control"
-  title="Reclaim Your Windows"
-  titleMuted="Reclaim"
-  description="Strip out bloatware, kill telemetry …"
-  tone="default" {/* | "success" | "warning" */}
->
-  {#snippet meta()}…info pills…{/snippet}
-  {#snippet actions()}…buttons…{/snippet}
-</HeroBanner>
-```
-
-`tone` switches `hero-glow` / `hero-glow-success` / `hero-glow-warning` and (optionally)
-the eyebrow accent color.
-
-### 3.4 `<StatTile />` — *missing, extract (used 3× on Dashboard)*
-
-**Current state:** three near-identical Card+CardContent blocks on Dashboard, each
-with a tiny caps label, an icon, a big number, and optionally a progress bar.
-
-**Target API:**
-
-```svelte
-<StatTile label="Active tweaks" icon={Shield}>
-  <StatValue value={appliedCount} total={ALL_TWEAKS.length} loading={loading} />
-  <MetricBar value={progress} max={100} />
-</StatTile>
-```
-
-### 3.5 `<IconTile />` — *missing, extract*
-
-**Current state:** identical 9–10px rounded square with the same ring/bg recipe is
-inline on Dashboard categories and ProfileCard (with a `size-9` vs `size-10`
-variance):
-
-```svelte
-<div class="grid place-items-center size-10 rounded-lg bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5">
-  <Icon class="size-4" />
-</div>
-```
-
-Hover variant on Dashboard adds `group-hover:text-primary group-hover:bg-primary/10`.
-
-**Target API:**
-
-```svelte
-<IconTile icon={Package} size="md" interactive />  {/* sm = 9, md = 10 */}
-```
-
-### 3.6 `<CategoryCard />` — *missing, extract (used 14× on Dashboard alone)*
-
-```svelte
-<CategoryCard
-  href="/bloatware"
-  icon={Package}
-  label="Bloatware"
-  description="Remove pre-installed apps"
-  count={BLOATWARE.length}
-  countSuffix="entries"
+<PageHeader
+  title="Privacy"
+  description="Telemetry, advertising ID, activity history, location tracking."
 />
-```
 
-This is just `<IconTile>` + label + description + count, all packaged. The hover
-recipe (`hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30
-transition-all duration-200`) belongs inside the component.
-
-### 3.7 `<EmptyState />` — *missing, extract*
-
-We have at least three flavors of "all hidden / no data" message:
-
-- `TweakSection`: `<Card class="card-inset"><div class="px-6 py-16 text-center text-sm text-muted-foreground">All tweaks in this category …</div></Card>`
-- Apps / Bloatware / Services: various inline messages
-
-**Target API:**
-
-```svelte
-<EmptyState icon={ShieldAlert} title="…" description="…">
-  {#snippet action()}<Button>…</Button>{/snippet}
-</EmptyState>
-```
-
-### 3.8 `<AdminBanner />` — *exists, but duplicated inline*
-
-`AdminBanner.svelte` is the canonical amber banner for "this whole page needs admin".
-But `TweakSection.svelte` reimplements a **smaller** amber banner inline for "X
-admin-only tweaks hidden". The two banners drift apart on padding (`p-4` vs `px-4
-py-3`), radius (`rounded-xl` vs `rounded-lg`), icon size (`size-5` vs `size-4`) and
-title weight.
-
-**Fix later:** add a `size="sm"` variant to `AdminBanner`, swap the inline copy in
-`TweakSection` for it.
-
-### 3.9 `<ListCard />` — *missing, extract*
-
-The "list of rows inside one Card" pattern is documented in `CLAUDE.md` as
-`<Card class="overflow-hidden gap-0 py-0 card-inset">` and is used in TweakSection,
-ContextMenu, Bloatware list, Services, ScheduledTasks. Same wrapper every time.
-
-**Target API:**
-
-```svelte
-<ListCard>
-  {#each items as item (item.id)}
-    <ListRow …>…</ListRow>
-  {/each}
-</ListCard>
-```
-
-`<ListRow />` would absorb the shared "click-to-select row with `data-no-select` on
-interactive children, left accent bar when on/selected, border-b last:border-b-0"
-recipe currently inside `TweakRow.svelte`.
-
-### 3.10 `<MetricBar />` — *missing, extract (used 2× today, will grow)*
-
-```svelte
-<div class="h-1 rounded-full bg-muted overflow-hidden">
-  <div class="h-full rounded-full bg-primary transition-all duration-500"
-       style="width: {progress}%"></div>
-</div>
-```
-
-Identical on Dashboard StatTile and ProfileCard. Trivial component, but worth
-extracting so we control the height variants (`h-1` / `h-1.5` / `h-2`) and tone
-(`bg-primary` / `bg-success` / `bg-warning`).
-
-### 3.11 `<MetaPills />` — *missing, extract*
-
-Hero "OS · build · username" meta line:
-
-```svelte
-<div class="mt-3 text-xs text-muted-foreground flex flex-wrap gap-x-2">
-  <span class="font-medium text-foreground">{info.productName}</span>
-  {#if info.displayVersion}<span>· {info.displayVersion}</span>{/if}
-  …
-</div>
-```
-
-Could be a small `<MetaPills items={[{strong: "Windows 11 Pro"}, "23H2", "Build 22631"]} />`.
-
----
-
-## 4. Page recipes — how routes should look once primitives land
-
-### 4.1 Tweak-category page (Privacy, Search, AI, Explorer, Taskbar, Performance, Memory, Gaming, Notifications, Updates)
-
-```svelte
-<PageHeader title="Privacy" description="Telemetry, advertising ID, activity history, location tracking." />
 <TweakSection tweaks={PRIVACY_TWEAKS} />
 ```
 
-That's it. **Today this is roughly correct already** — Privacy.svelte is only 13
-lines. The fix is replacing the hand-rolled `<header>` with `<PageHeader />`.
+That's it. 13 lines for an entire route.
 
-### 4.2 Action / detail page (Activation, Defender, Hosts, Network, Maintenance, Drivers, WindowsUpdate, ScheduledTasks)
+### 3.2 Action / detail page (Activation, Defender, Hosts, Network, Maintenance, …)
 
 ```svelte
 <PageHeader title="…" description="…">
-  {#snippet actions()}<Button …>Refresh</Button>{/snippet}
+  {#snippet actions()}<Button>Refresh</Button>{/snippet}
 </PageHeader>
 
-<AdminBanner … />          {/* if admin-only */}
+<AdminBanner … />                  {/* if admin-only */}
 
-<HeroBanner tone="success" … />   {/* if the page has a binary state — Activation, OneDrive */}
+<HeroBanner tone="success">…</HeroBanner>   {/* if binary state */}
 
 <SectionHeading title="…" />
-<div class="grid grid-cols-… gap-4 stagger">…</div>
+<ListCard>
+  {#each items as item}
+    <ListRow>…</ListRow>
+  {/each}
+</ListCard>
 
-<ListCard>…</ListCard>
+{#if loading}<EmptyState loading>…</EmptyState>{/if}
 ```
 
-### 4.3 Dashboard
+### 3.3 Dashboard
 
 ```svelte
-<HeroBanner …>
-  {#snippet actions()}<Button>Apply all recommended</Button><Button variant="outline">Snapshot</Button>{/snippet}
+<HeroBanner withDots>
+  …eyebrow, title, actions…
 </HeroBanner>
 
 <AdminBanner … />
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger">
-  <StatTile …/> × 3
+  <StatTile label="Active tweaks" icon={Shield} value={n} total={N} {loading}>
+    {#snippet footer()}<MetricBar value={progress} class="mt-3" />{/snippet}
+  </StatTile>
+  …
 </div>
 
 <SectionHeading title="Profiles" hint="one-click setups" />
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8 stagger">
-  {#each PROFILES as p}<ProfileCard … />{/each}
+  {#each PROFILES as p}<ProfileCard profile={p} … />{/each}
 </div>
 
 <SectionHeading title="Categories" hint="click to open" />
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
-  {#each categories as c}<CategoryCard … />{/each}
+  {#each categories as c}<CategoryCard {...c} />{/each}
 </div>
 ```
 
-Going from current Dashboard (≈400 lines) to the recipe above shrinks it to roughly
-80 lines of data + composition.
+Dashboard went from ~400 LOC to ~180 LOC.
 
-### 4.4 Settings / form-style page
+### 3.4 Settings / form page
 
 ```svelte
-<PageHeader title="Settings" description="Appearance, system actions and info." />
+<PageHeader title="Settings" description="…" />
 
 <div class="flex flex-col gap-6">
   <Card>
@@ -487,126 +264,211 @@ Going from current Dashboard (≈400 lines) to the recipe above shrinks it to ro
       <CardTitle>Appearance</CardTitle>
       <CardDescription>…</CardDescription>
     </CardHeader>
-    <CardContent>…</CardContent>
+    <CardContent>
+      <SegmentedControl options={…} value={theme.mode} onChange={(v) => theme.set(v)} />
+    </CardContent>
   </Card>
-
-  <BackgroundServiceCard />
-
   …
 </div>
 ```
 
-The theme picker grid (3-button row, currently hand-rolled in Settings.svelte) should
-become a `<SegmentedControl />` primitive (proposed). Same shape will be needed when
-we add more "pick one of N" settings.
+---
+
+## 4. Anti-patterns
+
+1. **Wrapping `<Card>` with another padding div.** Card has `py-6 gap-6` baked in. Use
+   `<CardContent>` (px-6) or override `py-0 gap-0` for list cards (or just use `<ListCard>`).
+2. **Hand-rolled `<button class="rounded-md bg-primary …">`.** Use `<Button>`.
+3. **`<h1 class="text-3xl font-semibold tracking-tight">` in a route.** Use `<PageHeader>`.
+4. **Raw `<h2 class="text-xs font-semibold uppercase tracking-[0.12em] …">`.** Use `<SectionHeading>`.
+5. **New raw `emerald-`, `sky-`, `rose-` colors.** Use `text-success`, `text-destructive`,
+   etc. (Amber is the exception — it's the convention for warning UI.)
+6. **Hand-rolled `grid place-items-center size-10 rounded-lg bg-foreground/[0.06] …`.**
+   Use `<IconTile>`. For the size-16 hero variant, use `<StatusAvatar>`.
+7. **Hand-rolled `<div class="h-1 rounded-full bg-muted overflow-hidden">…<div bg-primary />`.** Use `<MetricBar>`.
+8. **Inline `<div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 …">`.** Use `<InfoBanner tone="warning">`.
+9. **Inline pill `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider …">`.** Use `<StatusPill>`.
+10. **Inline `<div class="relative"><Search /><input class="w-full h-9 pl-9 …">`.** Use `<SearchInput>`.
+11. **Hand-rolled empty/loading state.** Use `<EmptyState>` (defaults to Card+centered; pass `loading` for spinner; pass `icon` for icon-driven empty).
+12. **Fresh `mb-7`, `gap-5`, `py-3.5`.** Pick from the scale (§1.4).
+13. **Mixing radii inside one widget.** Pick one elevation level per surface.
+14. **New `@keyframes` without a `@media (prefers-reduced-motion: reduce)` override.**
+15. **Raw `bg-foreground/[0.0X]` or `border-foreground/X` for surface chrome.** Use the
+    surface ladder: `bg-surface-1/2/3/4`, `bg-surface-chrome`, `border-hairline`,
+    `border-hairline-strong` (§1.1b).
+16. **Hand-rolled selectable button card** (`<button class="flex items-start gap-3 px-3 py-2.5 rounded-md border …">` with primary/hairline conditional). Use `<SelectableTile>`.
+17. **Hand-rolled `<label class="flex items-start gap-3 p-3 rounded-lg border …"><Checkbox />…`.** Use `<CheckboxLabel>`.
+18. **Hand-rolled `<div><div class="text-[10px] uppercase">Label</div><div>{value}</div></div>`.** Use `<DataField>`.
 
 ---
 
-## 5. Component status table
+## 5. Migration status
 
-| Primitive / recipe | Status | Files to touch when extracting |
+All 13 steps of the original migration plan are shipped, plus 4 follow-up primitives
+extracted from patterns discovered during migration.
+
+| Primitive | Sites migrated |
+|---|---|
+| ✅ `PageHeader` | ~30 routes |
+| ✅ `SectionHeading` | 33 places in 15 files |
+| ✅ `MetricBar` | 5 |
+| ✅ `IconTile` | 4 (+ used internally by CategoryCard) |
+| ✅ `StatTile` | 3 (Dashboard) |
+| ✅ `CategoryCard` | 14 (Dashboard) |
+| ✅ `HeroBanner` | 4 |
+| ✅ `EmptyState` | ~30 across 18 files |
+| ✅ `AdminBanner` size="sm" variant | 1 (TweakSection inline replaced) |
+| ✅ `ListCard` | 28 pairs across 19 files |
+| ✅ `ListRow` | 10 simple sites (complex state-driven rows intentionally left as components) |
+| ✅ `SegmentedControl<T>` | 1 (Settings theme picker, type-safe via Svelte 5 generics) |
+| ✅ Warning color: Badge variant cleaned, `text-emerald-500` → `text-success`, Activation amber Badge → `variant="warning"` | 3 |
+| ✅ Lint sweep | done |
+| ✅ `SearchInput` | 6 sites |
+| ✅ `StatusPill` | 5 sites (Layout titlebar 3×, Developer 2×) |
+| ✅ `StatusAvatar` | 3 sites |
+| ✅ `InfoBanner` | 5 sites |
+| ✅ Unused `Card` import cleanup | 10 files |
+
+Total: **~290 migration sites** across **~35 files**. Zero `pnpm check` errors/warnings
+throughout.
+
+### Phase 6 — Surface tokens + Task-Sequence primitives
+
+| Primitive / token | Sites migrated |
+|---|---|
+| ✅ Surface ladder tokens (`--surface-1..4`, `--surface-chrome`, `--hairline`, `--hairline-strong`) | **101 replacements** across 32 files — all raw `bg-foreground/[0.0X]` and `border-foreground/X` swapped for semantic tokens |
+| ✅ `SelectableTile` | 7 task sequence step files |
+| ✅ `DataField` | 11 sites (Specs CPU + GPU grids, AI Recall status grid) — more to migrate over time |
+| ✅ `CheckboxLabel` | 8 sites (OneDrive 6×, AI 2×) |
+| ✅ `InfoBanner` extended (xs size + success/error tones) | 4 InstallMedia status-row sites + DiskSetupStep error banner |
+| ✅ Remaining ListCard strays (Activation, StepCard) | 2 |
+| ✅ Unused `Search` icon imports cleanup | 5 files |
+
+### Phase 10 — Second deep audit (4 more agents) — 4 new primitives
+
+User explicitly asked: "Geh nochmal alles durch, man kann sich nicht sicher genug sein." Spawned 4 more Explore agents on areas not yet deep-audited: forms/inputs, InstallMedia, button/clickable patterns, and Logs/ScheduledTasks/Drivers-WU.
+
+| New primitive | API | Migrated sites |
 |---|---|---|
-| `Button`, `Card*`, `Badge`, `Switch`, `Checkbox`, `Dialog`, `Select`, `Titlebar`, `Toaster`, `BulkActionBar` | ✅ exist | — |
-| `PageHeader` | ❌ extract | every route header (~30 files) |
-| `SectionHeading` | ❌ extract | Dashboard, IsoBuilder, Maintenance (group divider), Drivers, WindowsUpdate, Defender |
-| `HeroBanner` | ❌ extract | Dashboard, Activation, possibly OneDrive |
-| `StatTile` | ❌ extract | Dashboard, ProfileBuilder (final summary) |
-| `IconTile` | ❌ extract | Dashboard categories, ProfileCard, ProfileIcon (variant) |
-| `CategoryCard` | ❌ extract | Dashboard |
-| `EmptyState` | ❌ extract | TweakSection, Apps, Bloatware, Services, ScheduledTasks, Firewall |
-| `AdminBanner` (sm variant) | 🟡 extend | TweakSection's inline amber banner |
-| `ListCard` + `ListRow` | ❌ extract | TweakSection / TweakRow, ContextMenu, Services, ScheduledTasks, Startup, Bloatware row |
-| `MetricBar` | ❌ extract | Dashboard StatTile, ProfileCard progress |
-| `MetaPills` | ❌ extract | Hero, Specs, Activation |
-| `SegmentedControl` | ❌ extract | Settings theme picker, anywhere else we need "pick one of N" |
+| ✅ `FilterChip` | `selected`, `count`, `onclick` — the `h-8 px-3 rounded-md` toggle pill | Logs (5 chips), WindowsUpdate (5 chips) |
+| ✅ `TextLink` | `onclick`, `size: xs\|sm` — replaces `<button class="text-primary hover:underline">` | Bloatware (group select-all), ProfileBuilder (2× tweak/bloat select-all), InstallMedia ("Use last built ISO") |
+| ✅ `FormField` | `label`, `hint`, `class` (gap-1.5 baked in) — replaces `<label class="flex flex-col gap-1.5"><span class="text-xs font-medium text-muted-foreground">…</span>…</label>` | ProfileBuilder (3 form fields), Network DNS dialog (2), Defender exclusion dialog (1), InstallMedia (5+ Selects/Inputs) |
+| ✅ `TextInput` | `bind:value`, `placeholder`, `mono`, `readonly`, `disabled` — wraps the canonical `h-9 rounded-md border bg-card px-3 text-sm focus-visible:ring` | All sites above |
+
+| Other fixes | Detail |
+|---|---|
+| ✅ ScheduledTasks task rows | Hand-rolled `<div class="flex items-start gap-3 py-3 px-5 border-b ...">` → `<ListRow class={note ? "bg-amber-500/[0.04]" : ""}>` |
+| ✅ Drivers WU driver-class divider | Inline `<div class="px-5 py-2 ... text-[10px] font-semibold uppercase ...">` → `<SectionHeading level="h3" hint={...} class="mb-0">` inside the container |
+| ✅ Hosts row-action `pt-1` → `pt-0.5` | Last `pt-1` outlier (all others were `pt-0.5`) |
+| ✅ InstallMedia USB drive tile | Hand-rolled selectable button → `<SelectableTile>` (already a primitive!) |
+| ✅ InstallMedia USB-empty info | Hand-rolled box → `<InfoBanner size="xs" icon={Usb}>` |
+| ✅ InstallMedia `labelClass` const removed | All its uses migrated to `<FormField>` |
+| ✅ Activation/OneDrive `HeroBanner`/`StatusAvatar` imports | Cleaned (now used internally by StatusHero) |
+
+### Phase 9 — StatusHero (Activation + OneDrive hero card pattern)
+
+User asked: "Hast du für diese Banner wie bei OneDrive und Activation auch ein UI Ding erstellt?"
+
+Spot-on — those two heroes had IDENTICAL structure (HeroBanner + `px-7 py-6 flex flex-wrap items-start gap-5` + StatusAvatar + Title row with Badges + Description + optional `<dl>` details), just hand-copied. Created `<StatusHero>` to absorb it.
+
+API:
+- `tone` (HeroBanner tone) + `avatarTone` (defaults to a sensible mapping; override for cases like OneDrive's `neutral` brand-white avatar over the `default` hero)
+- `title` (string)
+- `avatar` snippet (icon or img content for the StatusAvatar)
+- `badges` snippet (Badge components next to title)
+- `description` (string) OR children (rich content with inline `<code>` etc.)
+- `details` snippet (dt/dd pairs — caller controls dt styling since responsive label style differs per route)
+
+Migrations: 2 sites (Activation hero, OneDrive hero status card). Each route dropped ~50 lines of identical wrapper markup.
+
+### Phase 8 — Multi-agent UX/UI QA sweep
+
+Spawned 4 parallel Explore agents to audit Card consistency, Section/spacing, List-row layouts,
+and Typography micro-patterns. Findings → fixes:
+
+| Issue | Fix |
+|---|---|
+| Developer.svelte:182/188 `<Card class="p-6">` for "browser preview" / "not elevated" states | → `<EmptyState>` (the canonical empty-state primitive) |
+| Developer.svelte:238 row description used `mt-0.5` (all others use `mt-1`) | Unified to `mt-1 leading-relaxed` |
+| ContextMenu.svelte:211 right-action wrapper used `pt-1` (all others use `pt-0.5`) | Unified to `pt-0.5` |
+| ProfileBuilder.svelte:184 inner div used `py-5` (all others use `py-4`) | Unified to `py-4` |
+| Defender exclusions intro paragraph above ListCard | Migrated to `<SectionHeading description>` |
+| Firewall `<p>` intro with inline `<code>` above ListCard | Migrated to `<SectionHeading>{rich children}</SectionHeading>` — extended SectionHeading to accept children slot for rich-content descriptions when string isn't enough |
+| Drivers 2× intro paragraphs above driver-packages + WU-catalog sections | Migrated to SectionHeading children slot |
+| Firewall had NO section heading (flat structure) | Added `<SectionHeading title="Telemetry blocks">` with the inline description |
+
+### Phase 7 — Row icon unification + Developer's gold standard
+
+User feedback: Developer's row cards are 100× cooler than Firewall/DNS — the icon container
+(`size-9 rounded-md bg-surface-3 border border-hairline text-muted-foreground`) is more
+refined than the older `bg-accent/60` pattern. Plus Developer's section headings were
+hand-rolled `<h2 class="text-sm font-semibold tracking-tight">` instead of using
+`<SectionHeading>`.
+
+| Primitive | Sites migrated |
+|---|---|
+| ✅ `RowIcon` (caller provides only `icon`+`tone`+optional `iconClass`, rest predefined) | **17 sites** across Apps (image), Bloatware (image), ContextMenu (neutral), Developer (neutral 2×), Firewall (neutral state-color), Hosts (neutral 2-state), Maintenance (4: 3 primary + Power neutral), Network (preset primary + adapter neutral), Services (neutral state-color), Startup (image), WindowsUpdate (neutral 2-state), ProfileBuilder (2 muted sm) |
+| ✅ `SelectableListRow` (label-wrapped selectable row with RowAccent baked in) | 3 sites (Apps, Bloatware, WindowsUpdate selectable rows) |
+| ✅ `SectionHeading` extended with `description` prop | Developer 5 sections (Linux on Windows / Virtualization / Windows Sandbox / WSL distros / Dev Drive) — descriptions preserved while migrating away from hand-rolled `<h2>+<p>` |
+| ✅ State-driven row bg + RowAccent cleanup | Firewall (2× rows), Defender (2× toggle rows), TweakRow (on-state bg dropped, selection still highlighted) — Developer-style clean rows where state is communicated via Switch position / StatusPill, not row tint |
+| ✅ DataField in Drivers GPU cards (4×) + InfoBanner xs success in "Installer downloaded" | 5 sites |
+| ✅ InstallMedia ADK status as dynamic-tone InfoBanner | 1 (3-state info/success/warning with conditional icon + MetricBar inside) |
+| ✅ Activation "Methods at a glance" list → 5× `<ListRow>` | 5 sites |
+| ✅ Maintenance Cleanmgr + Memory diag inline rows → `<ListRow>` | 2 sites |
+| ✅ Specs disk usage progress bar → `<MetricBar tone="destructive\|warning\|primary">` | 1 site (MetricBar extended with `destructive` tone) |
+| ✅ Settings about-card Info note → `<InfoBanner size="xs">` | 1 site |
+| ✅ Unused `cn` import cleanup post-migration | 4 files (Defender, Firewall, Maintenance, Services) |
 
 ---
 
-## 6. Anti-patterns (please stop)
+## 6. What was intentionally *not* extracted
 
-1. **Wrapping `<Card>` in another `<div class="px-5 py-5">`.** Card already has
-   `py-6 gap-6` baked in. Use `CardContent` (px-6) or override `py-0 gap-0` for
-   list cards. *(See [Card padding memory](../memory.md) for the past incident
-   shape — it bites every time.)*
-2. **Hand-rolled `<button class="rounded-md bg-primary …">`.** Use `<Button />`.
-3. **`<h1 class="text-3xl font-semibold tracking-tight">`** — that's `text-[1.875rem]
-   leading-tight` plus the base styles. The class chain belongs in `PageHeader`,
-   not in every route file.
-4. **New raw amber / red / green colors.** Use `--success`, `--destructive`, the
-   warning convention (once it's unified), or — for now — the `Badge` warning
-   variant which already encodes the amber pair.
-5. **Inline `<div class="grid place-items-center size-10 rounded-lg bg-foreground/[0.06] …">`.** That's `IconTile`. Always.
-6. **Fresh `mb-7`, `gap-5`, `py-3.5`** — pick a value from the spacing scale
-   (§1.5).
-7. **Mixing `rounded-lg` and `rounded-xl` and `rounded-2xl` inside the same widget.**
-   Pick one elevation level (§1.3).
-8. **`<span class="text-xs text-muted-foreground uppercase tracking-wider">…</span>`
-   at the top of a section.** That's `<SectionHeading />` once we extract it.
-9. **New `@keyframes` without a `@media (prefers-reduced-motion: reduce)` override.**
-   The current animations all honor reduced motion; new ones must too.
-10. **Calling `getCurrentWindow().destroy()` from a route.** Window lifecycle belongs
-    in Layout. (Not strictly design-system, but the same "don't duplicate the wiring"
-    spirit.)
+These have low-ROI or higher complexity than payoff:
+
+- **TweakRow** — state-driven hover (`selected ? "bg-primary/[0.08]" : localOn ?
+  "bg-primary/[0.03]" : "hover:bg-accent/40"`) is too custom to absorb into ListRow.
+- **Apps / Bloatware / WindowsUpdate selectable rows** — each has `relative` + 2px
+  primary accent bar + custom selected-state bg. The accent bar pattern could be a
+  `<RowAccent active>` component (6 sites: TweakRow, Apps, Bloatware, Defender ×2,
+  Firewall, WindowsUpdate, BackgroundServiceCard) but would need each row to be
+  restructured.
+- **Defender / Firewall state-driven rows** — same shape as TweakRow but driven by
+  service state instead of user toggle.
+- **`text-[10px]` "tiny caps"** in Layout sidebar group label, Activation panel header,
+  Drivers sublist divider, Select dropdown label — same styling family as
+  `SectionHeading` but smaller scale and in-chrome context. Specialized, only 4 sites.
+- **ProfileBuilder gradient swatch** — interactive selectable size-9 button with
+  `ring-2 ring-primary` selected state. Not a fit for `IconTile`.
+- **Logs filter chip row** — `h-8 px-3 rounded-md text-xs font-medium border` with
+  active/inactive states. Different shape than `StatusPill` (which is small
+  rounded-full uppercase). One-off in Logs; could be a `FilterChipGroup<T>` later.
+- **Activation activation-script Card** — bespoke layout with copy button, code
+  preview, info banner. Already uses the new primitives where they fit.
 
 ---
 
-## 7. Migration plan (sequential, low-risk)
+## 7. Open questions
 
-Each step is a contained PR. None of them ship visual changes — they replace inline
-soup with a primitive that produces the same DOM.
-
-1. **`PageHeader`** — extract, migrate Privacy / Search / AI / Explorer / Taskbar
-   first (they're the smallest). Then Settings, Activation, Specs, Logs, etc. Should
-   touch ~30 files and remove ~120 lines.
-2. **`SectionHeading`** — extract, migrate Dashboard (2×) + any other "uppercase
-   divider" calls.
-3. **`IconTile`** — extract, migrate Dashboard categories + ProfileCard.
-4. **`MetricBar`** — extract, migrate Dashboard StatTile + ProfileCard.
-5. **`StatTile`** — extract using `IconTile` + `MetricBar`, migrate Dashboard.
-6. **`CategoryCard`** — extract using `IconTile`, migrate Dashboard.
-7. **`HeroBanner`** — extract, migrate Dashboard + Activation (and grade the
-   `tone` variants against current `hero-glow-success` / `hero-glow-warning`).
-8. **`EmptyState`** — extract, migrate TweakSection / Apps / Bloatware / Services
-   / ScheduledTasks / Firewall.
-9. **`AdminBanner` size variant** — extend, migrate the inline copy in TweakSection.
-10. **`ListCard` + `ListRow`** — extract, migrate TweakSection / TweakRow first
-    (largest payoff), then any other list-of-rows usage.
-11. **`SegmentedControl`** — extract, migrate Settings theme picker (and any future
-    "pick one of N").
-12. **Warning color unification** — pick one of the two paths in §1.2 and apply.
-13. **Lint pass** — search for `text-3xl font-semibold tracking-tight`,
-    `bg-foreground/\[0.06\]`, `tracking-\[0.12em\]`, `card-inset relative`, etc.
-    Any remaining inline use of these is a missed migration.
-
-Each step keeps the visual output identical, so screenshots before/after should diff
-to zero.
+- Should the 6 "selectable row with primary accent bar" patterns share a
+  `<SelectableListRow>` or `<RowAccent>` primitive? Saves ~10 lines per usage but
+  risks coupling.
+- `<TinyCaps>` primitive for the four `text-[10px]` chrome labels? Probably not —
+  contexts differ too much.
+- Should we tokenize `--warning-surface`, `--warning-border`, `--warning-fg` instead
+  of using raw `amber-*` everywhere? Current consensus: no — Tailwind utilities are
+  more concise and the amber palette is universally understood for warning UI.
+- `<SectionGrid>` that bundles `SectionHeading` + the grid shell? `<Section title=""
+  hint="" cols="1 sm:2 lg:4" gap="3">…</Section>`. Common enough on Dashboard, but
+  only 2 grids there.
+- Reduced motion: should hover lifts (`hover:-translate-y-0.5`) be suppressed under
+  `prefers-reduced-motion`? Currently only `transition-*` is killed; transforms still
+  apply on hover.
 
 ---
 
-## 8. Open questions
+## 8. Sources
 
-- Do we want a `<Section />` wrapper that bundles `<SectionHeading />` + the grid
-  shell? (Would let us write `<Section title="Profiles" hint="…" cols="1 sm:2
-  lg:4" gap="3">…</Section>`.) Probably yes after we see how often we repeat the
-  shell.
-- `card-inset` is binary. Do we need an "elevation scale" (flat / inset /
-  raised / floating)? Today: flat (form cards), inset (interactive cards), raised
-  (hover-lifted), floating (BulkActionBar, Dialog). Worth naming explicitly.
-- Should the Dashboard categories grid be vertically denser? Currently `py-4` on each
-  card via `class="py-4"` override; everywhere else uses `py-6`. Either bake a
-  `density="compact"` prop into `CategoryCard` or align with the default.
-- Reduced-motion: do we want to also disable the `hover:-translate-y-0.5` lift, or
-  is that fine because it's interaction-triggered? Currently the `prefers-reduced-motion`
-  rule only kills animations + transitions, but `transform` on hover is technically a
-  transition. Worth a once-over.
-
----
-
-## 9. Sources / references
-
-- `src/app.css` — all tokens, utility classes (`hero-glow*`, `card-inset`,
-  `animate-route`, `animate-enter`, `stagger`).
-- `src/lib/ui/` — existing primitives.
-- `CLAUDE.md` — section "Card list pattern" + "BulkActionBar pattern".
+- `src/app.css` — tokens, `card-inset`, `hero-glow*`, animation utilities.
+- `src/lib/ui/` — 23 primitive components.
+- shadcn/ui — pattern inspiration for the original tier (Button, Card, Badge, etc.).
 - ChrisTitusTech/winutil, Win11Debloat — visual ancestors of the broad page layout.
-- shadcn/ui — pattern inspiration for the primitives (we already mirror it).

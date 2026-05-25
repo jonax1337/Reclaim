@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { Card, Button, BulkActionBar, toast } from "$lib/ui";
-  import { Loader2, Wand2, RotateCcw, ShieldAlert, ArrowRight, Eye } from "@lucide/svelte";
+  import { Button, BulkActionBar, EmptyState, ListCard, toast } from "$lib/ui";
+  import { Loader2, Wand2, RotateCcw, Eye } from "@lucide/svelte";
   import type { Tweak } from "$lib/tweaks/catalog";
   import {
     applyTweak,
@@ -15,6 +15,7 @@
   import { setCached } from "$lib/cache.svelte";
   import TweakRow from "./TweakRow.svelte";
   import TweakPreviewDialog from "./TweakPreviewDialog.svelte";
+  import AdminBanner from "./AdminBanner.svelte";
 
   type Props = { tweaks: Tweak[] };
   let { tweaks }: Props = $props();
@@ -137,28 +138,12 @@
 </script>
 
 {#if hiddenCount > 0}
-  <button
-    type="button"
-    onclick={async () => {
-      const ok = await admin.relaunchElevated();
-      if (!ok) toast.error("UAC declined", "Continuing in restricted mode.");
-    }}
-    disabled={admin.requesting}
-    class="w-full mb-4 text-left rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/15 hover:-translate-y-0.5 hover:shadow-sm transition-all duration-200 px-4 py-3 flex items-center gap-3 disabled:opacity-60 group"
-  >
-    <ShieldAlert class="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
-    <div class="flex-1 text-xs">
-      <span class="font-semibold text-amber-900 dark:text-amber-200">
-        {hiddenCount} admin-only tweak{hiddenCount === 1 ? "" : "s"} hidden
-      </span>
-      <span class="text-amber-800/80 dark:text-amber-200/80">
-        · click to relaunch with UAC
-      </span>
-    </div>
-    <ArrowRight
-      class="size-3.5 text-amber-600 dark:text-amber-400 shrink-0 transition-transform group-hover:translate-x-0.5"
-    />
-  </button>
+  <AdminBanner
+    size="sm"
+    requireAutoCheck={false}
+    title="{hiddenCount} admin-only tweak{hiddenCount === 1 ? '' : 's'} hidden"
+    hint=" · click to relaunch with UAC"
+  />
 {/if}
 
 <div class="flex items-center justify-between mb-3 px-1 min-h-9">
@@ -204,13 +189,11 @@
 </div>
 
 {#if visibleTweaks.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      All tweaks in this category require administrator rights. Elevate to see them.
-    </div>
-  </Card>
+  <EmptyState>
+    All tweaks in this category require administrator rights. Elevate to see them.
+  </EmptyState>
 {:else}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each visibleTweaks as t (t.id)}
       <TweakRow
         tweak={t}
@@ -225,7 +208,7 @@
         }}
       />
     {/each}
-  </Card>
+  </ListCard>
 {/if}
 
 <BulkActionBar count={selected.size} onClear={clearSelection}>

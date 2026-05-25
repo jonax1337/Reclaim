@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, SectionHeading, CheckboxLabel, DataField, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -89,9 +89,7 @@
     declinedToast="Recall wipe needs admin — the toggles below still work."
   />
 {:else if canFetch}
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Recall snapshot store
-  </h2>
+  <SectionHeading title="Recall snapshot store" />
   <Card class="card-inset mb-6 py-0">
     <div class="px-5 py-4 space-y-3">
       <p class="text-xs text-muted-foreground leading-relaxed">
@@ -101,79 +99,51 @@
 
       {#if status}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-3">
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-              Status
-            </div>
-            <div class="mt-1">
-              {#if status.dataPresent}
-                <Badge variant="warning">Snapshots present</Badge>
-              {:else}
-                <Badge variant="success">
-                  <CheckCircle2 class="size-2.5" />
-                  Empty
-                </Badge>
-              {/if}
-            </div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-              Disk use
-            </div>
-            <div class="text-sm font-mono mt-1 tabular-nums">{fmtSize(status.sizeBytes)}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-              Snapshots
-            </div>
-            <div class="text-sm font-mono mt-1 tabular-nums">{status.snapshotCount}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-              Policy
-            </div>
-            <div class="mt-1">
-              {#if status.policyDisabled}
-                <Badge variant="success">Disabled</Badge>
-              {:else}
-                <Badge variant="outline">Allowed</Badge>
-              {/if}
-            </div>
-          </div>
+          <DataField label="Status">
+            {#if status.dataPresent}
+              <Badge variant="warning">Snapshots present</Badge>
+            {:else}
+              <Badge variant="success">
+                <CheckCircle2 class="size-2.5" />
+                Empty
+              </Badge>
+            {/if}
+          </DataField>
+          <DataField label="Disk use" mono value={fmtSize(status.sizeBytes)} />
+          <DataField label="Snapshots" mono value={status.snapshotCount} />
+          <DataField label="Policy">
+            {#if status.policyDisabled}
+              <Badge variant="success">Disabled</Badge>
+            {:else}
+              <Badge variant="outline">Allowed</Badge>
+            {/if}
+          </DataField>
         </div>
         {#if status.dataPath}
           <p class="text-[11px] font-mono text-muted-foreground/70 break-all">{status.dataPath}</p>
         {/if}
       {/if}
 
-      <label
-        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
+      <CheckboxLabel
+        bind:checked={alsoSetPolicy}
+        disabled={wipeBusy}
+        label="Block Recall via policy after wipe"
       >
-        <div class="pt-0.5">
-          <Checkbox bind:checked={alsoSetPolicy} disabled={wipeBusy} />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="text-sm font-medium">Block Recall via policy after wipe</span>
-          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Writes <code class="font-mono text-[11px]">DisableAIDataAnalysis = 1</code> so Recall cannot
-            silently come back via a feature update.
-          </p>
-        </div>
-      </label>
-      <label
-        class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer"
+        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Writes <code class="font-mono text-[11px]">DisableAIDataAnalysis = 1</code> so Recall
+          cannot silently come back via a feature update.
+        </p>
+      </CheckboxLabel>
+      <CheckboxLabel
+        bind:checked={alsoRemoveAppx}
+        disabled={wipeBusy}
+        label="Also remove the Recall AppX package"
       >
-        <div class="pt-0.5">
-          <Checkbox bind:checked={alsoRemoveAppx} disabled={wipeBusy} />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="text-sm font-medium">Also remove the Recall AppX package</span>
-          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Uninstalls <code class="font-mono text-[11px]">MicrosoftWindows.Client.AIX</code>.
-            Aggressive — Windows may reinstall it on the next feature update.
-          </p>
-        </div>
-      </label>
+        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Uninstalls <code class="font-mono text-[11px]">MicrosoftWindows.Client.AIX</code>.
+          Aggressive — Windows may reinstall it on the next feature update.
+        </p>
+      </CheckboxLabel>
 
       <div class="flex justify-end">
         <Button

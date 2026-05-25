@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, Dialog, PageHeader, SectionHeading, HeroBanner, StatusHero, EmptyState, StatusAvatar, InfoBanner, CheckboxLabel, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
     Folder,
     FolderInput,
     Trash2,
-    AlertTriangle,
     FileText,
     Image as ImageIcon,
     Monitor,
@@ -163,90 +162,66 @@
 />
 
 {#if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — OneDrive operations need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — OneDrive operations need the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Detecting OneDrive…
-  </div>
+  <EmptyState loading>Detecting OneDrive…</EmptyState>
 {:else if status && !status.installed}
-  <section
-    class="relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6"
-  >
+  <HeroBanner tone="none">
     <div class="px-8 py-10 flex flex-col items-center text-center gap-3">
-      <div class="grid place-items-center size-16 rounded-2xl bg-success/15 text-success">
-        <Check class="size-8" />
-      </div>
+      <StatusAvatar tone="success" icon={Check} />
       <h2 class="text-xl font-semibold">OneDrive is not installed</h2>
       <p class="text-sm text-muted-foreground max-w-md leading-relaxed">
         No OneDrive executable detected. If something still references it, click Refresh to
         re-scan.
       </p>
     </div>
-  </section>
+  </HeroBanner>
 {:else if status}
   <!-- Hero status card -->
-  <section
-    class="relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6 hero-glow"
-  >
-
-    <div class="px-7 py-6 flex flex-wrap items-start gap-5">
-      <div class="grid place-items-center size-16 rounded-2xl bg-white dark:bg-foreground/[0.06] shadow-sm shrink-0 ring-1 ring-foreground/5">
-        <img src={ONEDRIVE_LOGO} alt="OneDrive" class="size-10 object-contain" />
-      </div>
-      <div class="flex-1 min-w-[16rem]">
-        <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="text-xl font-semibold">Microsoft OneDrive</h2>
-          {#if status.processRunning}
-            <Badge variant="success">Running</Badge>
-          {:else}
-            <Badge variant="outline">Idle</Badge>
-          {/if}
-          <Badge variant="default">Installed</Badge>
-        </div>
-        <p class="text-xs text-muted-foreground mt-1">
-          {#if anyRedirected}
-            Some of your user folders are stored in OneDrive — back them up below before
-            removing the app.
-          {:else if status.syncFolder}
-            OneDrive is installed but your user folders aren't redirected.
-          {:else}
-            OneDrive is installed and not actively syncing anything personal.
-          {/if}
-        </p>
-
-        {#if anyRedirected || status.syncFolder}
-          <dl class="mt-4 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-xs">
-            {#if status.syncFolder}
-              <dt class="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold sm:normal-case sm:tracking-normal sm:text-xs sm:font-normal">Sync folder</dt>
-              <dd class="font-mono break-all">{status.syncFolder}</dd>
-            {/if}
-            {#if status.redirectedDocuments}
-              <dt class="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold sm:normal-case sm:tracking-normal sm:text-xs sm:font-normal">Documents →</dt>
-              <dd class="font-mono break-all">{status.redirectedDocuments}</dd>
-            {/if}
-            {#if status.redirectedDesktop}
-              <dt class="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold sm:normal-case sm:tracking-normal sm:text-xs sm:font-normal">Desktop →</dt>
-              <dd class="font-mono break-all">{status.redirectedDesktop}</dd>
-            {/if}
-            {#if status.redirectedPictures}
-              <dt class="text-muted-foreground uppercase tracking-wider text-[10px] font-semibold sm:normal-case sm:tracking-normal sm:text-xs sm:font-normal">Pictures →</dt>
-              <dd class="font-mono break-all">{status.redirectedPictures}</dd>
-            {/if}
-          </dl>
+  {@const dtClass = "text-muted-foreground uppercase tracking-wider text-[10px] font-semibold sm:normal-case sm:tracking-normal sm:text-xs sm:font-normal"}
+  <StatusHero avatarTone="neutral" title="Microsoft OneDrive">
+    {#snippet avatar()}
+      <img src={ONEDRIVE_LOGO} alt="OneDrive" class="size-10 object-contain" />
+    {/snippet}
+    {#snippet badges()}
+      {#if status.processRunning}
+        <Badge variant="success">Running</Badge>
+      {:else}
+        <Badge variant="outline">Idle</Badge>
+      {/if}
+      <Badge variant="default">Installed</Badge>
+    {/snippet}
+    {#if anyRedirected}
+      Some of your user folders are stored in OneDrive — back them up below before removing the app.
+    {:else if status.syncFolder}
+      OneDrive is installed but your user folders aren't redirected.
+    {:else}
+      OneDrive is installed and not actively syncing anything personal.
+    {/if}
+    {#snippet details()}
+      {#if anyRedirected || status.syncFolder}
+        {#if status.syncFolder}
+          <dt class={dtClass}>Sync folder</dt>
+          <dd class="font-mono break-all">{status.syncFolder}</dd>
         {/if}
-      </div>
-    </div>
-  </section>
+        {#if status.redirectedDocuments}
+          <dt class={dtClass}>Documents →</dt>
+          <dd class="font-mono break-all">{status.redirectedDocuments}</dd>
+        {/if}
+        {#if status.redirectedDesktop}
+          <dt class={dtClass}>Desktop →</dt>
+          <dd class="font-mono break-all">{status.redirectedDesktop}</dd>
+        {/if}
+        {#if status.redirectedPictures}
+          <dt class={dtClass}>Pictures →</dt>
+          <dd class="font-mono break-all">{status.redirectedPictures}</dd>
+        {/if}
+      {/if}
+    {/snippet}
+  </StatusHero>
 
   <!-- Backup card -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Step 1 — Backup
-  </h2>
+  <SectionHeading title="Step 1 — Backup" />
   <Card class="card-inset mb-6">
     <div class="px-5 py-4 space-y-4">
       <p class="text-xs text-muted-foreground leading-relaxed">
@@ -257,63 +232,55 @@
 
       <div class="space-y-2">
         {#if status.redirectedDocuments}
-          <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-            <div class="pt-0.5">
-              <Checkbox bind:checked={backupDocs} disabled={backupBusy} />
-            </div>
-            <FileText class="size-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div class="flex-1 min-w-0">
-              <span class="text-sm font-medium">Documents</span>
-              <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
-                {status.redirectedDocuments}
-              </p>
-            </div>
-          </label>
+          <CheckboxLabel
+            bind:checked={backupDocs}
+            disabled={backupBusy}
+            icon={FileText}
+            label="Documents"
+          >
+            <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
+              {status.redirectedDocuments}
+            </p>
+          </CheckboxLabel>
         {/if}
         {#if status.redirectedDesktop}
-          <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-            <div class="pt-0.5">
-              <Checkbox bind:checked={backupDesktop} disabled={backupBusy} />
-            </div>
-            <Monitor class="size-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div class="flex-1 min-w-0">
-              <span class="text-sm font-medium">Desktop</span>
-              <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
-                {status.redirectedDesktop}
-              </p>
-            </div>
-          </label>
+          <CheckboxLabel
+            bind:checked={backupDesktop}
+            disabled={backupBusy}
+            icon={Monitor}
+            label="Desktop"
+          >
+            <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
+              {status.redirectedDesktop}
+            </p>
+          </CheckboxLabel>
         {/if}
         {#if status.redirectedPictures}
-          <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-            <div class="pt-0.5">
-              <Checkbox bind:checked={backupPics} disabled={backupBusy} />
-            </div>
-            <ImageIcon class="size-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div class="flex-1 min-w-0">
-              <span class="text-sm font-medium">Pictures</span>
-              <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
-                {status.redirectedPictures}
-              </p>
-            </div>
-          </label>
+          <CheckboxLabel
+            bind:checked={backupPics}
+            disabled={backupBusy}
+            icon={ImageIcon}
+            label="Pictures"
+          >
+            <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
+              {status.redirectedPictures}
+            </p>
+          </CheckboxLabel>
         {/if}
         {#if status.syncFolder}
-          <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-            <div class="pt-0.5">
-              <Checkbox bind:checked={backupSyncRoot} disabled={backupBusy} />
-            </div>
-            <Folder class="size-4 text-muted-foreground mt-0.5 shrink-0" />
-            <div class="flex-1 min-w-0">
-              <span class="text-sm font-medium">Entire OneDrive sync root</span>
-              <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
-                {status.syncFolder}
-              </p>
-              <p class="text-[10px] text-muted-foreground/70 mt-0.5">
-                Includes everything — slow, may be huge.
-              </p>
-            </div>
-          </label>
+          <CheckboxLabel
+            bind:checked={backupSyncRoot}
+            disabled={backupBusy}
+            icon={Folder}
+            label="Entire OneDrive sync root"
+          >
+            <p class="text-[11px] text-muted-foreground font-mono mt-0.5 break-all">
+              {status.syncFolder}
+            </p>
+            <p class="text-[10px] text-muted-foreground/70 mt-0.5">
+              Includes everything — slow, may be huge.
+            </p>
+          </CheckboxLabel>
         {/if}
         {#if !anyRedirected && !status.syncFolder}
           <p class="text-xs text-muted-foreground italic">
@@ -350,40 +317,35 @@
   </Card>
 
   <!-- Uninstall card -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Step 2 — Uninstall
-  </h2>
+  <SectionHeading title="Step 2 — Uninstall" />
   <Card class="card-inset mb-6">
     <div class="px-5 py-4 space-y-3">
       <p class="text-xs text-muted-foreground leading-relaxed">
         Stops OneDrive, runs the official uninstaller, unpins the sidebar entry, and optionally
         cleans up leftovers and blocks future re-installs.
       </p>
-      <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-        <div class="pt-0.5">
-          <Checkbox bind:checked={removeLeftovers} disabled={uninstallBusy} />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="text-sm font-medium">Remove leftover folders</span>
-          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Deletes <code class="font-mono">%LOCALAPPDATA%\Microsoft\OneDrive</code>,
-            <code class="font-mono">%PROGRAMDATA%\Microsoft OneDrive</code> and
-            <code class="font-mono">C:\OneDriveTemp</code>.
-          </p>
-        </div>
-      </label>
-      <label class="flex items-start gap-3 p-3 rounded-lg border border-foreground/10 hover:bg-accent/30 transition-colors cursor-pointer">
-        <div class="pt-0.5">
-          <Checkbox bind:checked={disablePolicy} disabled={uninstallBusy} />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="text-sm font-medium">Block re-install via Group Policy</span>
-          <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Sets <code class="font-mono">HKLM\Policies\Microsoft\Windows\OneDrive\DisableFileSyncNGSC</code>
-            so Windows can't silently re-install it. Reversible by unsetting the value.
-          </p>
-        </div>
-      </label>
+      <CheckboxLabel
+        bind:checked={removeLeftovers}
+        disabled={uninstallBusy}
+        label="Remove leftover folders"
+      >
+        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Deletes <code class="font-mono">%LOCALAPPDATA%\Microsoft\OneDrive</code>,
+          <code class="font-mono">%PROGRAMDATA%\Microsoft OneDrive</code> and
+          <code class="font-mono">C:\OneDriveTemp</code>.
+        </p>
+      </CheckboxLabel>
+      <CheckboxLabel
+        bind:checked={disablePolicy}
+        disabled={uninstallBusy}
+        label="Block re-install via Group Policy"
+      >
+        <p class="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Sets
+          <code class="font-mono">HKLM\Policies\Microsoft\Windows\OneDrive\DisableFileSyncNGSC</code>
+          so Windows can't silently re-install it. Reversible by unsetting the value.
+        </p>
+      </CheckboxLabel>
 
       <div class="flex justify-end">
         <Button variant="destructive" onclick={askUninstall} disabled={uninstallBusy}>
@@ -405,12 +367,9 @@
   title="Remove OneDrive?"
   description="OneDrive will be uninstalled. Make sure you've backed up anything you need from the OneDrive folder first — files stored only in the cloud may also disappear from your machine."
 >
-  <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2">
-    <AlertTriangle class="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-    <p class="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-      Explorer will be restarted at the end. Save unsaved work in other windows first.
-    </p>
-  </div>
+  <InfoBanner tone="warning">
+    Explorer will be restarted at the end. Save unsaved work in other windows first.
+  </InfoBanner>
   {#snippet footer()}
     <Button variant="outline" onclick={() => (confirmOpen = false)}>Cancel</Button>
     <Button variant="destructive" onclick={doUninstall}>

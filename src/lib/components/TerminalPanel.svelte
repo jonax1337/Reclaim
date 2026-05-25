@@ -177,7 +177,7 @@
 
 {#if tasks.tasks.length > 0 && tasks.panelOpen}
   <div
-    class="fixed left-60 right-0 bottom-0 z-30 bg-background border-t border-foreground/10 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex flex-col"
+    class="fixed left-60 right-0 bottom-0 z-30 bg-background border-t border-hairline-strong shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex flex-col"
     style="height: {tasks.panelHeight}px"
   >
     <button
@@ -195,7 +195,7 @@
         )}
       ></span>
     </button>
-    <div class="flex items-center h-9 border-b border-foreground/8 bg-foreground/[0.02]">
+    <div class="flex items-center h-9 border-b border-hairline bg-surface-1">
       <div class="flex items-center gap-1 px-2 overflow-x-auto flex-1 min-w-0">
         {#each tasks.tasks as t (t.id)}
           {@const isActive = activeTask?.id === t.id}
@@ -229,7 +229,7 @@
               role="button"
               tabindex="0"
               aria-label="Close tab"
-              class="ml-1 grid place-items-center size-4 rounded hover:bg-foreground/15 opacity-60 group-hover:opacity-100"
+              class="ml-1 grid place-items-center size-4 rounded hover:bg-surface-4 opacity-60 group-hover:opacity-100"
               onclick={(e) => tryCloseTab(t, e)}
               onkeydown={(e) => {
                 if (e.key === "Enter" || e.key === " ") tryCloseTab(t, e);
@@ -277,7 +277,7 @@
 
     {#if activeTask}
       <div
-        class="flex items-center gap-2 h-7 px-4 border-t border-foreground/8 bg-foreground/[0.02] text-[11px] font-medium shrink-0"
+        class="flex items-center gap-2 h-7 px-4 border-t border-hairline bg-surface-1 text-[11px] font-medium shrink-0"
       >
         {#if activeTask.status === "running"}
           <Loader2 class="size-3 animate-spin text-primary" />

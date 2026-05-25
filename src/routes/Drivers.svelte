@@ -13,7 +13,9 @@
     Checkbox,
     Dialog,
     PageHeader,
-    toast,
+    SectionHeading,
+    EmptyState,
+    ListCard, ListRow, DataField, InfoBanner, RowIcon, toast,
   } from "$lib/ui";
   import {
     Loader2,
@@ -598,16 +600,9 @@
 </PageHeader>
 
 {#if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — hardware queries need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — hardware queries need the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-16 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Detecting graphics hardware…
-  </div>
+  <EmptyState loading class="py-16">Detecting graphics hardware…</EmptyState>
 {:else if error}
   <Card class="card-inset border-destructive/40">
     <CardContent>
@@ -615,13 +610,9 @@
     </CardContent>
   </Card>
 {:else if gpuStates.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">No graphics adapters found.</div>
-  </Card>
+  <EmptyState>No graphics adapters found.</EmptyState>
 {:else}
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Graphics adapters
-  </h2>
+  <SectionHeading title="Graphics adapters" />
   <div class="flex flex-col gap-4">
     {#each gpuStates as s, i (i)}
       {@const gpu = s.gpu}
@@ -650,52 +641,32 @@
           </div>
         </CardHeader>
         <CardContent>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm mb-4">
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Installed
-              </div>
-              <div class="font-medium font-mono text-xs">
-                {gpu.DriverVersion ?? "—"}
-                {#if s.vendor === "nvidia" && gpu.DriverVersion}
-                  <span class="text-muted-foreground">({nvidiaShortVersion(gpu.DriverVersion)})</span>
-                {/if}
-              </div>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Driver date
-              </div>
-              <div class="font-medium tabular-nums">{formatPsDate(gpu.DriverDate)}</div>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {s.latest ? "Latest available" : "VRAM"}
-              </div>
-              <div class="font-medium {s.latest ? 'font-mono text-xs' : 'tabular-nums'}">
-                {#if s.latest}
-                  {s.latest.version}
-                  <span class="text-muted-foreground">({s.latest.releaseDate})</span>
-                {:else}
-                  {formatBytes(gpu.AdapterRAM)}
-                {/if}
-              </div>
-            </div>
-            <div>
-              <div class="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {s.latest ? "Driver type" : "Current mode"}
-              </div>
-              <div class="font-medium text-xs">
-                {#if s.latest}
-                  {s.latest.name}
-                {:else if gpu.CurrentHorizontalResolution && gpu.CurrentVerticalResolution}
-                  {gpu.CurrentHorizontalResolution}×{gpu.CurrentVerticalResolution}
-                  {#if gpu.CurrentRefreshRate}@ {gpu.CurrentRefreshRate} Hz{/if}
-                {:else}
-                  —
-                {/if}
-              </div>
-            </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+            <DataField label="Installed" mono>
+              {gpu.DriverVersion ?? "—"}
+              {#if s.vendor === "nvidia" && gpu.DriverVersion}
+                <span class="text-muted-foreground">({nvidiaShortVersion(gpu.DriverVersion)})</span>
+              {/if}
+            </DataField>
+            <DataField label="Driver date" mono value={formatPsDate(gpu.DriverDate)} />
+            <DataField label={s.latest ? "Latest available" : "VRAM"} mono>
+              {#if s.latest}
+                {s.latest.version}
+                <span class="text-muted-foreground">({s.latest.releaseDate})</span>
+              {:else}
+                {formatBytes(gpu.AdapterRAM)}
+              {/if}
+            </DataField>
+            <DataField label={s.latest ? "Driver type" : "Current mode"}>
+              {#if s.latest}
+                {s.latest.name}
+              {:else if gpu.CurrentHorizontalResolution && gpu.CurrentVerticalResolution}
+                {gpu.CurrentHorizontalResolution}×{gpu.CurrentVerticalResolution}
+                {#if gpu.CurrentRefreshRate}@ {gpu.CurrentRefreshRate} Hz{/if}
+              {:else}
+                —
+              {/if}
+            </DataField>
           </div>
 
           {#if s.checkError}
@@ -721,10 +692,10 @@
               </div>
             </div>
           {:else if s.downloadedPath}
-            <div class="mb-3 p-2 rounded-md bg-success/10 border border-success/30 text-xs">
+            <InfoBanner tone="success" size="xs" class="mb-3">
               <div class="font-medium text-success mb-0.5">Installer downloaded</div>
               <div class="font-mono text-muted-foreground break-all">{s.downloadedPath}</div>
-            </div>
+            </InfoBanner>
           {/if}
 
           <div class="flex flex-wrap gap-2">
@@ -806,9 +777,11 @@
   </div>
 
   <!-- Installed driver packages (rollback) -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-8">
-    Installed driver packages
-  </h2>
+  <SectionHeading title="Installed driver packages" class="mt-8">
+    Lists OEM-installed driver packages via
+    <code class="font-mono text-[11px]">pnputil /enum-drivers</code>. Removing a package rolls back
+    to the next-best signed driver (or the OS default).
+  </SectionHeading>
   {#if isTauri() && admin.checked && !admin.elevated}
     <AdminBanner
       title="Driver rollback needs administrator"
@@ -816,12 +789,8 @@
       declinedToast="Driver rollback requires admin."
     />
   {:else}
-    <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
-      Lists OEM-installed driver packages via <code class="font-mono text-[11px]">pnputil /enum-drivers</code>.
-      Removing a package rolls back to the next-best signed driver (or the OS default).
-    </p>
-    <Card class="overflow-hidden gap-0 py-0 card-inset">
-      <div class="px-5 py-3 border-b border-foreground/8 flex flex-wrap items-center gap-2">
+    <ListCard>
+      <div class="px-5 py-3 border-b border-hairline flex flex-wrap items-center gap-2">
         <span class="text-xs text-muted-foreground">Class:</span>
         {#each ["Display", "Net", "Sound, video and game controllers", "all"] as cls (cls)}
           <Button
@@ -864,9 +833,7 @@
         <div>
           {#each packages as p (p.publishedName)}
             {@const isBusy = packageBusy.has(p.publishedName)}
-            <div
-              class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors"
-            >
+            <ListRow>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-medium">{p.provider}</span>
@@ -895,17 +862,20 @@
                   Roll back
                 </Button>
               </div>
-            </div>
+            </ListRow>
           {/each}
         </div>
       {/if}
-    </Card>
+    </ListCard>
   {/if}
 
   <!-- Mass driver updates (Windows Update Driver Catalog) -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-8">
-    Driver updates (Windows Update)
-  </h2>
+  <SectionHeading title="Driver updates (Windows Update)" class="mt-8">
+    Scans Microsoft's Windows Update Driver Catalog (the same source
+    <code class="font-mono text-[11px]">wuauclt</code> uses) for newer signed drivers across every
+    device class — chipset, audio, network, storage, input. Groups results by device class so you
+    can install just what you want.
+  </SectionHeading>
   {#if isTauri() && admin.checked && !admin.elevated}
     <AdminBanner
       title="Installing drivers needs administrator"
@@ -913,13 +883,8 @@
       declinedToast="Driver installation requires admin."
     />
   {:else}
-    <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
-      Scans Microsoft's Windows Update Driver Catalog (the same source <code class="font-mono text-[11px]">wuauclt</code>
-      uses) for newer signed drivers across every device class — chipset, audio, network, storage, input.
-      Groups results by device class so you can install just what you want.
-    </p>
-    <Card class="overflow-hidden gap-0 py-0 card-inset">
-      <div class="px-5 py-3 border-b border-foreground/8 flex flex-wrap items-center gap-2">
+    <ListCard>
+      <div class="px-5 py-3 border-b border-hairline flex flex-wrap items-center gap-2">
         <span class="text-xs text-muted-foreground">
           {#if driverUpdatesScanned}
             {driverUpdates.length} driver update{driverUpdates.length === 1 ? "" : "s"} available
@@ -968,8 +933,8 @@
       {:else}
         <div>
           {#each driverUpdatesByClass as [cls, list] (cls)}
-            <div class="px-5 py-2 bg-foreground/[0.03] text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground border-b border-foreground/[0.06]">
-              {cls} · {list.length}
+            <div class="px-5 py-2 bg-surface-2 border-b border-hairline">
+              <SectionHeading title={cls} hint={String(list.length)} level="h3" class="mb-0" />
             </div>
             {#each list as u (u.id)}
               {@const checked = driverUpdateSelected.has(u.id)}
@@ -1009,7 +974,7 @@
           {/each}
         </div>
       {/if}
-    </Card>
+    </ListCard>
     <BulkActionBar count={driverUpdateSelected.size} onClear={clearDriverUpdateSelection}>
       <Button
         size="sm"

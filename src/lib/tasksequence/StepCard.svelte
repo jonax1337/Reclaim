@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { Card, Switch, Badge } from "$lib/ui";
+  import { Switch, Badge, ListCard } from "$lib/ui";
   import { GripVertical, ChevronDown, ChevronRight, Trash2 } from "@lucide/svelte";
   import { cn } from "$lib/utils";
 
@@ -55,7 +55,7 @@
     dragging && "opacity-40",
   )}
 >
-  <Card class={cn("card-inset overflow-hidden gap-0 py-0", !enabled && "opacity-60")}>
+  <ListCard class={cn(!enabled && "opacity-60")}>
     <div class="flex items-center gap-3 px-5 py-3">
       {#if onDragStart}
         <button
@@ -105,9 +105,9 @@
       {/if}
     </div>
     {#if expanded && enabled && children}
-      <div class="px-5 pb-5 pt-4 border-t border-foreground/8">
+      <div class="px-5 pb-5 pt-4 border-t border-hairline">
         {@render children()}
       </div>
     {/if}
-  </Card>
+  </ListCard>
 </div>

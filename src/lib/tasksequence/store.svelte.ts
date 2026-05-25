@@ -4,7 +4,7 @@
  */
 
 import type { TaskSequence, TaskStep, StepType } from "./types";
-import { makeStep } from "./types";
+import { makeStep, MULTI_STEP_TYPES, STEP_ORDER } from "./types";
 import { cloneTemplate, TEMPLATE_MAP } from "./templates";
 
 const STORAGE_KEY = "reclaim.task-sequence";
@@ -52,8 +52,30 @@ class SequenceStore {
 
   // ── Step CRUD ────────────────────────────────────────────────────────────
 
+  /**
+   * True if a step of `type` can still be added. Singletons (everything except
+   * `custom-cmd`) are blocked once one already exists; multi-types are always
+   * addable.
+   */
+  canAddType(type: StepType): boolean {
+    if (MULTI_STEP_TYPES.has(type)) return true;
+    return !this.current.steps.some((s) => s.type === type);
+  }
+
   addStep(type: StepType) {
-    this.current.steps = [...this.current.steps, makeStep(type)];
+    if (!this.canAddType(type)) return;
+    const step = makeStep(type);
+    const order = STEP_ORDER[type];
+    const next = [...this.current.steps];
+    let insertAt = next.length;
+    for (let i = 0; i < next.length; i++) {
+      if (STEP_ORDER[next[i].type] > order) {
+        insertAt = i;
+        break;
+      }
+    }
+    next.splice(insertAt, 0, step);
+    this.current.steps = next;
   }
 
   removeStep(id: string) {

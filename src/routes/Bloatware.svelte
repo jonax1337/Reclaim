@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, BulkActionBar, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Checkbox, BulkActionBar, Dialog, PageHeader, SectionHeading, EmptyState, ListCard, SearchInput, SelectableListRow, RowIcon, toast, TextLink } from "$lib/ui";
   import { Loader2, Trash2, RefreshCw, Sparkles, AlertTriangle, Search, Package } from "@lucide/svelte";
   import { isTauri, removeAppx, type AppxPackage } from "$lib/tweaks/bridge";
   import { BLOATWARE, GROUP_LABELS, type BloatwareEntry } from "$lib/tweaks/bloatware";
@@ -148,15 +148,7 @@
 </PageHeader>
 
 <div class="flex flex-wrap items-center gap-2 mb-4">
-  <div class="flex-1 min-w-[12rem] relative">
-    <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-    <input
-      type="text"
-      bind:value={filter}
-      placeholder="Filter apps…"
-      class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-    />
-  </div>
+  <SearchInput class="flex-1 min-w-[12rem]" bind:value={filter} placeholder="Filter apps…" />
   <Button variant="outline" onclick={reload} disabled={busy || loading}>
     <RefreshCw class={loading || installedRes.revalidating ? "animate-spin" : ""} />
     Rescan
@@ -168,54 +160,30 @@
 </div>
 
 {#if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Scanning installed apps…
-  </div>
+  <EmptyState loading>Scanning installed apps…</EmptyState>
 {:else if installedCount === 0}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Sparkles class="size-6 mb-2 text-emerald-500" />
+  <EmptyState icon={Sparkles} iconClass="text-success">
     <p class="font-medium text-foreground">No bloatware detected</p>
     <p class="mt-1">None of the {BLOATWARE.length} known patterns matched an installed app.</p>
-  </div>
+  </EmptyState>
 {:else if Object.keys(groups).length === 0}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Search class="size-6 mb-2" />
-    No matches for "{filter}".
-  </div>
+  <EmptyState icon={Search}>No matches for "{filter}".</EmptyState>
 {:else}
   <div class="flex flex-col gap-6">
     {#each groupOrder as g (g)}
       {@const entries = groups[g] ?? []}
       {#if entries.length > 0}
         <section>
-          <div class="flex items-center justify-between mb-2 px-1">
-            <h2 class="text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
-              {GROUP_LABELS[g]}
-            </h2>
-            <button
-              type="button"
-              class="text-xs text-primary hover:underline"
-              onclick={() => selectAllInstalled(entries)}
-            >
-              select all
-            </button>
-          </div>
-          <Card class="overflow-hidden gap-0 py-0 card-inset">
+          <SectionHeading title={GROUP_LABELS[g]} class="px-1">
+            {#snippet actions()}
+              <TextLink onclick={() => selectAllInstalled(entries)}>select all</TextLink>
+            {/snippet}
+          </SectionHeading>
+          <ListCard>
             {#each entries as entry (entry.pattern)}
               {@const matches = isInstalled(entry)}
               {@const isSelected = selected.has(entry.pattern)}
-              <label
-                class="relative flex items-start gap-4 py-3 px-5 border-b last:border-b-0 transition-colors hover:bg-accent/40 cursor-pointer {isSelected
-                  ? 'bg-primary/[0.04]'
-                  : ''}"
-              >
-                <span
-                  class="absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all {isSelected
-                    ? 'bg-primary opacity-100'
-                    : 'opacity-0'}"
-                  aria-hidden="true"
-                ></span>
+              <SelectableListRow selected={isSelected}>
                 <div class="pt-0.5">
                   <Checkbox
                     checked={isSelected}
@@ -227,7 +195,7 @@
                     }}
                   />
                 </div>
-                <div class="grid place-items-center size-9 rounded-md bg-accent/40 overflow-hidden shrink-0">
+                <RowIcon tone="image">
                   {#if appxIcons[entry.pattern]}
                     <img src={appxIcons[entry.pattern]} alt="" class="size-7 object-contain" />
                   {:else if entry.icon && !iconFailed.has(entry.icon)}
@@ -241,7 +209,7 @@
                   {:else}
                     <Package class="size-4 text-muted-foreground" />
                   {/if}
-                </div>
+                </RowIcon>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium">{entry.title}</span>
@@ -271,9 +239,9 @@
                   </p>
                   <p class="text-[10px] text-muted-foreground/60 mt-1 font-mono">{entry.pattern}</p>
                 </div>
-              </label>
+              </SelectableListRow>
             {/each}
-          </Card>
+          </ListCard>
         </section>
       {/if}
     {/each}

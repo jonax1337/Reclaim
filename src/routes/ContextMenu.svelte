@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Card, Button, Badge, Switch, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Switch, PageHeader, EmptyState, ListCard, ListRow, SearchInput, InfoBanner, RowIcon, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
-    Search,
     MousePointer2,
     AlertTriangle,
   } from "@lucide/svelte";
@@ -155,54 +154,40 @@
     declinedToast="Editing shell extensions requires admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — shell extension editing needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — shell extension editing needs the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Reading shell extension registry…
-  </div>
+  <EmptyState loading>Reading shell extension registry…</EmptyState>
 {:else}
   <div class="mb-4 flex items-center gap-2">
-    <div class="flex-1 relative">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-      <input
-        type="text"
-        bind:value={filter}
-        placeholder="Filter by name, CLSID, or category…"
-        class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </div>
+    <SearchInput
+      class="flex-1"
+      bind:value={filter}
+      placeholder="Filter by name, CLSID, or category…"
+    />
   </div>
 
-  <div class="rounded-xl border border-foreground/8 bg-foreground/[0.03] p-3 mb-4 flex items-start gap-3">
-    <AlertTriangle class="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-    <p class="text-xs text-muted-foreground leading-relaxed">
-      Toggling adds/removes the CLSID from
-      <code class="font-mono text-foreground">HKLM\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked</code>.
-      Disabling system handlers can break Explorer features (cut/copy/paste, sharing, …) — be
-      conservative. Sign out and back in for changes to fully apply.
-    </p>
-  </div>
+  <InfoBanner
+    size="md"
+    icon={AlertTriangle}
+    iconClass="text-amber-600 dark:text-amber-400"
+  >
+    Toggling adds/removes the CLSID from
+    <code class="font-mono text-foreground">HKLM\Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Blocked</code>.
+    Disabling system handlers can break Explorer features (cut/copy/paste, sharing, …) — be
+    conservative. Sign out and back in for changes to fully apply.
+  </InfoBanner>
 
   {#if filtered.length === 0}
-    <Card class="card-inset">
-      <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-        {filter ? "No shell extensions match the filter." : "No shell extensions found."}
-      </div>
-    </Card>
+    <EmptyState>
+      {filter ? "No shell extensions match the filter." : "No shell extensions found."}
+    </EmptyState>
   {:else}
-    <Card class="overflow-hidden gap-0 py-0 card-inset">
+    <ListCard>
       {#each filtered as e (e.clsid)}
         {@const isBusy = busy.has(e.clsid)}
         {@const isSystem = isSystemEntry(e)}
-        <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-          <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-            <MousePointer2 class="size-3.5 text-muted-foreground" />
-          </div>
+        <ListRow>
+          <RowIcon icon={MousePointer2} />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium truncate">{e.friendly || e.name}</span>
@@ -223,7 +208,7 @@
               {/if}
             </p>
           </div>
-          <div class="flex items-center gap-2 shrink-0 pt-1">
+          <div class="flex items-center gap-2 shrink-0 pt-0.5">
             {#if isBusy}
               <Loader2 class="size-3.5 animate-spin text-muted-foreground" />
             {/if}
@@ -233,8 +218,8 @@
               onCheckedChange={(v) => toggle(e, !v)}
             />
           </div>
-        </div>
+        </ListRow>
       {/each}
-    </Card>
+    </ListCard>
   {/if}
 {/if}

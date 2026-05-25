@@ -1,17 +1,15 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, SectionHeading, StatusHero, EmptyState, InfoBanner, ListCard, ListRow, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
     KeyRound,
-    AlertTriangle,
     ExternalLink,
     Terminal,
     Copy,
     Check,
     ShieldCheck,
     ShieldAlert,
-    Info,
   } from "@lucide/svelte";
   import {
     isTauri,
@@ -116,119 +114,80 @@
 </PageHeader>
 
 <!-- Disclaimer banner -->
-<div
-  class="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 mb-6 flex items-start gap-3"
->
-  <AlertTriangle
-    class="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"
-  />
-  <div class="text-sm text-amber-900 dark:text-amber-200 leading-relaxed space-y-1">
-    <p class="font-semibold">Reclaim does not ship, bundle, or modify any activation script.</p>
-    <p class="text-amber-900/90 dark:text-amber-200/90">
-      The button below opens a new elevated PowerShell window that runs
-      <code class="font-mono text-[12px] px-1 py-0.5 rounded bg-amber-500/20">irm https://get.activated.win | iex</code>
-      — an open-source project (MAS) maintained at
-      <button
-        type="button"
-        onclick={() => openExternal(PROJECT_URL)}
-        class="underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-100"
-      >massgrave.dev</button>. You're responsible for using it only on systems you own
-      a license for. Microsoft Defender may flag activation tools; that is expected.
-    </p>
-  </div>
-</div>
+<InfoBanner tone="warning" size="lg">
+  <p class="font-semibold">Reclaim does not ship, bundle, or modify any activation script.</p>
+  <p class="text-amber-900/90 dark:text-amber-200/90">
+    The button below opens a new elevated PowerShell window that runs
+    <code class="font-mono text-[12px] px-1 py-0.5 rounded bg-amber-500/20">irm https://get.activated.win | iex</code>
+    — an open-source project (MAS) maintained at
+    <button
+      type="button"
+      onclick={() => openExternal(PROJECT_URL)}
+      class="underline underline-offset-2 hover:text-amber-800 dark:hover:text-amber-100"
+    >massgrave.dev</button>. You're responsible for using it only on systems you own
+    a license for. Microsoft Defender may flag activation tools; that is expected.
+  </p>
+</InfoBanner>
 
 {#if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — activation detection needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — activation detection needs the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Reading license state…
-  </div>
+  <EmptyState loading>Reading license state…</EmptyState>
 {:else}
   <!-- Status hero card -->
-  <section
-    class={[
-      "relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6",
-      isLicensed ? "hero-glow-success" : isUnlicensed ? "hero-glow-warning" : "hero-glow",
-    ]}
+  <StatusHero
+    tone={isLicensed ? "success" : isUnlicensed ? "warning" : "default"}
+    title={status?.detected
+      ? shortenEdition(status.description || status.name) || "License detected"
+      : "No license detected"}
   >
-    <div class="px-7 py-6 flex flex-wrap items-start gap-5">
-      <div
-        class={[
-          "grid place-items-center size-16 rounded-2xl shadow-sm shrink-0 ring-1 ring-foreground/5",
-          isLicensed
-            ? "bg-success/15 text-success"
-            : isUnlicensed
-              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-              : "bg-foreground/[0.06] text-muted-foreground",
-        ]}
-      >
+    {#snippet avatar()}
+      {#if isLicensed}
+        <ShieldCheck class="size-8" />
+      {:else if isUnlicensed}
+        <ShieldAlert class="size-8" />
+      {:else}
+        <KeyRound class="size-8" />
+      {/if}
+    {/snippet}
+    {#snippet badges()}
+      {#if status?.detected}
         {#if isLicensed}
-          <ShieldCheck class="size-8" />
-        {:else if isUnlicensed}
-          <ShieldAlert class="size-8" />
+          <Badge variant="success">{status.licenseStatusText}</Badge>
         {:else}
-          <KeyRound class="size-8" />
+          <Badge variant="warning">{status.licenseStatusText}</Badge>
         {/if}
-      </div>
-      <div class="flex-1 min-w-[16rem]">
-        <div class="flex items-center gap-2 flex-wrap">
-          <h2 class="text-xl font-semibold">
-            {status?.detected
-              ? shortenEdition(status.description || status.name) || "License detected"
-              : "No license detected"}
-          </h2>
-          {#if status?.detected}
-            {#if isLicensed}
-              <Badge variant="success">{status.licenseStatusText}</Badge>
-            {:else}
-              <Badge variant="outline" class="border-amber-500/40 text-amber-700 dark:text-amber-300">
-                {status.licenseStatusText}
-              </Badge>
-            {/if}
-            {#if status.channel}
-              <Badge variant="outline">{status.channel}</Badge>
-            {/if}
-          {/if}
-        </div>
-        <p class="text-xs text-muted-foreground mt-1">
-          {#if !status?.detected}
-            Windows did not report a license product. This is unusual — try Refresh.
-          {:else if isLicensed}
-            Windows reports the install as fully licensed. No activation action needed.
-          {:else}
-            License is present but not in the Licensed state — Windows may show a watermark or
-            limit personalization until activated.
-          {/if}
-        </p>
-
-        {#if status?.detected}
-          <dl class="mt-4 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-xs">
-            {#if status.partialKey}
-              <dt class="text-muted-foreground sm:text-xs">Partial key</dt>
-              <dd class="font-mono">XXXXX-XXXXX-XXXXX-XXXXX-{status.partialKey}</dd>
-            {/if}
-            {#if status.gracePeriodMinutes > 0}
-              <dt class="text-muted-foreground sm:text-xs">Grace remaining</dt>
-              <dd class="font-mono">{Math.round(status.gracePeriodMinutes / 60 / 24)} days</dd>
-            {/if}
-            <dt class="text-muted-foreground sm:text-xs">Status code</dt>
-            <dd class="font-mono">{status.licenseStatus}</dd>
-          </dl>
+        {#if status.channel}
+          <Badge variant="outline">{status.channel}</Badge>
         {/if}
-      </div>
-    </div>
-  </section>
+      {/if}
+    {/snippet}
+    {#if !status?.detected}
+      Windows did not report a license product. This is unusual — try Refresh.
+    {:else if isLicensed}
+      Windows reports the install as fully licensed. No activation action needed.
+    {:else}
+      License is present but not in the Licensed state — Windows may show a watermark or limit
+      personalization until activated.
+    {/if}
+    {#snippet details()}
+      {#if status?.detected}
+        {#if status.partialKey}
+          <dt class="text-muted-foreground sm:text-xs">Partial key</dt>
+          <dd class="font-mono">XXXXX-XXXXX-XXXXX-XXXXX-{status.partialKey}</dd>
+        {/if}
+        {#if status.gracePeriodMinutes > 0}
+          <dt class="text-muted-foreground sm:text-xs">Grace remaining</dt>
+          <dd class="font-mono">{Math.round(status.gracePeriodMinutes / 60 / 24)} days</dd>
+        {/if}
+        <dt class="text-muted-foreground sm:text-xs">Status code</dt>
+        <dd class="font-mono">{status.licenseStatus}</dd>
+      {/if}
+    {/snippet}
+  </StatusHero>
 
   <!-- Launch card -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Activation script
-  </h2>
+  <SectionHeading title="Activation script" />
   <Card class="card-inset mb-6 py-0">
     <div class="px-5 py-4 space-y-4">
       <p class="text-xs text-muted-foreground leading-relaxed">
@@ -239,8 +198,8 @@
       </p>
 
       <!-- Command preview -->
-      <div class="rounded-lg border border-foreground/10 bg-foreground/[0.03] overflow-hidden">
-        <div class="px-3 py-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 border-b border-foreground/8">
+      <div class="rounded-lg border border-hairline-strong bg-surface-2 overflow-hidden">
+        <div class="px-3 py-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 border-b border-hairline">
           <span class="flex items-center gap-1.5">
             <Terminal class="size-3" />
             PowerShell command
@@ -262,14 +221,11 @@
         <pre class="px-3 py-2.5 font-mono text-[12px] text-foreground/90 overflow-x-auto">{PS_COMMAND}</pre>
       </div>
 
-      <div class="rounded-lg border border-foreground/10 bg-foreground/[0.03] p-3 flex items-start gap-2">
-        <Info class="size-4 text-muted-foreground shrink-0 mt-0.5" />
-        <p class="text-xs text-muted-foreground leading-relaxed">
-          The button below triggers UAC, then opens a new elevated PowerShell window that runs
-          the command above. You'll see the MAS menu in that window — press a number to choose
-          a method. Close the PowerShell window when you're done.
-        </p>
-      </div>
+      <InfoBanner>
+        The button below triggers UAC, then opens a new elevated PowerShell window that runs the
+        command above. You'll see the MAS menu in that window — press a number to choose a method.
+        Close the PowerShell window when you're done.
+      </InfoBanner>
 
       <div class="flex flex-wrap justify-end gap-2">
         <Button variant="outline" onclick={() => openExternal(PROJECT_URL)}>
@@ -290,50 +246,46 @@
   </Card>
 
   <!-- Methods reference -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Methods at a glance
-  </h2>
-  <Card class="card-inset overflow-hidden gap-0 py-0">
-    <div class="divide-y divide-foreground/8">
-      <div class="px-5 py-3 flex items-start gap-3">
-        <Badge variant="default" class="shrink-0 mt-0.5">HWID</Badge>
-        <div class="text-xs text-muted-foreground leading-relaxed flex-1">
-          <span class="font-medium text-foreground">Windows 10 / 11 — permanent.</span>
-          Ties activation to the machine's hardware ID via Microsoft's servers. Survives reinstalls
-          on the same hardware. Needs internet.
-        </div>
+  <SectionHeading title="Methods at a glance" />
+  <ListCard>
+    <ListRow>
+      <Badge variant="default" class="shrink-0 mt-0.5">HWID</Badge>
+      <div class="text-xs text-muted-foreground leading-relaxed flex-1">
+        <span class="font-medium text-foreground">Windows 10 / 11 — permanent.</span>
+        Ties activation to the machine's hardware ID via Microsoft's servers. Survives reinstalls
+        on the same hardware. Needs internet.
       </div>
-      <div class="px-5 py-3 flex items-start gap-3">
-        <Badge variant="default" class="shrink-0 mt-0.5">KMS38</Badge>
-        <div class="text-xs text-muted-foreground leading-relaxed flex-1">
-          <span class="font-medium text-foreground">Windows / Server — until 2038.</span>
-          Local KMS variant that grants a license valid through January 2038. No internet
-          required after activation.
-        </div>
+    </ListRow>
+    <ListRow>
+      <Badge variant="default" class="shrink-0 mt-0.5">KMS38</Badge>
+      <div class="text-xs text-muted-foreground leading-relaxed flex-1">
+        <span class="font-medium text-foreground">Windows / Server — until 2038.</span>
+        Local KMS variant that grants a license valid through January 2038. No internet required
+        after activation.
       </div>
-      <div class="px-5 py-3 flex items-start gap-3">
-        <Badge variant="default" class="shrink-0 mt-0.5">Ohook</Badge>
-        <div class="text-xs text-muted-foreground leading-relaxed flex-1">
-          <span class="font-medium text-foreground">Office — permanent.</span>
-          Hooks a single Office DLL to skip the license check. Works offline.
-        </div>
+    </ListRow>
+    <ListRow>
+      <Badge variant="default" class="shrink-0 mt-0.5">Ohook</Badge>
+      <div class="text-xs text-muted-foreground leading-relaxed flex-1">
+        <span class="font-medium text-foreground">Office — permanent.</span>
+        Hooks a single Office DLL to skip the license check. Works offline.
       </div>
-      <div class="px-5 py-3 flex items-start gap-3">
-        <Badge variant="default" class="shrink-0 mt-0.5">TSforge</Badge>
-        <div class="text-xs text-muted-foreground leading-relaxed flex-1">
-          <span class="font-medium text-foreground">Windows / Office — permanent.</span>
-          Newest method (build 19041+). Activates ESU, Server, and most Office SKUs.
-        </div>
+    </ListRow>
+    <ListRow>
+      <Badge variant="default" class="shrink-0 mt-0.5">TSforge</Badge>
+      <div class="text-xs text-muted-foreground leading-relaxed flex-1">
+        <span class="font-medium text-foreground">Windows / Office — permanent.</span>
+        Newest method (build 19041+). Activates ESU, Server, and most Office SKUs.
       </div>
-      <div class="px-5 py-3 flex items-start gap-3">
-        <Badge variant="outline" class="shrink-0 mt-0.5">Online KMS</Badge>
-        <div class="text-xs text-muted-foreground leading-relaxed flex-1">
-          <span class="font-medium text-foreground">Windows / Office — 180 days, renewable.</span>
-          Uses public KMS servers. Renews automatically while the network reaches them.
-        </div>
+    </ListRow>
+    <ListRow>
+      <Badge variant="outline" class="shrink-0 mt-0.5">Online KMS</Badge>
+      <div class="text-xs text-muted-foreground leading-relaxed flex-1">
+        <span class="font-medium text-foreground">Windows / Office — 180 days, renewable.</span>
+        Uses public KMS servers. Renews automatically while the network reaches them.
       </div>
-    </div>
-  </Card>
+    </ListRow>
+  </ListCard>
 {/if}
 
 <Dialog
@@ -341,13 +293,10 @@
   title="Launch external activation script?"
   description="A new PowerShell window will open after the UAC prompt. It will download and run an external script from get.activated.win. Reclaim does not control what runs in that window."
 >
-  <div class="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2">
-    <AlertTriangle class="size-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-    <p class="text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
-      Only proceed on systems you own a Windows / Office license for. Microsoft Defender may
-      quarantine the script — that is expected behavior for activation tools.
-    </p>
-  </div>
+  <InfoBanner tone="warning">
+    Only proceed on systems you own a Windows / Office license for. Microsoft Defender may
+    quarantine the script — that is expected behavior for activation tools.
+  </InfoBanner>
   {#snippet footer()}
     <Button variant="outline" onclick={() => (confirmOpen = false)}>Cancel</Button>
     <Button onclick={doLaunch}>

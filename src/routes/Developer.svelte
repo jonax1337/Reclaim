@@ -15,7 +15,7 @@
     Cpu,
     HardDrive,
   } from "@lucide/svelte";
-  import { Card, Button, Badge, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, PageHeader, SectionHeading, ListCard, ListRow, StatusPill, RowIcon, EmptyState, toast } from "$lib/ui";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import { admin } from "$lib/admin.svelte";
   import {
@@ -91,17 +91,15 @@
     }
   }
 
-  function stateClass(state: string): string {
+  function stateTone(state: string): "success" | "warning" | "muted" {
     switch (state) {
       case "Enabled":
-        return "bg-success/15 text-success border-success/30";
-      case "Disabled":
-        return "bg-muted/50 text-muted-foreground border-muted/60";
+        return "success";
       case "EnablePending":
       case "DisablePending":
-        return "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30";
+        return "warning";
       default:
-        return "bg-muted/50 text-muted-foreground border-muted/60";
+        return "muted";
     }
   }
 
@@ -181,17 +179,11 @@
 />
 
 {#if !isTauri()}
-  <Card class="p-6">
-    <p class="text-sm text-muted-foreground">
-      Browser preview — Windows feature management is only available inside the Tauri app.
-    </p>
-  </Card>
+  <EmptyState>
+    Browser preview — Windows feature management is only available inside the Tauri app.
+  </EmptyState>
 {:else if !admin.elevated}
-  <Card class="p-6">
-    <p class="text-sm text-muted-foreground">
-      Elevate Reclaim to inspect and toggle Windows optional features.
-    </p>
-  </Card>
+  <EmptyState>Elevate Reclaim to inspect and toggle Windows optional features.</EmptyState>
 {:else}
   <div class="flex items-center justify-between mb-3 px-1 min-h-9">
     <div class="text-xs text-muted-foreground">
@@ -218,12 +210,9 @@
     {#each groupOrder as group (group.key)}
       {@const list = grouped[group.key] ?? []}
       {#if list.length > 0}
-        <section class="flex flex-col gap-2">
-          <div class="px-1">
-            <h2 class="text-sm font-semibold tracking-tight">{group.label}</h2>
-            <p class="text-xs text-muted-foreground mt-0.5">{group.description}</p>
-          </div>
-          <Card class="overflow-hidden gap-0 py-0 card-inset">
+        <section>
+          <SectionHeading title={group.label} description={group.description} />
+          <ListCard>
             {#each list as f (f.name)}
               {@const Icon = featureIcon(f.category)}
               {@const StateIcon = stateIcon(f.state)}
@@ -231,28 +220,16 @@
               {@const disabling = isRunning(f, false)}
               {@const busy = enabling || disabling}
               {@const isOn = f.state === "Enabled" || f.state === "DisablePending"}
-              <div
-                class="flex items-start gap-3 px-4 py-3.5 border-b border-foreground/[0.06] last:border-b-0"
-              >
-                <div
-                  class="size-9 shrink-0 rounded-md bg-foreground/[0.04] border border-foreground/[0.08] flex items-center justify-center"
-                >
-                  <Icon class="size-4 text-muted-foreground" />
-                </div>
+              <ListRow density="md">
+                <RowIcon icon={Icon} />
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium">{f.displayName}</span>
-                    <span
-                      class={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border",
-                        stateClass(f.state),
-                      )}
-                    >
-                      <StateIcon class="size-3" />
+                    <StatusPill tone={stateTone(f.state)} icon={StateIcon}>
                       {stateLabel(f.state)}
-                    </span>
+                    </StatusPill>
                   </div>
-                  <p class="text-xs text-muted-foreground mt-0.5">{f.description}</p>
+                  <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{f.description}</p>
                   <p class="text-[10px] font-mono text-muted-foreground/70 mt-1">
                     {f.name}
                   </p>
@@ -283,23 +260,19 @@
                     </Button>
                   {/if}
                 </div>
-              </div>
+              </ListRow>
             {/each}
-          </Card>
+          </ListCard>
         </section>
       {/if}
     {/each}
 
-    <section class="flex flex-col gap-2">
-      <div class="px-1">
-        <h2 class="text-sm font-semibold tracking-tight">WSL distros</h2>
-        <p class="text-xs text-muted-foreground mt-0.5">
-          Linux distributions installed via <code class="text-[11px]">wsl --install</code> or
-          the Microsoft Store. Install / uninstall is done with the CLI — this list is
-          read-only.
-        </p>
-      </div>
-      <Card class="overflow-hidden gap-0 py-0 card-inset">
+    <section>
+      <SectionHeading
+        title="WSL distros"
+        description="Linux distributions installed via wsl --install or the Microsoft Store. Install / uninstall is done with the CLI — this list is read-only."
+      />
+      <ListCard>
         {#if distros.length === 0}
           <div class="px-4 py-6 text-center text-xs text-muted-foreground">
             No distributions installed. Run
@@ -307,10 +280,8 @@
           </div>
         {:else}
           {#each distros as d (d.name)}
-            <div
-              class="flex items-center gap-3 px-4 py-3 border-b border-foreground/[0.06] last:border-b-0"
-            >
-              <TerminalIcon class="size-4 text-muted-foreground shrink-0" />
+            <ListRow align="center">
+              <RowIcon icon={TerminalIcon} />
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
                   <span class="text-sm font-medium">{d.name}</span>
@@ -331,41 +302,27 @@
                 </div>
               </div>
               <span class="text-[11px] font-mono text-muted-foreground">WSL{d.version}</span>
-            </div>
+            </ListRow>
           {/each}
         {/if}
-      </Card>
+      </ListCard>
     </section>
 
     {#if devDrive}
-      <section class="flex flex-col gap-2">
-        <div class="px-1">
-          <h2 class="text-sm font-semibold tracking-tight">Dev Drive</h2>
-          <p class="text-xs text-muted-foreground mt-0.5">
-            ReFS-backed volume optimized for source code, build artifacts and package caches.
-            Up to 30 % faster on developer workloads.
-          </p>
-        </div>
-        <Card class="overflow-hidden card-inset">
-          <div class="flex items-start gap-3 px-4 py-3.5">
-            <div
-              class="size-9 shrink-0 rounded-md bg-foreground/[0.04] border border-foreground/[0.08] flex items-center justify-center"
-            >
-              <HardDrive class="size-4 text-muted-foreground" />
-            </div>
+      <section>
+        <SectionHeading
+          title="Dev Drive"
+          description="ReFS-backed volume optimized for source code, build artifacts and package caches. Up to 30 % faster on developer workloads."
+        />
+        <ListCard>
+          <ListRow density="md">
+            <RowIcon icon={HardDrive} />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-medium">Dev Drive status</span>
-                <span
-                  class={cn(
-                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider border",
-                    devDrive.supported
-                      ? "bg-success/15 text-success border-success/30"
-                      : "bg-muted/50 text-muted-foreground border-muted/60",
-                  )}
-                >
+                <StatusPill tone={devDrive.supported ? "success" : "muted"}>
                   {devDrive.supported ? "Supported" : "Not supported"}
-                </span>
+                </StatusPill>
               </div>
               <p class="text-xs text-muted-foreground mt-1">{devDrive.note}</p>
               {#if devDrive.supported}
@@ -374,8 +331,8 @@
                 </p>
               {/if}
             </div>
-          </div>
-        </Card>
+          </ListRow>
+        </ListCard>
       </section>
     {/if}
   </div>

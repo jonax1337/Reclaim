@@ -2,6 +2,32 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.20.1
+
+Design-system polish + Task-Sequence editor tightening. No new features, no new tweaks, no new routes — just internal consolidation and a handful of user-visible UX fixes on top of v0.20.0.
+
+### Changed
+
+- **Design system primitives expanded** (Phase 10–11 of the internal design-system migration). Four new shared primitives added to `src/lib/ui/`:
+  - `FormField` — `<label class="flex flex-col gap-1.5">` + `<span class="text-xs font-medium text-muted-foreground">` pattern that was hand-rolled in ~20 places.
+  - `TextInput` — the canonical `h-9 rounded-md border bg-card …` input with `mono` / `readonly` / `disabled` / `bind:value` props. Now extended with a `tone: "primary" | "muted"` variant.
+  - `TextLink` — replaces ~15 hand-rolled `<button class="text-primary hover:underline">` action buttons (select-all / clear / inline-actions). `tone="muted"` covers the Clear-button variant.
+  - `FilterChip` — the `h-8 px-3 rounded-md` toggle-pill pattern from `/logs` + `/windows-update` filter rows, now a single primitive.
+- **`StatusHero`** primitive added in Phase 9 — wraps the Activation + OneDrive hero-card pattern (`HeroBanner` + `StatusAvatar` + title + badges + description + dl details) into a single composable that auto-maps `tone` → avatar tone.
+- **InstallMedia Advanced Mode template picker** restyled to match Simple-mode profile picker. Previously the right column held only a single tiny `{N}/{M} steps active` badge in a `grid-cols-[1fr_1fr]` — 50% of the card was whitespace. Now shows a proper info-tile (Sparkles icon + template name + description + 3 summary badges: active/total steps + reg tweaks + AppX removals).
+- **Task Sequence editor — singleton enforcement.** Adding a step in Advanced mode now respects per-type cardinality. Every step type except `custom-cmd` is a singleton (one `meta` step has all locale + account fields; one `debloat-appx` step has all AppX patterns; etc.) — the "Add step" picker disables a type if one already exists and shows an "Already added" badge. `custom-cmd` remains multi-addable (different hooks, different commands).
+- **Task Sequence editor — canonical insertion order.** New steps are inserted into the sequence at their canonical phase-position (`meta` → `bypass` → `edition` → `oobe-skip` → `privacy` → `disk-setup` → `driver-inject` → `debloat-appx` → `reg-tweaks` → `apps-install` → `custom-cmd`) instead of being appended. Drag-and-drop still works for users who want a custom order — mostly relevant for multiple `custom-cmd` steps at the same hook, where sequence order determines execution order.
+- **Template descriptions shortened** in Advanced Mode's template picker. The previous descriptions were 1–3 sentences with examples and warnings; the new ones are single concise sentences (e.g. Privacy Maximum: "Strips telemetry, removes 60+ AppX, blocks sponsored apps." Fully Automated: "Wipes Disk 0, auto-creates admin, full Privacy-Maximum debloat. Destroys all data on Disk 0.").
+- **Eleven step-component rewrites** in `src/lib/tasksequence/steps/`. `MetaStep`, `EditionStep`, `CustomCmdStep` rebuilt around `FormField` + `TextInput` (eleven hand-rolled `labelClass` / `labelTextClass` / `fieldClass` consts removed). `DebloatAppxStep`, `RegTweaksStep`, `AppsInstallStep` got their plain `<button class="text-primary hover:underline">` action buttons swapped for `<TextLink>`. `DriverInjectStep` swapped its raw `<input>` for `<TextInput readonly mono>`. `MetaStep` had a leftover empty `<div></div>` grid-cell placeholder removed.
+- **Internal-only:** ~420 migration sites across ~40 files now route through the design-system primitives instead of inline Tailwind. `pnpm check`: 0 errors, 0 warnings.
+
+### Fixed
+
+- **`MetaStep` orphaned grid cell.** The locale-preset Select was in a `grid-cols-2` row with an explicit empty `<div></div>` as the right cell — leftover from an earlier two-up layout. Locale-preset now sits at full width above the username/password/computer-name/organization 2-column grid.
+- **Hosts.svelte row action `pt-1`** corrected to `pt-0.5` to match the rest of the row-action sites.
+- **Scheduled Tasks rows** migrated to the shared `<ListRow>` + amber-tint background instead of hand-rolled flex.
+- **Drivers WU driver-class divider** uses `<SectionHeading level="h3">` instead of a hand-rolled `text-[10px] font-semibold uppercase` block.
+
 ## v0.20.0
 
 Install Media gets a real **Task Sequence editor** with Simple + Advanced modes, custom commands at any Setup hook, winget app installation, driver-folder injection, fully-automated zero-click install, and a USB-drive serial number that's actually identifying instead of `000000000005||`.

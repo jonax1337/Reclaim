@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Dialog, PageHeader, SectionHeading, EmptyState, ListCard, ListRow, RowIcon, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -20,7 +20,6 @@
   import { FIREWALL_BUILTINS, type FirewallBuiltin } from "$lib/network/firewall";
   import { firewallBlocksResource } from "$lib/route-cache.svelte";
   import { invalidate } from "$lib/cache.svelte";
-  import { cn } from "$lib/utils";
 
   const canFetch = $derived(isTauri() && admin.checked && admin.elevated);
   const blocksRes = $derived(canFetch ? firewallBlocksResource() : null);
@@ -111,42 +110,21 @@
     declinedToast="Firewall blocks require admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — firewall needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — firewall needs the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Loading firewall blocks…
-  </div>
+  <EmptyState loading>Loading firewall blocks…</EmptyState>
 {:else}
-  <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
-    Rules are created under the <code class="font-mono text-[11px]">Reclaim:</code> group so they're easy to
-    audit and remove. IP-based rules can become stale — re-apply periodically to refresh.
-  </p>
+  <SectionHeading title="Telemetry blocks">
+    Rules are created under the <code class="font-mono text-[11px]">Reclaim:</code> group so they're
+    easy to audit and remove. IP-based rules can become stale — re-apply periodically to refresh.
+  </SectionHeading>
 
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each FIREWALL_BUILTINS as b (b.id)}
       {@const isBusy = busy.has(b.id)}
       {@const a = active(b)}
-      <div
-        class={cn(
-          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
-          a ? "bg-primary/[0.03]" : "hover:bg-accent/40",
-        )}
-      >
-        <span
-          class={cn(
-            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
-            a ? "bg-primary/60 opacity-100" : "opacity-0",
-          )}
-          aria-hidden="true"
-        ></span>
-        <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-          <Flame class={cn("size-4", a ? "text-primary" : "text-muted-foreground")} />
-        </div>
+      <ListRow density="md">
+        <RowIcon icon={Flame} iconClass={a ? "text-primary" : "text-muted-foreground"} />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{b.name}</span>
@@ -201,9 +179,9 @@
             </Button>
           {/if}
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 {/if}
 
 <Dialog

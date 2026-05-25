@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Checkbox, BulkActionBar, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Badge, Checkbox, BulkActionBar, PageHeader, ListCard, SelectableListRow, RowIcon, toast, FilterChip } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -247,19 +247,13 @@
       { value: "driver", label: "Drivers", count: counts.driver },
       { value: "optional", label: "Optional", count: counts.optional },
     ] as f (f.value)}
-      <button
-        type="button"
+      <FilterChip
+        selected={filter === f.value}
+        count={f.count}
         onclick={() => (filter = f.value as FilterKey)}
-        class={cn(
-          "inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium transition-colors border",
-          filter === f.value
-            ? "border-primary bg-primary/10 text-primary"
-            : "border-input hover:bg-accent/40 text-muted-foreground",
-        )}
       >
         {f.label}
-        <span class="tabular-nums text-[10px] opacity-70">({f.count})</span>
-      </button>
+      </FilterChip>
     {/each}
   </div>
 {/if}
@@ -313,23 +307,11 @@
       </div>
     </Card>
   {/if}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each filtered as u (u.id)}
       {@const isSelected = selected.has(u.id)}
       {@const rp = progress[u.id]}
-      <label
-        class={cn(
-          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors cursor-pointer select-none",
-          isSelected ? "bg-primary/[0.06] hover:bg-primary/[0.08]" : "hover:bg-accent/40",
-        )}
-      >
-        <span
-          class={cn(
-            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all",
-            isSelected ? "bg-primary opacity-100" : "opacity-0",
-          )}
-          aria-hidden="true"
-        ></span>
+      <SelectableListRow selected={isSelected} density="md">
         <div class="pt-0.5 shrink-0">
           <Checkbox
             checked={isSelected}
@@ -341,13 +323,7 @@
             }}
           />
         </div>
-        <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0 mt-0.5">
-          {#if u.isDriver}
-            <Cpu class="size-3.5 text-muted-foreground" />
-          {:else}
-            <HardDriveDownload class="size-3.5 text-muted-foreground" />
-          {/if}
-        </div>
+        <RowIcon icon={u.isDriver ? Cpu : HardDriveDownload} class="mt-0.5" />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{u.title}</span>
@@ -396,9 +372,9 @@
             </div>
           {/if}
         </div>
-      </label>
+      </SelectableListRow>
     {/each}
-  </Card>
+  </ListCard>
 
   {#if selected.size === 0 && filtered.length > 0}
     <div class="flex justify-end mt-3">

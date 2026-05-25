@@ -43,7 +43,7 @@
 
 <header
   data-tauri-drag-region
-  class="titlebar select-none flex items-center h-9 shrink-0 bg-foreground/[0.025] backdrop-blur-xl border-b border-foreground/8 text-foreground"
+  class="titlebar select-none flex items-center h-9 shrink-0 bg-surface-chrome backdrop-blur-xl border-b border-hairline text-foreground"
 >
   <div data-tauri-drag-region class="flex items-center gap-2 pl-3 pr-4">
     <div

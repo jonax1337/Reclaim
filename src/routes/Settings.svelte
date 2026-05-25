@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, PageHeader, toast } from "$lib/ui";
+  import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, PageHeader, SegmentedControl, InfoBanner, toast } from "$lib/ui";
   import { Sun, Moon, Monitor, History, RotateCcw, Info, ArrowDownToLine, Loader2, FolderOpen } from "@lucide/svelte";
   import BackgroundServiceCard from "$lib/components/BackgroundServiceCard.svelte";
   import { theme, type ThemeMode } from "$lib/theme.svelte";
@@ -131,23 +131,11 @@
       <CardDescription>Pick a theme. 'System' follows your Windows setting.</CardDescription>
     </CardHeader>
     <CardContent>
-      <div class="flex gap-2">
-        {#each themes as t (t.mode)}
-          <button
-            type="button"
-            onclick={() => theme.set(t.mode)}
-            class={
-              "flex-1 flex flex-col items-center gap-2 py-4 rounded-lg border transition-all " +
-              (theme.mode === t.mode
-                ? "border-primary bg-primary/5"
-                : "border-input hover:bg-accent/40")
-            }
-          >
-            <t.icon class="size-5 {theme.mode === t.mode ? 'text-primary' : 'text-muted-foreground'}" />
-            <span class="text-sm font-medium">{t.label}</span>
-          </button>
-        {/each}
-      </div>
+      <SegmentedControl
+        options={themes.map((t) => ({ value: t.mode, label: t.label, icon: t.icon }))}
+        value={theme.mode}
+        onChange={(v) => theme.set(v)}
+      />
     </CardContent>
   </Card>
 
@@ -251,12 +239,11 @@
           {/if}
         {/if}
       </dl>
-      <div class="mt-4 pt-4 border-t flex items-start gap-2 text-xs text-muted-foreground">
-        <Info class="size-4 shrink-0 mt-0.5" />
-        <p>
+      <div class="mt-4 pt-4 border-t">
+        <InfoBanner size="xs">
           Reclaim Your Windows is an open debloating tool inspired by Win11Debloat. Every tweak is
           documented and reversible.
-        </p>
+        </InfoBanner>
       </div>
     </CardContent>
   </Card>

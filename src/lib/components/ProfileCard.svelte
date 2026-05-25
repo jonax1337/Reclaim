@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, CardContent, Button, toast } from "$lib/ui";
+  import { Card, CardContent, Button, MetricBar, IconTile, toast } from "$lib/ui";
   import { ChevronRight } from "@lucide/svelte";
   import type { Profile } from "$lib/tweaks/profiles";
   import { resolveProfileTweaks, profileAppliedStats } from "$lib/tweaks/profiles";
@@ -67,11 +67,9 @@
         </div>
         <h3 class="text-base font-semibold mt-0.5">{profile.name}</h3>
       </div>
-      <div
-        class="shrink-0 grid place-items-center size-9 rounded-lg bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5"
-      >
+      <IconTile>
         <ProfileIcon name={profile.gradient} class="size-4" />
-      </div>
+      </IconTile>
     </div>
     <p class="text-xs text-muted-foreground leading-relaxed line-clamp-3 min-h-[3rem]">
       {profile.description}
@@ -81,12 +79,7 @@
         <span>{stats.applied} / {stats.total} applied</span>
         <span class="tabular-nums">{stats.percent}%</span>
       </div>
-      <div class="h-1 rounded-full bg-muted overflow-hidden">
-        <div
-          class="h-full rounded-full bg-primary transition-all duration-500"
-          style="width: {stats.percent}%"
-        ></div>
-      </div>
+      <MetricBar value={stats.percent} />
     </div>
     <div class="flex justify-end mt-4">
       <Button size="sm" variant="outline" onclick={() => (open = true)}>

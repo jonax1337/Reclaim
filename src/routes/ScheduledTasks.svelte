@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Card, Button, Badge, toast, Dialog, PageHeader } from "$lib/ui";
+  import { Button, Badge, ListCard, ListRow, SearchInput, toast, Dialog, PageHeader, EmptyState } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
-    Search,
     AlertTriangle,
     Play,
     Trash2,
@@ -288,40 +287,25 @@
   />
 {:else if isTauri() && !loading}
   <div class="mb-4 flex items-center gap-2">
-    <div class="flex-1 relative">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-      <input
-        type="text"
-        bind:value={filter}
-        placeholder="Filter by name, path, author, or description…"
-        class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </div>
+    <SearchInput
+      class="flex-1"
+      bind:value={filter}
+      placeholder="Filter by name, path, author, or description…"
+    />
   </div>
 {/if}
 
 {#if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Loading scheduled tasks…
-  </div>
+  <EmptyState loading>Loading scheduled tasks…</EmptyState>
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — scheduled tasks need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — scheduled tasks need the built app.</EmptyState>
 {:else if groups.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      No tasks match.
-    </div>
-  </Card>
+  <EmptyState>No tasks match.</EmptyState>
 {:else}
   <div class="flex flex-col gap-2">
     {#each groups as group (group.path)}
       {@const expanded = filter.length > 0 || expandedPaths.has(group.path)}
-      <Card class="overflow-hidden gap-0 py-0 card-inset">
+      <ListCard>
         <button
           type="button"
           onclick={() => toggleGroup(group.path)}
@@ -336,17 +320,12 @@
           <Badge variant="outline">{group.tasks.length}</Badge>
         </button>
         {#if expanded}
-          <div class="border-t border-foreground/8">
+          <div class="border-t border-hairline">
             {#each group.tasks as t (t.path + "|" + t.name)}
               {@const k = t.path + "|" + t.name}
               {@const isBusy = busy.has(k)}
               {@const note = isNotable(t)}
-              <div
-                class={cn(
-                  "flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors",
-                  note ? "bg-amber-500/[0.04]" : "",
-                )}
-              >
+              <ListRow class={note ? "bg-amber-500/[0.04]" : ""}>
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm font-medium truncate">{t.name}</span>
@@ -404,11 +383,11 @@
                     <Trash2 />
                   </Button>
                 </div>
-              </div>
+              </ListRow>
             {/each}
           </div>
         {/if}
-      </Card>
+      </ListCard>
     {/each}
   </div>
 {/if}

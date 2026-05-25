@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, CardContent, CardHeader, CardTitle, Button, PageHeader } from "$lib/ui";
+  import { Card, CardContent, CardHeader, CardTitle, Button, PageHeader, MetricBar, EmptyState, DataField } from "$lib/ui";
   import { Cpu, MonitorSmartphone, MemoryStick, HardDrive, CircuitBoard, RefreshCw, Loader2 } from "@lucide/svelte";
   import { isTauri, type SystemInfo } from "$lib/tweaks/bridge";
   import { hardwareResource, systemInfoResource } from "$lib/route-cache.svelte";
@@ -128,16 +128,9 @@
 </PageHeader>
 
 {#if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — hardware queries require the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — hardware queries require the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Querying hardware…
-  </div>
+  <EmptyState loading>Querying hardware…</EmptyState>
 {:else if error}
   <Card class="card-inset border-destructive/40">
     <CardContent>
@@ -155,23 +148,11 @@
       </CardHeader>
       <CardContent>
         <p class="text-base font-medium">{cpu.Name?.trim() ?? "—"}</p>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm">
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Vendor</div>
-            <div class="font-medium">{cpu.Manufacturer ?? "—"}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Cores</div>
-            <div class="font-medium tabular-nums">{cpu.NumberOfCores ?? "—"}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Threads</div>
-            <div class="font-medium tabular-nums">{cpu.NumberOfLogicalProcessors ?? "—"}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Max clock</div>
-            <div class="font-medium tabular-nums">{formatMHz(cpu.MaxClockSpeed)}</div>
-          </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+          <DataField label="Vendor" value={cpu.Manufacturer ?? "—"} />
+          <DataField label="Cores" mono value={cpu.NumberOfCores ?? "—"} />
+          <DataField label="Threads" mono value={cpu.NumberOfLogicalProcessors ?? "—"} />
+          <DataField label="Max clock" mono value={formatMHz(cpu.MaxClockSpeed)} />
         </div>
       </CardContent>
     </Card>
@@ -187,28 +168,16 @@
       </CardHeader>
       <CardContent>
         <p class="text-base font-medium">{gpu.Name ?? "—"}</p>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 text-sm">
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Driver</div>
-            <div class="font-medium font-mono text-xs">{gpu.DriverVersion ?? "—"}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Driver date</div>
-            <div class="font-medium tabular-nums">{formatPsDate(gpu.DriverDate)}</div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">Resolution</div>
-            <div class="font-medium tabular-nums">
-              {#if gpu.CurrentHorizontalResolution && gpu.CurrentVerticalResolution}
-                {gpu.CurrentHorizontalResolution}×{gpu.CurrentVerticalResolution}
-                {#if gpu.CurrentRefreshRate}@ {gpu.CurrentRefreshRate} Hz{/if}
-              {:else}—{/if}
-            </div>
-          </div>
-          <div>
-            <div class="text-[10px] uppercase tracking-wider text-muted-foreground">VRAM (reported)</div>
-            <div class="font-medium tabular-nums">{formatBytes(gpu.AdapterRAM)}</div>
-          </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+          <DataField label="Driver" mono value={gpu.DriverVersion ?? "—"} />
+          <DataField label="Driver date" mono value={formatPsDate(gpu.DriverDate)} />
+          <DataField label="Resolution" mono>
+            {#if gpu.CurrentHorizontalResolution && gpu.CurrentVerticalResolution}
+              {gpu.CurrentHorizontalResolution}×{gpu.CurrentVerticalResolution}
+              {#if gpu.CurrentRefreshRate}@ {gpu.CurrentRefreshRate} Hz{/if}
+            {:else}—{/if}
+          </DataField>
+          <DataField label="VRAM (reported)" mono value={formatBytes(gpu.AdapterRAM)} />
         </div>
       </CardContent>
     </Card>
@@ -229,12 +198,7 @@
           </span>
           <span class="text-xs text-muted-foreground tabular-nums">{ramPct}% used</span>
         </div>
-        <div class="h-2 rounded-full bg-muted overflow-hidden">
-          <div
-            class="h-full rounded-full bg-primary transition-all duration-500"
-            style="width: {ramPct}%"
-          ></div>
-        </div>
+        <MetricBar value={ramPct} size="md" />
       {/if}
       {#if asArray(data.ram).length > 0}
         <table class="w-full text-sm mt-4">
@@ -291,12 +255,11 @@
                   {formatBytes(used)} <span class="text-muted-foreground">/ {formatBytes(size)}</span>
                 </span>
               </div>
-              <div class="h-1.5 rounded-full bg-muted overflow-hidden">
-                <div
-                  class="h-full rounded-full {pct > 90 ? 'bg-destructive' : pct > 75 ? 'bg-warning' : 'bg-primary'} transition-all duration-500"
-                  style="width: {pct}%"
-                ></div>
-              </div>
+              <MetricBar
+                value={pct}
+                size="md"
+                tone={pct > 90 ? "destructive" : pct > 75 ? "warning" : "primary"}
+              />
             </div>
           {/each}
         </div>

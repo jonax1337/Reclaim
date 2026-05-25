@@ -87,7 +87,7 @@
     <DialogPrimitive.Content
       class="fixed left-1/2 top-1/2 z-50 flex w-[min(960px,calc(100vw-2rem))] max-h-[min(820px,calc(100vh-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col border bg-card shadow-lg rounded-xl overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
     >
-      <header class="relative px-6 pt-5 pb-4 border-b border-foreground/10">
+      <header class="relative px-6 pt-5 pb-4 border-b border-hairline-strong">
         <div class="pr-10">
           <DialogPrimitive.Title class="text-lg font-semibold leading-none tracking-tight">
             {title}
@@ -117,7 +117,7 @@
           {@const state = states?.[t.id]}
           {@const adminOnly = tweakRequiresAdmin(t)}
           <article
-            class="rounded-xl border border-foreground/10 bg-foreground/[0.02] hover:bg-foreground/[0.035] transition-colors"
+            class="rounded-xl border border-hairline-strong bg-surface-1 hover:bg-surface-2 transition-colors"
           >
             <header class="flex items-start gap-3 px-4 pt-3.5 pb-2">
               <div class="flex-1 min-w-0">
@@ -168,7 +168,7 @@
                   {@const r = op as RegOp}
                   {@const sp = shortPath(r.path)}
                   <div
-                    class="rounded-lg border border-foreground/10 bg-background/60 px-3 py-2"
+                    class="rounded-lg border border-hairline-strong bg-background/60 px-3 py-2"
                   >
                     <div class="flex items-center gap-2 text-[11px] font-mono">
                       <KeyRound class="size-3 text-muted-foreground shrink-0" />
@@ -204,7 +204,7 @@
                 {:else}
                   {@const s = op as ShellOp}
                   <div
-                    class="rounded-lg border border-foreground/10 bg-background/60 px-3 py-2"
+                    class="rounded-lg border border-hairline-strong bg-background/60 px-3 py-2"
                   >
                     <div class="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                       <FileCode2 class="size-3" />
@@ -226,7 +226,7 @@
       </div>
 
       <footer
-        class="flex items-center justify-end gap-2 px-6 py-4 border-t border-foreground/10 bg-foreground/[0.025]"
+        class="flex items-center justify-end gap-2 px-6 py-4 border-t border-hairline-strong bg-surface-chrome"
       >
         {#if footer}
           {@render footer()}

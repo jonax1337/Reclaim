@@ -37,7 +37,7 @@
     Code2,
   } from "@lucide/svelte";
   import OneDriveIcon from "$lib/icons/OneDriveIcon.svelte";
-  import { Toaster, Titlebar, toast, Dialog, Button } from "$lib/ui";
+  import { Toaster, Titlebar, toast, Dialog, Button, StatusPill } from "$lib/ui";
   import { cn } from "$lib/utils";
   import { isTauri } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
@@ -222,10 +222,8 @@
   <Titlebar title="Reclaim Your Windows">
     {#snippet actions()}
       {#if tasks.tasks.length > 0}
-        <button
-          type="button"
+        <StatusPill
           onclick={() => tasks.togglePanel()}
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-foreground/10 text-foreground border border-foreground/15 hover:bg-foreground/15 transition-colors"
           style="-webkit-app-region: no-drag"
           title={tasks.panelOpen ? "Hide terminal" : "Show terminal"}
         >
@@ -236,30 +234,29 @@
             <Terminal class="size-3" />
           {/if}
           Terminal
-        </button>
+        </StatusPill>
       {/if}
       {#if isTauri() && admin.checked}
         {#if admin.elevated}
-          <span
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-success/15 text-success border border-success/30"
+          <StatusPill
+            tone="success"
             style="-webkit-app-region: no-drag"
             title="Running as administrator"
           >
             <ShieldCheck class="size-3" />
             Admin
-          </span>
+          </StatusPill>
         {:else}
-          <button
-            type="button"
+          <StatusPill
+            tone="warning"
             onclick={onElevateClick}
             disabled={admin.requesting}
-            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 hover:bg-amber-500/25 transition-colors disabled:opacity-50"
             style="-webkit-app-region: no-drag"
             title="Click to relaunch as administrator"
           >
             <ShieldAlert class="size-3" />
             {admin.requesting ? "UAC…" : "Elevate"}
-          </button>
+          </StatusPill>
         {/if}
       {/if}
     {/snippet}
@@ -267,7 +264,7 @@
 
   <div class="flex flex-1 min-h-0">
     <aside
-      class="w-60 shrink-0 border-r border-foreground/8 bg-foreground/[0.04] backdrop-blur-xl flex flex-col"
+      class="w-60 shrink-0 border-r border-hairline bg-surface-3 backdrop-blur-xl flex flex-col"
     >
       <nav class="flex-1 p-2 flex flex-col gap-5 pt-4 overflow-y-auto">
         {#each navGroups as group, gi (gi)}
@@ -364,7 +361,7 @@
   description="Closing now will kill the running PowerShell processes. Long ops like DISM RestoreHealth or a Defender full scan won't be able to finish cleanly."
 >
   {#if runningAtCloseTime.length > 0}
-    <ul class="text-sm space-y-1.5 px-4 py-3 rounded-md bg-foreground/[0.04] border border-foreground/8">
+    <ul class="text-sm space-y-1.5 px-4 py-3 rounded-md bg-surface-3 border border-hairline">
       {#each runningAtCloseTime as label, i (i)}
         <li class="flex items-center gap-2">
           <Loader2 class="size-3.5 animate-spin text-primary shrink-0" />

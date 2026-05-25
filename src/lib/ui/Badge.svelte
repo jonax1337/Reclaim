@@ -9,7 +9,7 @@
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         outline: "text-foreground",
         success: "border-transparent bg-success/15 text-success",
-        warning: "border-transparent bg-warning/20 text-warning-foreground text-amber-700 dark:text-amber-300",
+        warning: "border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-300",
         destructive: "border-transparent bg-destructive/15 text-destructive",
       },
     },

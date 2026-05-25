@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, PageHeader, EmptyState, ListCard, toast, FilterChip } from "$lib/ui";
   import { Trash2, Info, CheckCircle2, AlertCircle, XCircle, ChevronDown, ChevronRight, Download } from "@lucide/svelte";
   import { log, ACTION_LABELS, type LogEntry, type LogLevel } from "$lib/log.svelte";
   import { isTauri, readActivityLog } from "$lib/tweaks/bridge";
@@ -170,36 +170,22 @@
     { value: "warn", label: "Warnings", count: counts.warn },
     { value: "error", label: "Errors", count: counts.error },
   ] as f (f.value)}
-    <button
-      type="button"
+    <FilterChip
+      selected={levelFilter === f.value}
+      count={f.count}
       onclick={() => (levelFilter = f.value as LogLevel | "all")}
-      class={cn(
-        "inline-flex items-center gap-1.5 px-3 h-8 rounded-md text-xs font-medium transition-colors border",
-        levelFilter === f.value
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-input hover:bg-accent/40 text-muted-foreground",
-      )}
     >
       {f.label}
-      <span class="tabular-nums text-[10px] opacity-70">({f.count})</span>
-    </button>
+    </FilterChip>
   {/each}
 </div>
 
 {#if log.entries.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      No activity yet — apply or revert a tweak and it'll show up here.
-    </div>
-  </Card>
+  <EmptyState>No activity yet — apply or revert a tweak and it'll show up here.</EmptyState>
 {:else if filtered.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      No entries matching this filter.
-    </div>
-  </Card>
+  <EmptyState>No entries matching this filter.</EmptyState>
 {:else}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each filtered as e (e.id)}
       {@const Icon = levelIcon(e.level)}
       {@const isOpen = expanded.has(e.id)}
@@ -242,5 +228,5 @@
         </button>
       </div>
     {/each}
-  </Card>
+  </ListCard>
 {/if}

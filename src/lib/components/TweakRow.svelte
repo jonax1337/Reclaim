@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Switch, Checkbox, Badge, toast } from "$lib/ui";
+  import { Switch, Checkbox, Badge, RowAccent, toast } from "$lib/ui";
   import { Sparkles, RotateCcw, AlertTriangle, Loader2 } from "@lucide/svelte";
   import type { Tweak } from "$lib/tweaks/catalog";
   import { applyTweak, revertTweak, type TweakState } from "$lib/tweaks/executor";
@@ -91,20 +91,12 @@
   class={cn(
     "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors cursor-pointer select-none outline-none",
     selected
-      ? "bg-primary/[0.08] hover:bg-primary/[0.10]"
-      : localOn
-        ? "bg-primary/[0.03] hover:bg-primary/[0.06]"
-        : "hover:bg-accent/40",
+      ? "bg-primary/[0.06] hover:bg-primary/[0.09]"
+      : "hover:bg-accent/30",
     "focus-visible:bg-accent/60",
   )}
 >
-  <span
-    class={cn(
-      "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
-      selected ? "bg-primary opacity-100" : localOn ? "bg-primary/60 opacity-100" : "opacity-0",
-    )}
-    aria-hidden="true"
-  ></span>
+  <RowAccent active={selected} strong />
 
   <div class="pt-0.5 shrink-0" data-no-select>
     <Checkbox

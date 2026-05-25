@@ -52,7 +52,7 @@
     <DialogPrimitive.Content
       class="fixed left-1/2 top-1/2 z-50 flex w-[min(1280px,calc(100vw-2rem))] max-h-[min(900px,calc(100vh-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col border bg-card shadow-lg rounded-xl overflow-hidden data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
     >
-      <header class="relative px-6 pt-5 pb-4 border-b border-foreground/10">
+      <header class="relative px-6 pt-5 pb-4 border-b border-hairline-strong">
         <div class="pr-10">
           <DialogPrimitive.Title class="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
             <FileCode2 class="size-5 text-primary" />
@@ -72,7 +72,7 @@
         </DialogPrimitive.Close>
       </header>
 
-      <div class="flex items-center gap-3 px-6 py-2 border-b border-foreground/10 bg-foreground/[0.025] text-[11px]">
+      <div class="flex items-center gap-3 px-6 py-2 border-b border-hairline-strong bg-surface-chrome text-[11px]">
         <code class="px-1.5 py-0.5 rounded bg-foreground/10 font-mono text-foreground/90">{filename}</code>
         <span class="text-muted-foreground">{lineCount.toLocaleString()} lines · {xml.length.toLocaleString()} chars</span>
         <div class="ml-auto flex items-center gap-2">
@@ -95,7 +95,7 @@
         >{@html highlighted}</pre>
       </div>
 
-      <footer class="flex items-center justify-end gap-2 px-6 py-4 border-t border-foreground/10 bg-foreground/[0.025]">
+      <footer class="flex items-center justify-end gap-2 px-6 py-4 border-t border-hairline-strong bg-surface-chrome">
         <Button variant="outline" onclick={() => (open = false)} disabled={saving}>
           Close
         </Button>

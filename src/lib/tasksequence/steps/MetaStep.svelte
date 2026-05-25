@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Switch, Select } from "$lib/ui";
+  import { Switch, Select, FormField, TextInput } from "$lib/ui";
   import { UserCircle2 } from "@lucide/svelte";
   import type { MetaConfig } from "../types";
   import { sequence } from "../store.svelte";
@@ -21,15 +21,13 @@
   const currentLocale = $derived(
     LOCALES.find((l) => l.id === currentLocaleId) ?? LOCALES[0],
   );
-
-  const fieldClass = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring";
-  const labelClass = "flex flex-col gap-1.5";
-  const labelTextClass = "text-xs font-medium text-muted-foreground";
 </script>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-  <label class={labelClass}>
-    <span class={labelTextClass}>Locale preset</span>
+<div class="space-y-3">
+  <FormField
+    label="Locale preset"
+    hint={`→ ${currentLocale.language} · ${currentLocale.timezone} · GeoID ${currentLocale.geoId}`}
+  >
     <Select.Root
       type="single"
       value={currentLocaleId}
@@ -55,35 +53,38 @@
         {/each}
       </Select.Content>
     </Select.Root>
-    <span class="text-[11px] text-muted-foreground">
-      → {currentLocale.language} · {currentLocale.timezone} · GeoID {currentLocale.geoId}
-    </span>
-  </label>
-  <div></div>
+  </FormField>
 
-  <label class={labelClass}>
-    <span class={labelTextClass}>Local username</span>
-    <input type="text" class={fieldClass} value={config.username}
-      oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { username: (e.currentTarget as HTMLInputElement).value })} />
-  </label>
-  <label class={labelClass}>
-    <span class={labelTextClass}>Password (recommended for fully-unattended mode)</span>
-    <input type="text" class={fieldClass} value={config.password} placeholder="Empty = Setup shows account screen"
-      oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { password: (e.currentTarget as HTMLInputElement).value })} />
-  </label>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <FormField label="Local username">
+      <TextInput
+        value={config.username}
+        oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { username: (e.currentTarget as HTMLInputElement).value })}
+      />
+    </FormField>
+    <FormField label="Password (recommended for fully-unattended mode)">
+      <TextInput
+        value={config.password}
+        placeholder="Empty = Setup shows account screen"
+        oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { password: (e.currentTarget as HTMLInputElement).value })}
+      />
+    </FormField>
 
-  <label class={labelClass}>
-    <span class={labelTextClass}>Computer name</span>
-    <input type="text" class={fieldClass} value={config.computerName}
-      oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { computerName: (e.currentTarget as HTMLInputElement).value })} />
-  </label>
-  <label class={labelClass}>
-    <span class={labelTextClass}>Organization</span>
-    <input type="text" class={fieldClass} value={config.organization}
-      oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { organization: (e.currentTarget as HTMLInputElement).value })} />
-  </label>
+    <FormField label="Computer name">
+      <TextInput
+        value={config.computerName}
+        oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { computerName: (e.currentTarget as HTMLInputElement).value })}
+      />
+    </FormField>
+    <FormField label="Organization">
+      <TextInput
+        value={config.organization}
+        oninput={(e) => sequence.updateStepConfig<MetaConfig>(id, { organization: (e.currentTarget as HTMLInputElement).value })}
+      />
+    </FormField>
+  </div>
 
-  <div class="md:col-span-2 flex items-center justify-between px-3 py-2.5 rounded-md bg-foreground/[0.03] border border-foreground/8">
+  <div class="flex items-center justify-between px-3 py-2.5 rounded-md bg-surface-2 border border-hairline">
     <div class="flex items-center gap-2">
       <UserCircle2 class="size-4 text-muted-foreground" />
       <div>

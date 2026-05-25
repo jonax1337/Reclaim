@@ -1,6 +1,6 @@
 <script lang="ts">
   import { push } from "svelte-spa-router";
-  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Dialog, PageHeader, SectionHeading, MetricBar, IconTile, EmptyState, ListCard, ListRow, toast } from "$lib/ui";
   import {
     Plus,
     Upload,
@@ -168,17 +168,15 @@
   {/snippet}
 </PageHeader>
 
-<h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-  Built-in
-</h2>
-<Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
+<SectionHeading title="Built-in" />
+<ListCard class="mb-6">
   {#each PROFILES as p (p.id)}
     {@const isBusy = busy === p.id}
     {@const stats = profileAppliedStats(p, states)}
-    <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-      <div class="grid place-items-center size-9 rounded-md shrink-0 bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5">
+    <ListRow>
+      <IconTile radius="md">
         <ProfileIcon name={p.gradient} class="size-4" />
-      </div>
+      </IconTile>
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-2 flex-wrap">
           <span class="text-sm font-medium">{p.name}</span>
@@ -189,12 +187,7 @@
           {/if}
         </div>
         <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
-        <div class="mt-2 h-1 rounded-full bg-muted overflow-hidden max-w-xs">
-          <div
-            class="h-full rounded-full bg-primary transition-all duration-500"
-            style="width: {stats.percent}%"
-          ></div>
-        </div>
+        <MetricBar value={stats.percent} class="mt-2 max-w-xs" />
       </div>
       <div class="shrink-0 flex items-center gap-2 pt-0.5">
         {#if isBusy}
@@ -208,17 +201,15 @@
           Apply
         </Button>
       </div>
-    </div>
+    </ListRow>
   {/each}
-</Card>
+</ListCard>
 
-<h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
-  Custom ({customProfiles.items.length})
-</h2>
+<SectionHeading title="Custom ({customProfiles.items.length})" class="mt-6" />
 
 {#if customProfiles.items.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground space-y-3">
+  <EmptyState>
+    <div class="space-y-3">
       <p>No custom profiles yet.</p>
       <p class="text-xs text-muted-foreground/70">
         Build your own with hand-picked tweaks, or import a JSON profile someone shared with you.
@@ -234,16 +225,16 @@
         </Button>
       </div>
     </div>
-  </Card>
+  </EmptyState>
 {:else}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each customProfiles.items as p (p.id)}
       {@const isBusy = busy === p.id}
       {@const stats = profileAppliedStats(p, states)}
-      <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-        <div class="grid place-items-center size-9 rounded-md shrink-0 bg-foreground/[0.06] text-foreground/80 ring-1 ring-inset ring-foreground/5">
+      <ListRow>
+        <IconTile radius="md">
           <ProfileIcon name={p.gradient} class="size-4" />
-        </div>
+        </IconTile>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{p.name}</span>
@@ -259,12 +250,7 @@
           </div>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{p.description}</p>
           {#if stats.total > 0}
-            <div class="mt-2 h-1 rounded-full bg-muted overflow-hidden max-w-xs">
-              <div
-                class="h-full rounded-full bg-primary transition-all duration-500"
-                style="width: {stats.percent}%"
-              ></div>
-            </div>
+            <MetricBar value={stats.percent} class="mt-2 max-w-xs" />
           {/if}
         </div>
         <div class="shrink-0 flex items-center gap-2 pt-0.5">
@@ -285,9 +271,9 @@
             Apply
           </Button>
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 {/if}
 
 <Dialog

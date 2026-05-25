@@ -250,6 +250,39 @@ export function defaultConfig(type: StepType): TaskStep["config"] {
   }
 }
 
+/**
+ * Canonical Setup-phase order. Each step routes to the right Windows Setup
+ * hook at generation time regardless of sequence position, but we still insert
+ * steps in this order so the visible flow reads top-to-bottom like Setup
+ * actually runs: locale + identity → hardware bypasses → SKU selection →
+ * OOBE skips → privacy → disk wipe → drivers → AppX cleanup → reg tweaks →
+ * winget apps → custom commands.
+ */
+export const STEP_ORDER: Record<StepType, number> = {
+  meta: 0,
+  bypass: 10,
+  edition: 20,
+  "oobe-skip": 30,
+  privacy: 40,
+  "disk-setup": 50,
+  "driver-inject": 60,
+  "debloat-appx": 70,
+  "reg-tweaks": 80,
+  "apps-install": 90,
+  "custom-cmd": 100,
+};
+
+/**
+ * Step types that legitimately make sense to add more than once. Only
+ * `custom-cmd` qualifies — different hooks, different commands. Every other
+ * type aggregates its inputs into a single list inside one step.
+ */
+export const MULTI_STEP_TYPES: ReadonlySet<StepType> = new Set(["custom-cmd"]);
+
+export function isSingletonType(type: StepType): boolean {
+  return !MULTI_STEP_TYPES.has(type);
+}
+
 export function makeStep(type: StepType, overrides: Partial<TaskStep> = {}): TaskStep {
   return {
     id: `step-${Math.random().toString(36).slice(2, 10)}`,

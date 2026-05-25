@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Card, Button, Badge, toast, Dialog, PageHeader } from "$lib/ui";
-  import { Loader2, RefreshCw, Search, AlertTriangle, Cog } from "@lucide/svelte";
+  import { Button, Badge, ListCard, ListRow, SearchInput, RowIcon, toast, Dialog, PageHeader, EmptyState } from "$lib/ui";
+  import { Loader2, RefreshCw, AlertTriangle, Cog } from "@lucide/svelte";
   import AdminBanner from "$lib/components/AdminBanner.svelte";
   import {
     isTauri,
@@ -11,7 +11,6 @@
   } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import { log } from "$lib/log.svelte";
-  import { cn } from "$lib/utils";
   import { servicesResource } from "$lib/route-cache.svelte";
   import { invalidate } from "$lib/cache.svelte";
 
@@ -199,44 +198,26 @@
   />
 {:else if isTauri() && !loading}
   <div class="mb-4 flex items-center gap-2">
-    <div class="flex-1 relative">
-      <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-      <input
-        type="text"
-        bind:value={filter}
-        placeholder="Filter services…"
-        class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </div>
+    <SearchInput class="flex-1" bind:value={filter} placeholder="Filter services…" />
   </div>
 {/if}
 
 {#if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Querying services…
-  </div>
+  <EmptyState loading>Querying services…</EmptyState>
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — services need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — services need the built app.</EmptyState>
 {:else if filtered.length === 0}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      No services match.
-    </div>
-  </Card>
+  <EmptyState>No services match.</EmptyState>
 {:else}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each filtered as svc (svc.name)}
       {@const info = NOTABLE_SERVICES[svc.name]}
       {@const isBusy = busy.has(svc.name)}
-      <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-        <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-          <Cog class={cn("size-3.5", svc.status === "Running" ? "text-success" : "text-muted-foreground")} />
-        </div>
+      <ListRow>
+        <RowIcon
+          icon={Cog}
+          iconClass={svc.status === "Running" ? "text-success" : "text-muted-foreground"}
+        />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium truncate">{svc.displayName || svc.name}</span>
@@ -268,9 +249,9 @@
             </Button>
           {/if}
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 {/if}
 
 <Dialog

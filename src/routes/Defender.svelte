@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Switch, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Switch, Dialog, PageHeader, SectionHeading, EmptyState, ListCard, ListRow, FormField, TextInput, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -24,7 +24,6 @@
   } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import { log } from "$lib/log.svelte";
-  import { cn } from "$lib/utils";
   import {
     defenderStatusResource,
     defenderExclusionsResource,
@@ -320,16 +319,9 @@
     declinedToast="Defender management requires admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — Defender needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — Defender needs the built app.</EmptyState>
 {:else if loading && !status}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Querying Defender…
-  </div>
+  <EmptyState loading>Querying Defender…</EmptyState>
 {:else if status}
   <!-- Service status line -->
   <div class="mb-6 flex flex-wrap items-center gap-2 text-xs">
@@ -362,26 +354,12 @@
   </div>
 
   <!-- Real-time & protection -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Real-time &amp; protection
-  </h2>
-  <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
+  <SectionHeading title="Real-time & protection" />
+  <ListCard class="mb-6">
     {#each REALTIME_TOGGLES as def (def.key)}
       {@const on = isOn(def.key)}
       {@const isBusy = busy.has(def.key)}
-      <div
-        class={cn(
-          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
-          on ? "bg-primary/[0.03]" : "",
-        )}
-      >
-        <span
-          class={cn(
-            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
-            on ? "bg-primary/60 opacity-100" : "opacity-0",
-          )}
-          aria-hidden="true"
-        ></span>
+      <ListRow density="md">
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium">{def.label}</span>
@@ -404,31 +382,17 @@
             onCheckedChange={() => requestToggle(def)}
           />
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 
   <!-- SmartScreen -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    SmartScreen
-  </h2>
-  <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
+  <SectionHeading title="SmartScreen" />
+  <ListCard class="mb-6">
     {#each SMARTSCREEN_TOGGLES as def (def.key)}
       {@const on = isOn(def.key)}
       {@const isBusy = busy.has(def.key)}
-      <div
-        class={cn(
-          "relative flex items-start gap-3 py-4 px-5 border-b last:border-b-0 transition-colors",
-          on ? "bg-primary/[0.03]" : "",
-        )}
-      >
-        <span
-          class={cn(
-            "absolute left-0 top-2 bottom-2 w-[2px] rounded-full transition-all duration-300",
-            on ? "bg-primary/60 opacity-100" : "opacity-0",
-          )}
-          aria-hidden="true"
-        ></span>
+      <ListRow density="md">
         <div class="flex-1 min-w-0">
           <span class="text-sm font-medium">{def.label}</span>
           <p class="text-xs text-muted-foreground mt-1 leading-relaxed">{def.description}</p>
@@ -443,22 +407,19 @@
             onCheckedChange={() => requestToggle(def)}
           />
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 
   <!-- Exclusions -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Scan exclusions
-  </h2>
-  <p class="text-xs text-muted-foreground mb-3 leading-relaxed">
-    Files, folders, processes, and extensions added here are skipped by Defender scans. Use sparingly —
-    every exclusion is a potential blind spot.
-  </p>
+  <SectionHeading
+    title="Scan exclusions"
+    description="Files, folders, processes, and extensions added here are skipped by Defender scans. Use sparingly — every exclusion is a potential blind spot."
+  />
 
   <!-- Files & folders -->
-  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
-    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
+  <ListCard class="mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-hairline">
       <span class="text-sm font-medium">Files &amp; folders</span>
       <Badge variant="outline">{exclusions.paths.length}</Badge>
       <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("path")}>
@@ -491,11 +452,11 @@
         </div>
       {/each}
     {/if}
-  </Card>
+  </ListCard>
 
   <!-- Processes -->
-  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
-    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
+  <ListCard class="mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-hairline">
       <span class="text-sm font-medium">Processes</span>
       <Badge variant="outline">{exclusions.processes.length}</Badge>
       <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("process")}>
@@ -528,11 +489,11 @@
         </div>
       {/each}
     {/if}
-  </Card>
+  </ListCard>
 
   <!-- Extensions -->
-  <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
-    <div class="flex items-center gap-2 px-5 py-3 border-b border-foreground/8">
+  <ListCard class="mb-4">
+    <div class="flex items-center gap-2 px-5 py-3 border-b border-hairline">
       <span class="text-sm font-medium">File extensions</span>
       <Badge variant="outline">{exclusions.extensions.length}</Badge>
       <Button size="sm" variant="outline" class="ml-auto" onclick={() => openAdd("extension")}>
@@ -565,7 +526,7 @@
         </div>
       {/each}
     {/if}
-  </Card>
+  </ListCard>
 {/if}
 
 <Dialog
@@ -592,27 +553,19 @@
       : "Defender will skip files with this extension across all drives. Use sparingly."}
 >
   <div class="space-y-3">
-    <label class="flex flex-col gap-1">
-      <span class="text-xs font-medium text-muted-foreground">
-        {addKind === "path" ? "Path" : addKind === "process" ? "Executable name" : "Extension"}
-      </span>
-      <input
-        type="text"
+    <FormField
+      label={addKind === "path" ? "Path" : addKind === "process" ? "Executable name" : "Extension"}
+    >
+      <TextInput
         bind:value={addValue}
+        mono
         placeholder={addKind === "path"
           ? "C:\\path\\to\\file or folder"
           : addKind === "process"
             ? "myapp.exe"
             : "log (with or without leading dot)"}
-        class="h-9 rounded-md border border-input bg-card px-3 text-sm font-mono outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-        onkeydown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            void submitAdd();
-          }
-        }}
       />
-    </label>
+    </FormField>
     {#if addKind === "path"}
       <div class="flex gap-2">
         <Button variant="outline" size="sm" onclick={pickFolder} disabled={addBusy}>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Button, Badge, Dialog, PageHeader, SectionHeading, EmptyState, ListCard, ListRow, RowIcon, FormField, TextInput, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -206,34 +206,23 @@
     declinedToast="DNS changes require admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — DNS configuration needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — DNS configuration needs the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Querying network adapters…
-  </div>
+  <EmptyState loading>Querying network adapters…</EmptyState>
 {:else}
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Quick presets — apply to all connected adapters
-  </h2>
+  <SectionHeading title="Quick presets — apply to all connected adapters" />
   <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
     {#each DOH_PROVIDERS as p (p.id)}
       <button
         type="button"
         class={cn(
-          "text-left rounded-xl border border-foreground/8 bg-card/95 backdrop-blur-md hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 p-4 group",
+          "text-left rounded-xl border border-hairline bg-card/95 backdrop-blur-md hover:-translate-y-0.5 hover:shadow-md transition-all duration-200 p-4 group",
           busy ? "opacity-60 pointer-events-none" : "",
         )}
         onclick={() => applyAllProvider(p)}
       >
         <div class="flex items-center gap-2">
-          <div class="grid place-items-center size-8 rounded-md bg-primary/15 text-primary shrink-0">
-            <Lock class="size-4" />
-          </div>
+          <RowIcon icon={Lock} tone="primary" />
           <span class="font-semibold">{p.name}</span>
         </div>
         <p class="text-xs text-muted-foreground mt-2 leading-relaxed">{p.description}</p>
@@ -244,28 +233,19 @@
     {/each}
   </div>
 
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
-    Per-adapter
-  </h2>
+  <SectionHeading title="Per-adapter" class="mt-6" />
   {#if adapters.length === 0}
-    <Card class="card-inset">
-      <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-        No network adapters detected.
-      </div>
-    </Card>
+    <EmptyState>No network adapters detected.</EmptyState>
   {:else}
-    <Card class="overflow-hidden gap-0 py-0 card-inset">
+    <ListCard>
       {#each adapters as a (a.alias)}
         {@const detected = detectProvider(a)}
         {@const isBusy = busy === a.alias}
-        <div class="flex items-start gap-3 py-4 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-          <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-            {#if a.isUp}
-              <Wifi class="size-4 text-success" />
-            {:else}
-              <WifiOff class="size-4 text-muted-foreground/60" />
-            {/if}
-          </div>
+        <ListRow density="md">
+          <RowIcon
+            icon={a.isUp ? Wifi : WifiOff}
+            iconClass={a.isUp ? "text-success" : "text-muted-foreground/60"}
+          />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium truncate">{a.alias}</span>
@@ -308,9 +288,9 @@
               Reset
             </Button>
           </div>
-        </div>
+        </ListRow>
       {/each}
-    </Card>
+    </ListCard>
   {/if}
 {/if}
 
@@ -320,24 +300,12 @@
   description="Enter IPv4 / IPv6 servers separated by commas. Leave empty for DHCP."
 >
   <div class="space-y-3">
-    <label class="flex flex-col gap-1">
-      <span class="text-xs font-medium text-muted-foreground">IPv4 servers</span>
-      <input
-        type="text"
-        bind:value={customV4}
-        placeholder="1.1.1.1, 1.0.0.1"
-        class="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </label>
-    <label class="flex flex-col gap-1">
-      <span class="text-xs font-medium text-muted-foreground">IPv6 servers</span>
-      <input
-        type="text"
-        bind:value={customV6}
-        placeholder="2606:4700:4700::1111"
-        class="h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-      />
-    </label>
+    <FormField label="IPv4 servers">
+      <TextInput bind:value={customV4} placeholder="1.1.1.1, 1.0.0.1" />
+    </FormField>
+    <FormField label="IPv6 servers">
+      <TextInput bind:value={customV6} placeholder="2606:4700:4700::1111" />
+    </FormField>
   </div>
   {#snippet footer()}
     <Button variant="outline" onclick={() => (customOpen = false)}>Cancel</Button>

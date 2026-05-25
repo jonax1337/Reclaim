@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Card, Button, Badge, Dialog, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Badge, Dialog, PageHeader, SectionHeading, EmptyState, ListCard, ListRow, RowIcon, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
@@ -43,7 +43,6 @@
   import { admin } from "$lib/admin.svelte";
   import { log } from "$lib/log.svelte";
   import { tasks, runMaintenanceTask, runUnblockTask } from "$lib/tasks.svelte";
-  import { cn } from "$lib/utils";
   import { powerPlansResource } from "$lib/route-cache.svelte";
   import { invalidate } from "$lib/cache.svelte";
 
@@ -488,34 +487,15 @@
     declinedToast="Maintenance requires admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — maintenance ops need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — maintenance ops need the built app.</EmptyState>
 {:else}
   {#each GROUP_ORDER as g (g)}
-    <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-      {GROUP_TITLES[g]}
-    </h2>
-    <Card class="overflow-hidden gap-0 py-0 card-inset mb-6">
+    <SectionHeading title={GROUP_TITLES[g]} />
+    <ListCard class="mb-6">
       {#each groupOps(g) as op (op.id)}
         {@const running = isRunning(op.id)}
-        <div
-          class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors"
-        >
-          <div
-            class={cn(
-              "grid place-items-center size-8 rounded-md shrink-0",
-              running ? "bg-primary/20 text-primary" : "bg-primary/15 text-primary",
-            )}
-          >
-            {#if running}
-              <Loader2 class="size-4 animate-spin" />
-            {:else}
-              <op.icon class="size-4" />
-            {/if}
-          </div>
+        <ListRow>
+          <RowIcon icon={running ? Loader2 : op.icon} tone="primary" iconClass={running ? "animate-spin" : ""} />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium">{op.title}</span>
@@ -549,13 +529,11 @@
               </Button>
             {/if}
           </div>
-        </div>
+        </ListRow>
       {/each}
       {#if g === "cleanup"}
-        <div class="flex items-start gap-3 py-3 px-5 border-b hover:bg-accent/30 transition-colors">
-          <div class="grid place-items-center size-8 rounded-md bg-primary/15 text-primary shrink-0">
-            <HardDriveDownload class="size-4" />
-          </div>
+        <ListRow>
+          <RowIcon icon={HardDriveDownload} tone="primary" />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium">Disk Cleanup (cleanmgr)</span>
@@ -571,11 +549,9 @@
               Open
             </Button>
           </div>
-        </div>
-        <div class="flex items-start gap-3 py-3 px-5 hover:bg-accent/30 transition-colors">
-          <div class="grid place-items-center size-8 rounded-md bg-primary/15 text-primary shrink-0">
-            <MemoryStick class="size-4" />
-          </div>
+        </ListRow>
+        <ListRow>
+          <RowIcon icon={MemoryStick} tone="primary" />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium">Memory diagnostic</span>
@@ -591,14 +567,12 @@
               Open
             </Button>
           </div>
-        </div>
+        </ListRow>
       {/if}
-    </Card>
+    </ListCard>
   {/each}
 
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
-    Files
-  </h2>
+  <SectionHeading title="Files" class="mt-6" />
   <Card class="card-inset mb-6 py-0">
     <div class="px-5 py-4 space-y-3">
       <p class="text-xs text-muted-foreground leading-relaxed">
@@ -645,20 +619,16 @@
     </div>
   </Card>
 
-  <div class="flex items-center justify-between mb-2 mt-6">
-    <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-      Power plans
-    </h2>
-    <Button variant="outline" onclick={reloadPowerPlans} disabled={powerLoading}>
-      <RefreshCw class={powerLoading || powerRefreshing ? "animate-spin" : ""} />
-      Refresh
-    </Button>
-  </div>
+  <SectionHeading title="Power plans" class="mt-6">
+    {#snippet actions()}
+      <Button variant="outline" onclick={reloadPowerPlans} disabled={powerLoading}>
+        <RefreshCw class={powerLoading || powerRefreshing ? "animate-spin" : ""} />
+        Refresh
+      </Button>
+    {/snippet}
+  </SectionHeading>
   {#if powerLoading}
-    <div class="grid place-items-center py-16 text-sm text-muted-foreground">
-      <Loader2 class="size-5 animate-spin mb-2" />
-      Reading power plans…
-    </div>
+    <EmptyState loading class="py-16" iconClass="size-5">Reading power plans…</EmptyState>
   {:else if powerPlans.length === 0}
     <Card class="card-inset">
       <div class="px-6 py-8 text-center text-sm text-muted-foreground">
@@ -666,15 +636,11 @@
       </div>
     </Card>
   {:else}
-    <Card class="overflow-hidden gap-0 py-0 card-inset">
+    <ListCard>
       {#each powerPlans as p (p.guid)}
         {@const isBusy = powerBusy === p.guid}
-        <div
-          class="flex items-center gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors"
-        >
-          <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-            <Zap class={cn("size-4", p.active ? "text-success" : "text-muted-foreground")} />
-          </div>
+        <ListRow align="center">
+          <RowIcon icon={Zap} iconClass={p.active ? "text-success" : "text-muted-foreground"} />
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium">{p.name}</span>
@@ -712,9 +678,9 @@
               </Button>
             {/if}
           </div>
-        </div>
+        </ListRow>
       {/each}
-    </Card>
+    </ListCard>
     {#if !hasUltimate}
       <div class="mt-3 flex">
         <Button variant="outline" onclick={doUnlockUltimate} disabled={!!powerBusy}>

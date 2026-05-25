@@ -15,7 +15,7 @@
 
 {#if count > 0}
   <div
-    class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-2xl border border-foreground/10 bg-card/85 backdrop-blur-xl pl-4 pr-2 py-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.35)]"
+    class="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 rounded-2xl border border-hairline-strong bg-card/85 backdrop-blur-xl pl-4 pr-2 py-2 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.35)]"
     in:fly={{ y: 24, duration: 240, easing: cubicOut }}
     out:fly={{ y: 24, duration: 180, easing: cubicOut }}
   >

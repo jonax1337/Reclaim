@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { Checkbox, Badge } from "$lib/ui";
-  import { cn } from "$lib/utils";
+  import { Checkbox, Badge, SelectableTile, TextLink } from "$lib/ui";
   import type { DebloatAppxConfig } from "../types";
   import { sequence } from "../store.svelte";
   import { BLOATWARE, GROUP_LABELS, type BloatwareEntry } from "$lib/tweaks/bloatware";
@@ -45,9 +44,9 @@
   <div class="flex items-center gap-2 flex-wrap text-xs">
     <span class="text-muted-foreground">{selected.size} / {BLOATWARE.length} selected</span>
     <span class="text-muted-foreground/40">·</span>
-    <button type="button" class="text-primary hover:underline" onclick={selectRecommended}>Recommended</button>
-    <button type="button" class="text-primary hover:underline" onclick={selectAll}>All</button>
-    <button type="button" class="text-muted-foreground hover:text-foreground" onclick={clear}>Clear</button>
+    <TextLink onclick={selectRecommended}>Recommended</TextLink>
+    <TextLink onclick={selectAll}>All</TextLink>
+    <TextLink tone="muted" onclick={clear}>Clear</TextLink>
   </div>
 
   <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
@@ -58,13 +57,7 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5">
           {#each entries as b (b.pattern)}
-            <button type="button" onclick={() => toggle(b.pattern)}
-              class={cn(
-                "flex items-start gap-2 px-2.5 py-2 rounded-md text-left border transition-colors text-xs",
-                selected.has(b.pattern)
-                  ? "border-primary/30 bg-primary/[0.06]"
-                  : "border-foreground/8 bg-foreground/[0.02] hover:bg-foreground/[0.04]"
-              )}>
+            <SelectableTile size="sm" selected={selected.has(b.pattern)} onclick={() => toggle(b.pattern)}>
               <div class="pt-0.5 pointer-events-none"><Checkbox checked={selected.has(b.pattern)} /></div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1.5 flex-wrap">
@@ -73,7 +66,7 @@
                 </div>
                 <div class="font-mono text-[10px] text-muted-foreground truncate">{b.pattern}</div>
               </div>
-            </button>
+            </SelectableTile>
           {/each}
         </div>
       </div>

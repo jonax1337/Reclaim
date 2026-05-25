@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     Card, CardContent, Button, Badge, Switch, Checkbox, Dialog,
-    Select, PageHeader, toast,
+    Select, PageHeader, SectionHeading, InfoBanner, MetricBar, FormField, TextInput, TextLink, SelectableTile, toast,
   } from "$lib/ui";
   import {
     Save, Loader2, Eye, AlertTriangle, ShieldOff, FolderOpen,
@@ -67,6 +67,16 @@
     const cfg = buildSimpleConfig(simple.state, allProfiles);
     return { regTweaks: cfg.registry_tweaks.length, appxPatterns: cfg.debloat_appx_patterns.length };
   });
+
+  const selectedTemplate = $derived(
+    TEMPLATES.find((t) => t.id === (sequence.current.templateId ?? "blank")),
+  );
+  const advancedSummary = $derived(() => {
+    const cfg = convertSequence(sequence.current).config;
+    return { regTweaks: cfg.registry_tweaks.length, appxPatterns: cfg.debloat_appx_patterns.length };
+  });
+  const activeStepCount = $derived(sequence.current.steps.filter((s) => s.enabled).length);
+  const totalStepCount = $derived(sequence.current.steps.length);
 
   // ─── Unattend config + setupcomplete (resolved from current mode) ────────
   function currentConfig(): UnattendConfig {
@@ -267,8 +277,6 @@
   function onDragEnd() { dragIndex = null; }
 
   const fieldClass = "h-9 rounded-md border border-input bg-card px-3 text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring";
-  const labelClass = "flex flex-col gap-1.5";
-  const labelTextClass = "text-xs font-medium text-muted-foreground";
 </script>
 
 <PageHeader title="Install media">
@@ -308,14 +316,11 @@
        ═══════════════════════════════════════════════════════════════════════ -->
 
   <!-- ─── Profile ──────────────────────────────────────────────────────────── -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Profile
-  </h2>
+  <SectionHeading title="Profile" />
   <Card class="card-inset mb-6">
     <CardContent>
       <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 items-start">
-        <label class={labelClass}>
-          <span class={labelTextClass}>Profile (debloat + tweak source)</span>
+        <FormField label="Profile (debloat + tweak source)">
           <Select.Root
             type="single"
             value={simple.state.profileId}
@@ -343,10 +348,10 @@
               {/if}
             </Select.Content>
           </Select.Root>
-        </label>
+        </FormField>
 
         {#if selectedProfile}
-          <div class="flex items-start gap-3 p-3 rounded-md bg-foreground/[0.03] border border-foreground/8">
+          <div class="flex items-start gap-3 p-3 rounded-md bg-surface-2 border border-hairline">
             <ProfileIcon name={selectedProfile.gradient} class="size-10 shrink-0 text-primary" />
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
@@ -372,14 +377,11 @@
   </Card>
 
   <!-- ─── Quick options ───────────────────────────────────────────────────── -->
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Quick options
-  </h2>
+  <SectionHeading title="Quick options" />
   <Card class="card-inset mb-6">
     <CardContent>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <label class={labelClass}>
-          <span class={labelTextClass}>Locale</span>
+        <FormField label="Locale">
           <Select.Root
             type="single"
             value={simple.state.localeId}
@@ -392,22 +394,24 @@
               {/each}
             </Select.Content>
           </Select.Root>
-        </label>
+        </FormField>
         <div></div>
 
-        <label class={labelClass}>
-          <span class={labelTextClass}>Local username</span>
-          <input type="text" class={fieldClass} value={simple.state.username}
-            oninput={(e) => simple.update({ username: (e.currentTarget as HTMLInputElement).value })} />
-        </label>
-        <label class={labelClass}>
-          <span class={labelTextClass}>Password (empty = Setup asks)</span>
-          <input type="text" class={fieldClass} value={simple.state.password}
+        <FormField label="Local username">
+          <TextInput
+            value={simple.state.username}
+            oninput={(e) => simple.update({ username: (e.currentTarget as HTMLInputElement).value })}
+          />
+        </FormField>
+        <FormField label="Password (empty = Setup asks)">
+          <TextInput
+            value={simple.state.password}
             placeholder="Set one to skip the account screen"
-            oninput={(e) => simple.update({ password: (e.currentTarget as HTMLInputElement).value })} />
-        </label>
+            oninput={(e) => simple.update({ password: (e.currentTarget as HTMLInputElement).value })}
+          />
+        </FormField>
 
-        <div class="md:col-span-2 flex items-center justify-between px-3 py-2.5 rounded-md bg-foreground/[0.03] border border-foreground/8">
+        <div class="md:col-span-2 flex items-center justify-between px-3 py-2.5 rounded-md bg-surface-2 border border-hairline">
           <div class="flex items-center gap-2 min-w-0">
             <UserCircle2 class="size-4 text-muted-foreground shrink-0" />
             <div class="min-w-0">
@@ -445,21 +449,18 @@
        ADVANCED MODE — Task Sequence editor
        ═══════════════════════════════════════════════════════════════════════ -->
 
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Template
-  </h2>
+  <SectionHeading title="Template" />
   <Card class="card-inset mb-6">
     <CardContent>
       <div class="grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-4 items-start">
-        <label class={labelClass}>
-          <span class={labelTextClass}>Template (preset task sequence)</span>
+        <FormField label="Template (preset task sequence)">
           <Select.Root
             type="single"
             value={sequence.current.templateId ?? "blank"}
             onValueChange={(v) => sequence.loadTemplate(v)}
           >
             <Select.Trigger>
-              <span>{TEMPLATES.find((t) => t.id === (sequence.current.templateId ?? "blank"))?.name ?? "Pick a template"}</span>
+              <span>{selectedTemplate?.name ?? "Pick a template"}</span>
             </Select.Trigger>
             <Select.Content>
               {#each TEMPLATES as t (t.id)}
@@ -467,22 +468,35 @@
               {/each}
             </Select.Content>
           </Select.Root>
-          {#if sequence.current.description}
-            <span class="text-[11px] text-muted-foreground">{sequence.current.description}</span>
-          {/if}
-        </label>
-        <div class="flex items-start gap-2 flex-wrap text-xs">
-          <Badge variant="secondary" class="text-[10px]">
-            {sequence.current.steps.filter((s) => s.enabled).length} / {sequence.current.steps.length} steps active
-          </Badge>
-        </div>
+        </FormField>
+
+        {#if selectedTemplate}
+          <div class="flex items-start gap-3 p-3 rounded-md bg-surface-2 border border-hairline">
+            <Sparkles class="size-10 shrink-0 text-primary" />
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">{selectedTemplate.name}</span>
+              </div>
+              <div class="text-xs text-muted-foreground">{selectedTemplate.description}</div>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <Badge variant="secondary" class="text-[10px]">
+                  {activeStepCount} / {totalStepCount} steps active
+                </Badge>
+                <Badge variant="secondary" class="text-[10px]">
+                  {advancedSummary().regTweaks} reg tweaks
+                </Badge>
+                <Badge variant="secondary" class="text-[10px]">
+                  {advancedSummary().appxPatterns} AppX removals
+                </Badge>
+              </div>
+            </div>
+          </div>
+        {/if}
       </div>
     </CardContent>
   </Card>
 
-  <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-    Task sequence
-  </h2>
+  <SectionHeading title="Task sequence" />
   <div role="list" class="space-y-2 mb-3">
     {#each sequence.current.steps as step, idx (step.id)}
       <StepCard
@@ -520,14 +534,26 @@
     </Button>
   </div>
 
-  <Dialog bind:open={addOpen} title="Add a step" description="Pick the type — configure after adding.">
+  <Dialog bind:open={addOpen} title="Add a step" description="Steps run in Windows-Setup phase order automatically — reordering only affects multiple custom commands at the same hook.">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[400px] overflow-y-auto">
       {#each STEP_TYPES as t (t)}
+        {@const disabled = !sequence.canAddType(t)}
         <button type="button"
+          {disabled}
           onclick={() => { sequence.addStep(t); addOpen = false; }}
-          class="flex flex-col items-start gap-1 px-3 py-2.5 rounded-md text-left border border-foreground/8 bg-foreground/[0.02] hover:bg-primary/[0.06] hover:border-primary/30 transition-colors"
+          class={cn(
+            "flex flex-col items-start gap-1 px-3 py-2.5 rounded-md text-left border transition-colors",
+            disabled
+              ? "border-hairline bg-surface-1 opacity-50 cursor-not-allowed"
+              : "border-hairline bg-surface-1 hover:bg-primary/[0.06] hover:border-primary/30",
+          )}
         >
-          <div class="text-sm font-medium">{STEP_LABELS[t]}</div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-medium">{STEP_LABELS[t]}</span>
+            {#if disabled}
+              <Badge variant="outline" class="text-[9px] px-1.5 py-0">Already added</Badge>
+            {/if}
+          </div>
           <div class="text-[11px] text-muted-foreground">{STEP_DESCRIPTIONS[t]}</div>
         </button>
       {/each}
@@ -536,73 +562,66 @@
 {/if}
 
 <!-- ─── Build full ISO ───────────────────────────────────────────────────── -->
-<h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-  Build full ISO <span class="normal-case font-normal text-muted-foreground/60">(optional)</span>
-</h2>
+<SectionHeading title="Build full ISO">
+  {#snippet inline()}
+    <span class="normal-case font-normal text-muted-foreground/60"> (optional)</span>
+  {/snippet}
+</SectionHeading>
 <Card class="card-inset mb-6">
   <CardContent class="space-y-4">
     <p class="text-xs text-muted-foreground">
       Take an existing Windows 11 ISO, inject autounattend.xml + setupcomplete.cmd, repack as bootable hybrid ISO. Requires Windows ADK Deployment Tools.
     </p>
-    <div class={cn(
-      "flex items-start gap-3 px-3 py-2.5 rounded-md border",
-      isoTools?.ready ? "bg-success/10 border-success/30" : "bg-amber-500/10 border-amber-500/30",
-    )}>
+    <InfoBanner
+      tone={isoTools === null ? "info" : isoTools.ready ? "success" : "warning"}
+      size="xs"
+      icon={isoTools === null ? Loader2 : isoTools.ready ? CheckCircle2 : XCircle}
+      iconClass={isoTools === null ? "animate-spin" : ""}
+    >
       {#if isoTools === null}
-        <Loader2 class="size-4 mt-0.5 animate-spin text-muted-foreground shrink-0" />
-        <div class="text-sm text-muted-foreground">Checking ADK tools…</div>
+        <div class="text-sm">Checking ADK tools…</div>
       {:else if isoTools.ready}
-        <CheckCircle2 class="size-4 mt-0.5 text-success shrink-0" />
-        <div class="min-w-0 flex-1">
-          <div class="text-sm font-medium">ADK Deployment Tools detected</div>
-          <div class="text-[11px] text-muted-foreground truncate font-mono">{isoTools.oscdimgPath}</div>
-        </div>
+        <div class="text-sm font-medium text-foreground">ADK Deployment Tools detected</div>
+        <div class="text-[11px] text-muted-foreground truncate font-mono">{isoTools.oscdimgPath}</div>
       {:else}
-        <XCircle class="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
-        <div class="min-w-0 flex-1">
-          <div class="text-sm font-medium">oscdimg.exe not found</div>
-          {#if adkDownloading}
-            <div class="mt-3 space-y-1.5">
-              <div class="flex items-center justify-between text-[11px]">
-                <span class="text-muted-foreground flex items-center gap-1.5"><Loader2 class="size-3 animate-spin" /> Downloading adksetup.exe…</span>
-                <span class="font-mono text-foreground/80">{(adkDownloadedBytes / 1024).toFixed(0)} / {(adkTotalBytes / 1024).toFixed(0)} KB</span>
-              </div>
-              <div class="h-1.5 rounded-full bg-foreground/10 overflow-hidden"><div class="h-full bg-primary transition-[width] duration-100" style="width: {adkPercent}%"></div></div>
+        <div class="text-sm font-medium text-foreground">oscdimg.exe not found</div>
+        {#if adkDownloading}
+          <div class="mt-3 space-y-1.5">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-muted-foreground flex items-center gap-1.5"><Loader2 class="size-3 animate-spin" /> Downloading adksetup.exe…</span>
+              <span class="font-mono text-foreground/80">{(adkDownloadedBytes / 1024).toFixed(0)} / {(adkTotalBytes / 1024).toFixed(0)} KB</span>
             </div>
-          {/if}
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            {#if !adkLaunched}
-              <Button size="sm" onclick={installAdkAuto} disabled={adkDownloading}>
-                {#if adkDownloading}<Loader2 class="size-3.5 animate-spin" />Downloading…{:else}<Download class="size-3.5" />Install Deployment Tools{/if}
-              </Button>
-            {/if}
-            <Button size="sm" variant="outline" onclick={recheckAdk} disabled={adkRechecking}>
-              {#if adkRechecking}<Loader2 class="size-3.5 animate-spin" />{:else}<RefreshCw class="size-3.5" />{/if}
-              Re-check
-            </Button>
-            <Button size="sm" variant="ghost" onclick={() => openUrl("https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install")}>
-              <ExternalLink class="size-3.5" /> Manual download
-            </Button>
+            <MetricBar value={adkPercent} size="md" />
           </div>
+        {/if}
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+          {#if !adkLaunched}
+            <Button size="sm" onclick={installAdkAuto} disabled={adkDownloading}>
+              {#if adkDownloading}<Loader2 class="size-3.5 animate-spin" />Downloading…{:else}<Download class="size-3.5" />Install Deployment Tools{/if}
+            </Button>
+          {/if}
+          <Button size="sm" variant="outline" onclick={recheckAdk} disabled={adkRechecking}>
+            {#if adkRechecking}<Loader2 class="size-3.5 animate-spin" />{:else}<RefreshCw class="size-3.5" />{/if}
+            Re-check
+          </Button>
+          <Button size="sm" variant="ghost" onclick={() => openUrl("https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install")}>
+            <ExternalLink class="size-3.5" /> Manual download
+          </Button>
         </div>
       {/if}
-    </div>
+    </InfoBanner>
 
     <div class="grid grid-cols-1 gap-3">
       <div class="flex items-stretch gap-2">
-        <label class="flex-1 min-w-0 {labelClass}">
-          <span class={labelTextClass}>Input ISO (source)</span>
-          <input type="text" bind:value={inputIsoPath} placeholder="Pick a Windows 11 ISO" readonly
-            class={cn(fieldClass, "w-full font-mono text-[12px]")} />
-        </label>
+        <FormField label="Input ISO (source)" class="flex-1 min-w-0">
+          <TextInput bind:value={inputIsoPath} placeholder="Pick a Windows 11 ISO" readonly mono class="text-[12px]" />
+        </FormField>
         <Button variant="outline" class="self-end" onclick={pickInputIso}><FolderOpen class="size-4" />Browse</Button>
       </div>
       <div class="flex items-stretch gap-2">
-        <label class="flex-1 min-w-0 {labelClass}">
-          <span class={labelTextClass}>Output ISO (destination)</span>
-          <input type="text" bind:value={outputIsoPath} placeholder="reclaim-win11.iso" readonly
-            class={cn(fieldClass, "w-full font-mono text-[12px]")} />
-        </label>
+        <FormField label="Output ISO (destination)" class="flex-1 min-w-0">
+          <TextInput bind:value={outputIsoPath} placeholder="reclaim-win11.iso" readonly mono class="text-[12px]" />
+        </FormField>
         <Button variant="outline" class="self-end" onclick={pickOutputIso}><FolderOpen class="size-4" />Save as…</Button>
       </div>
     </div>
@@ -623,63 +642,57 @@
 </Card>
 
 <!-- ─── Flash to USB stick ─────────────────────────────────────────────── -->
-<h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2">
-  Flash to USB stick <span class="normal-case font-normal text-muted-foreground/60">(optional)</span>
-</h2>
+<SectionHeading title="Flash to USB stick">
+  {#snippet inline()}
+    <span class="normal-case font-normal text-muted-foreground/60"> (optional)</span>
+  {/snippet}
+</SectionHeading>
 <Card class="card-inset mb-6">
   <CardContent class="space-y-4">
     <p class="text-xs text-muted-foreground">
       Write any Windows ISO directly to a USB stick — single FAT32 + DISM-split layout for install.wim &gt; 4 GB. UEFI-bootable. Needs admin.
     </p>
     {#if !admin.elevated}
-      <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-amber-500/10 border-amber-500/30">
-        <ShieldOff class="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
-        <div class="text-xs text-foreground/90">
-          Flashing needs administrator rights. Click <strong>Elevate</strong> in the titlebar, then come back.
-        </div>
-      </div>
+      <InfoBanner tone="warning" size="xs" icon={ShieldOff}>
+        Flashing needs administrator rights. Click <strong>Elevate</strong> in the titlebar, then
+        come back.
+      </InfoBanner>
     {/if}
     <div class="flex items-stretch gap-2">
-      <label class="flex-1 min-w-0 {labelClass}">
-        <span class={labelTextClass}>ISO to flash</span>
-        <input type="text" bind:value={flashIsoPath} placeholder={lastBuiltIso || "Pick a Windows 11 ISO"} readonly
-          class={cn(fieldClass, "w-full font-mono text-[12px]")} />
-      </label>
+      <FormField label="ISO to flash" class="flex-1 min-w-0">
+        <TextInput bind:value={flashIsoPath} placeholder={lastBuiltIso || "Pick a Windows 11 ISO"} readonly mono class="text-[12px]" />
+      </FormField>
       <Button variant="outline" class="self-end" onclick={pickFlashIso}><FolderOpen class="size-4" />Browse</Button>
     </div>
     {#if lastBuiltIso && flashIsoPath !== lastBuiltIso}
-      <button type="button" class="text-[11px] text-primary hover:underline self-start"
-        onclick={() => (flashIsoPath = lastBuiltIso)}>
+      <TextLink class="self-start" onclick={() => (flashIsoPath = lastBuiltIso)}>
         Use last built ISO ({lastBuiltIso.split(/[\\/]/).pop()})
-      </button>
+      </TextLink>
     {/if}
 
     <div class="space-y-2">
       <div class="flex items-center justify-between">
-        <span class={labelTextClass}>Target USB drive</span>
+        <span class="text-xs font-medium text-muted-foreground">Target USB drive</span>
         <Button size="sm" variant="ghost" onclick={refreshUsbDrives} disabled={usbDrivesLoading}>
           {#if usbDrivesLoading}<Loader2 class="size-3.5 animate-spin" />{:else}<RefreshCw class="size-3.5" />{/if}
           Refresh
         </Button>
       </div>
       {#if usbDrivesError}
-        <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-red-500/10 border-red-500/30">
-          <XCircle class="size-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
-          <div class="text-xs text-foreground/90">{usbDrivesError}</div>
-        </div>
+        <InfoBanner tone="error" size="xs">
+          {usbDrivesError}
+        </InfoBanner>
       {:else if usbDrives.length === 0 && !usbDrivesLoading}
-        <div class="flex items-start gap-3 px-3 py-3 rounded-md border border-foreground/8 bg-foreground/[0.02]">
-          <Usb class="size-4 mt-0.5 text-muted-foreground shrink-0" />
-          <div class="text-xs text-muted-foreground">No USB drives detected. Plug one in and Refresh.</div>
-        </div>
+        <InfoBanner size="xs" icon={Usb}>
+          No USB drives detected. Plug one in and Refresh.
+        </InfoBanner>
       {:else}
         <div class="grid gap-2">
           {#each usbDrives as d (d.diskNumber)}
-            <button type="button" onclick={() => (selectedDiskNumber = d.diskNumber)}
-              class={cn("flex items-start gap-3 px-3 py-2.5 rounded-md text-left border transition-colors",
-                selectedDiskNumber === d.diskNumber
-                  ? "border-primary/40 bg-primary/[0.08]"
-                  : "border-foreground/8 bg-foreground/[0.02] hover:bg-foreground/[0.04]")}>
+            <SelectableTile
+              selected={selectedDiskNumber === d.diskNumber}
+              onclick={() => (selectedDiskNumber = d.diskNumber)}
+            >
               <div class="pt-0.5 pointer-events-none"><Checkbox checked={selectedDiskNumber === d.diskNumber} /></div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2 flex-wrap">
@@ -690,13 +703,13 @@
                 </div>
                 <div class="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">{d.serialNumber || "—"}</div>
               </div>
-            </button>
+            </SelectableTile>
           {/each}
         </div>
       {/if}
     </div>
 
-    <div class="flex items-center justify-between px-3 py-2.5 rounded-md bg-foreground/[0.03] border border-foreground/8">
+    <div class="flex items-center justify-between px-3 py-2.5 rounded-md bg-surface-2 border border-hairline">
       <div class="flex items-center gap-2 min-w-0">
         <div class="min-w-0">
           <div class="text-sm font-medium">Inject autounattend.xml + setupcomplete.cmd</div>
@@ -724,12 +737,9 @@
 <Dialog bind:open={flashConfirmOpen} title="Wipe and flash USB drive?"
   description={selectedDrive ? `Disk ${selectedDrive.diskNumber} — ${selectedDrive.friendlyName || selectedDrive.model || "USB"} (${formatBytes(selectedDrive.sizeBytes)})` : ""}>
   <div class="text-sm space-y-3">
-    <div class="flex items-start gap-3 px-3 py-2.5 rounded-md border bg-red-500/10 border-red-500/30">
-      <AlertTriangle class="size-4 mt-0.5 text-red-600 dark:text-red-400 shrink-0" />
-      <div class="text-xs text-foreground/90 leading-relaxed">
-        Every partition and file on this disk will be deleted. Make sure the right drive is selected.
-      </div>
-    </div>
+    <InfoBanner tone="error" size="xs">
+      Every partition and file on this disk will be deleted. Make sure the right drive is selected.
+    </InfoBanner>
     <div class="text-xs text-muted-foreground">
       Source: <span class="font-mono text-foreground/80 break-all">{flashIsoPath}</span>
     </div>

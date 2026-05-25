@@ -52,7 +52,7 @@ export const TEMPLATES: TaskSequence[] = [
   sequenceFromSteps(
     "privacy-max",
     "Privacy Maximum",
-    "Strips telemetry, removes 60+ AppX bundles, blocks sponsored apps before first network connect.",
+    "Strips telemetry, removes 60+ AppX, blocks sponsored apps.",
     [
       ...basePreamble(),
       makeStep("debloat-appx", {
@@ -67,7 +67,7 @@ export const TEMPLATES: TaskSequence[] = [
   sequenceFromSteps(
     "gaming",
     "Gaming Rig",
-    "Performance + gaming tweaks, light debloat. Pre-installs Discord and Steam via winget.",
+    "Performance + gaming tweaks. Pre-installs Discord and Steam.",
     [
       ...basePreamble(),
       makeStep("debloat-appx", {
@@ -103,7 +103,7 @@ export const TEMPLATES: TaskSequence[] = [
   sequenceFromSteps(
     "office",
     "Office Workstation",
-    "Productivity-focused: minimal debloat, pre-installs Office 365, browsers, PDF tools.",
+    "Minimal debloat. Pre-installs Office 365, Firefox, PDF tools.",
     [
       ...basePreamble(),
       makeStep("debloat-appx", {
@@ -142,14 +142,14 @@ export const TEMPLATES: TaskSequence[] = [
   sequenceFromSteps(
     "bare",
     "Bare Minimum",
-    "Just bypasses and OOBE skips. No debloat, no apps, no tweaks. For when you only want hands-free install.",
+    "Bypasses and OOBE skips only. No debloat, apps, or tweaks.",
     [makeStep("meta"), makeStep("bypass"), makeStep("edition"), makeStep("oobe-skip")],
   ),
 
   sequenceFromSteps(
     "fully-automated",
     "Fully Automated (zero clicks)",
-    "Plug in stick, boot, walk away. Wipes Disk 0 automatically, installs Pro, creates 'User' admin with password 'Reclaim!', skips every OOBE screen. Privacy-Maximum debloat included. DANGER: irreversibly wipes the first disk.",
+    "Wipes Disk 0, auto-creates admin, full Privacy-Maximum debloat. Destroys all data on Disk 0.",
     [
       makeStep("meta", {
         config: {

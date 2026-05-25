@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { Checkbox } from "$lib/ui";
-  import { cn } from "$lib/utils";
+  import { Checkbox, SelectableTile, TextLink } from "$lib/ui";
   import type { AppsInstallConfig } from "../types";
   import { sequence } from "../store.svelte";
   import { UNIQUE_APPS, GROUP_LABELS, GROUP_ORDER, type AppEntry } from "$lib/apps/catalog";
@@ -41,7 +40,7 @@
   <div class="flex items-center gap-2 flex-wrap text-xs">
     <span class="text-muted-foreground">{selected.size} apps selected</span>
     <span class="text-muted-foreground/40">·</span>
-    <button type="button" class="text-muted-foreground hover:text-foreground" onclick={clear}>Clear</button>
+    <TextLink tone="muted" onclick={clear}>Clear</TextLink>
   </div>
 
   <div class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
@@ -52,19 +51,13 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-1.5">
           {#each apps as a (a.id)}
-            <button type="button" onclick={() => toggle(a.id)}
-              class={cn(
-                "flex items-start gap-2 px-2.5 py-2 rounded-md text-left border transition-colors text-xs",
-                selected.has(a.id)
-                  ? "border-primary/30 bg-primary/[0.06]"
-                  : "border-foreground/8 bg-foreground/[0.02] hover:bg-foreground/[0.04]"
-              )}>
+            <SelectableTile size="sm" selected={selected.has(a.id)} onclick={() => toggle(a.id)}>
               <div class="pt-0.5 pointer-events-none"><Checkbox checked={selected.has(a.id)} /></div>
               <div class="min-w-0 flex-1">
                 <div class="font-medium truncate">{a.name}</div>
                 <div class="font-mono text-[10px] text-muted-foreground truncate">{a.id}</div>
               </div>
-            </button>
+            </SelectableTile>
           {/each}
         </div>
       </div>

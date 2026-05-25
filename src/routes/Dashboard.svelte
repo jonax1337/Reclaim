@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { push } from "svelte-spa-router";
-  import { Card, CardContent, Button, Badge, toast } from "$lib/ui";
+  import { Button, Badge, SectionHeading, MetricBar, StatTile, CategoryCard, HeroBanner, toast } from "$lib/ui";
   import {
     Shield,
     Package,
@@ -10,10 +9,8 @@
     Bell,
     BellRing,
     RefreshCw,
-    ArrowRight,
     Wand2,
     History,
-    Loader2,
     Gauge,
     Globe,
     Lock,
@@ -226,13 +223,7 @@
   );
 </script>
 
-<section
-  class="relative overflow-hidden rounded-2xl border border-foreground/10 bg-card/70 backdrop-blur-xl shadow-sm mb-6 hero-glow"
->
-  <div
-    class="absolute inset-0 -z-10 opacity-[0.04] [background-image:radial-gradient(circle_at_1px_1px,_currentColor_1px,_transparent_0)] [background-size:16px_16px]"
-  ></div>
-
+<HeroBanner withDots>
   <div class="px-8 py-7 flex flex-wrap items-end justify-between gap-6">
     <div class="min-w-0 flex-1">
       <div
@@ -282,7 +273,7 @@
       </Button>
     </div>
   </div>
-</section>
+</HeroBanner>
 
 <AdminBanner
   title="Running in restricted mode"
@@ -290,108 +281,51 @@
 />
 
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger">
-  <Card class="card-inset relative overflow-hidden">
-    <CardContent>
-      <div class="flex items-center justify-between">
-        <span class="text-xs text-muted-foreground uppercase tracking-wider">Active tweaks</span>
-        <Shield class="size-4 text-muted-foreground" />
-      </div>
-      <div class="flex items-baseline gap-2 mt-2">
-        <span class="text-3xl font-semibold tabular-nums">
-          {#if loading}
-            <Loader2 class="size-6 animate-spin text-muted-foreground" />
-          {:else}
-            {appliedCount}
-          {/if}
-        </span>
-        {#if !loading}
-          <span class="text-sm text-muted-foreground">/ {ALL_TWEAKS.length}</span>
-        {/if}
-      </div>
-      <div class="mt-3 h-1 rounded-full bg-muted overflow-hidden">
-        <div
-          class="h-full rounded-full bg-primary transition-all duration-500"
-          style="width: {progress}%"
-        ></div>
-      </div>
-    </CardContent>
-  </Card>
+  <StatTile
+    label="Active tweaks"
+    icon={Shield}
+    value={appliedCount}
+    total={ALL_TWEAKS.length}
+    {loading}
+    class="relative overflow-hidden"
+  >
+    {#snippet footer()}
+      <MetricBar value={progress} class="mt-3" />
+    {/snippet}
+  </StatTile>
 
-  <Card class="card-inset">
-    <CardContent>
-      <div class="flex items-center justify-between">
-        <span class="text-xs text-muted-foreground uppercase tracking-wider">Recommended pending</span>
-        <Sparkles class="size-4 text-muted-foreground" />
-      </div>
-      <div class="text-3xl font-semibold mt-2 tabular-nums">
-        {#if loading}
-          <Loader2 class="size-6 animate-spin text-muted-foreground" />
-        {:else}
-          {recommendedCount}
-        {/if}
-      </div>
-      <div class="text-xs text-muted-foreground mt-1">not yet applied</div>
-    </CardContent>
-  </Card>
+  <StatTile
+    label="Recommended pending"
+    icon={Sparkles}
+    value={recommendedCount}
+    {loading}
+    hint="not yet applied"
+  />
 
-  <Card class="card-inset">
-    <CardContent>
-      <div class="flex items-center justify-between">
-        <span class="text-xs text-muted-foreground uppercase tracking-wider">Bloatware</span>
-        <Package class="size-4 text-muted-foreground" />
-      </div>
-      <div class="text-3xl font-semibold mt-2 tabular-nums">{BLOATWARE.length}</div>
-      <div class="text-xs text-muted-foreground mt-1">known apps detectable</div>
-    </CardContent>
-  </Card>
+  <StatTile
+    label="Bloatware"
+    icon={Package}
+    value={BLOATWARE.length}
+    hint="known apps detectable"
+  />
 </div>
 
-<div class="flex items-center justify-between mb-3">
-  <h2 class="text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
-    Profiles
-  </h2>
-  <span class="text-[11px] text-muted-foreground">one-click setups</span>
-</div>
+<SectionHeading title="Profiles" hint="one-click setups" />
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8 stagger">
   {#each PROFILES as p (p.id)}
     <ProfileCard profile={p} onApplied={refreshStatus} />
   {/each}
 </div>
 
-<div class="flex items-center justify-between mb-3">
-  <h2 class="text-xs font-semibold uppercase text-muted-foreground tracking-[0.12em]">
-    Categories
-  </h2>
-  <span class="text-[11px] text-muted-foreground">click to open</span>
-</div>
+<SectionHeading title="Categories" hint="click to open" />
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
   {#each categories as c (c.href)}
-    <button type="button" onclick={() => push(c.href)} class="group text-left">
-      <Card
-        class="card-inset cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30 transition-all duration-200 py-4"
-      >
-        <CardContent>
-          <div class="flex items-start gap-3">
-            <div
-              class="grid place-items-center size-10 rounded-lg bg-foreground/[0.06] text-foreground/80 shrink-0 ring-1 ring-inset ring-foreground/5 group-hover:text-primary group-hover:bg-primary/10 transition-colors"
-            >
-              <c.icon class="size-4" />
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-semibold">{c.label}</span>
-                <ArrowRight
-                  class="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"
-                />
-              </div>
-              <div class="text-xs text-muted-foreground mt-0.5 truncate">{c.desc}</div>
-              <div class="text-[10px] text-muted-foreground/70 mt-1.5 uppercase tracking-wider">
-                {c.count} entries
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
+    <CategoryCard
+      href={c.href}
+      icon={c.icon}
+      label={c.label}
+      description={c.desc}
+      count={c.count}
+    />
   {/each}
 </div>

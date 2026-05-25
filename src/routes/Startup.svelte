@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Card, Button, Switch, Badge, PageHeader, toast } from "$lib/ui";
+  import { Card, Button, Switch, Badge, PageHeader, EmptyState, ListCard, ListRow, SearchInput, RowIcon, toast } from "$lib/ui";
   import {
     Loader2,
     RefreshCw,
-    Search,
     Rocket,
     MoreVertical,
     FolderOpen,
@@ -214,28 +213,13 @@
 </PageHeader>
 
 {#if isTauri() && !loading}
-  <div class="mb-4 relative">
-    <Search class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-    <input
-      type="text"
-      bind:value={filter}
-      placeholder="Filter startup apps…"
-      class="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-card text-sm outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:border-ring"
-    />
-  </div>
+  <SearchInput class="mb-4" bind:value={filter} placeholder="Filter startup apps…" />
 {/if}
 
 {#if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Scanning startup entries…
-  </div>
+  <EmptyState loading>Scanning startup entries…</EmptyState>
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — startup apps need the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — startup apps need the built app.</EmptyState>
 {:else if filtered.length === 0}
   <Card class="card-inset">
     <div class="px-6 py-16 text-center text-sm text-muted-foreground">
@@ -243,17 +227,17 @@
     </div>
   </Card>
 {:else}
-  <Card class="overflow-hidden gap-0 py-0 card-inset">
+  <ListCard>
     {#each filtered as app (app.id)}
       {@const dataUrl = iconFor(app.command)}
-      <div class="flex items-start gap-3 py-3 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-        <div class="grid place-items-center size-9 rounded-md bg-accent/40 overflow-hidden shrink-0">
+      <ListRow>
+        <RowIcon tone="image">
           {#if dataUrl}
             <img src={dataUrl} alt="" class="size-7 object-contain" />
           {:else}
             <Rocket class="size-4 text-muted-foreground" />
           {/if}
-        </div>
+        </RowIcon>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium truncate">{app.name}</span>
@@ -285,9 +269,9 @@
             <MoreVertical class="size-4" />
           </button>
         </div>
-      </div>
+      </ListRow>
     {/each}
-  </Card>
+  </ListCard>
 {/if}
 
 <svelte:window
@@ -304,7 +288,7 @@
     {@const copyText = isAppx ? openApp.command.slice(5) : exePath ?? openApp.command}
     <div
       data-startup-menu
-      class="fixed z-50 min-w-56 rounded-lg border border-foreground/10 bg-card/95 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.45)] p-1 text-sm"
+      class="fixed z-50 min-w-56 rounded-lg border border-hairline-strong bg-card/95 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.45)] p-1 text-sm"
       style="top: {menuPos.top}px; right: {menuPos.right}px;"
     >
       {#if exePath}

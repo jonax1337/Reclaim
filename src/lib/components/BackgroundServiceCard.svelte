@@ -9,7 +9,8 @@
     Switch,
     Select,
     Badge,
-    toast,
+    SectionHeading,
+    ListCard, RowAccent, toast,
   } from "$lib/ui";
   import {
     Play,
@@ -573,16 +574,17 @@
         {#if trackedExpanded}
           <div class="max-h-96 overflow-y-auto -mx-1 px-1">
             {#each trackedByCategory as group (group.cat)}
-              <h4 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mt-4 mb-2 first:mt-0">
-                {group.label}
-                <span class="tabular-nums font-normal ml-1">({group.tweaks.length})</span>
-              </h4>
-              <Card class="overflow-hidden gap-0 py-0 card-inset">
+              <SectionHeading title={group.label} level="h4" class="mt-4 first:mt-0">
+                {#snippet inline()}
+                  <span class="tabular-nums font-normal ml-1">({group.tweaks.length})</span>
+                {/snippet}
+              </SectionHeading>
+              <ListCard>
                 {#each group.tweaks as t (t.id)}
                   {@const isAdmin = tweakRequiresAdmin(t)}
                   {@const checkable = isDriftCheckable(t)}
                   <div class="relative flex items-start gap-3 py-3 px-5 border-b last:border-b-0 bg-primary/[0.03]">
-                    <span class="absolute left-0 top-2 bottom-2 w-[2px] rounded-full bg-primary/60" aria-hidden="true"></span>
+                    <RowAccent active />
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-sm font-medium">{t.title}</span>
@@ -611,7 +613,7 @@
                     </div>
                   </div>
                 {/each}
-              </Card>
+              </ListCard>
             {/each}
           </div>
         {/if}

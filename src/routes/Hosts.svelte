@@ -6,7 +6,9 @@
     Switch,
     Dialog,
     PageHeader,
-    toast,
+    SectionHeading,
+    EmptyState,
+    ListCard, ListRow, RowIcon, toast,
   } from "$lib/ui";
   import {
     Loader2,
@@ -210,37 +212,22 @@
     declinedToast="Hosts editing requires admin."
   />
 {:else if !isTauri()}
-  <Card class="card-inset">
-    <div class="px-6 py-16 text-center text-sm text-muted-foreground">
-      Browser preview — hosts editing needs the built app.
-    </div>
-  </Card>
+  <EmptyState>Browser preview — hosts editing needs the built app.</EmptyState>
 {:else if loading}
-  <div class="grid place-items-center py-24 text-sm text-muted-foreground">
-    <Loader2 class="size-6 animate-spin mb-2" />
-    Reading hosts file…
-  </div>
+  <EmptyState loading>Reading hosts file…</EmptyState>
 {:else}
   {#each categoryOrder as cat (cat)}
     {@const lists = grouped[cat] ?? []}
     {#if lists.length > 0}
-      <h2 class="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground/70 mb-2 mt-6">
-        {CATEGORY_LABELS[cat]}
-      </h2>
-      <Card class="overflow-hidden gap-0 py-0 card-inset mb-4">
+      <SectionHeading title={CATEGORY_LABELS[cat]} class="mt-6" />
+      <ListCard class="mb-4">
         {#each lists as b (b.id)}
           {@const block = activeBlock(b.id)}
           {@const isOn = !!block}
           {@const isBusy = busy.has(b.id)}
           {@const remote = b.source !== "builtin"}
-          <div class="flex items-start gap-3 py-4 px-5 border-b last:border-b-0 hover:bg-accent/30 transition-colors">
-            <div class="grid place-items-center size-8 rounded-md bg-accent/60 shrink-0">
-              {#if remote}
-                <Globe2 class="size-4 text-muted-foreground" />
-              {:else}
-                <ShieldOff class="size-4 text-muted-foreground" />
-              {/if}
-            </div>
+          <ListRow density="md">
+            <RowIcon icon={remote ? Globe2 : ShieldOff} />
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-sm font-medium">{b.name}</span>
@@ -258,7 +245,7 @@
                 <p class="text-[10px] text-muted-foreground/60 mt-1 font-mono break-all">{b.source}</p>
               {/if}
             </div>
-            <div class="flex items-center gap-2 shrink-0 pt-1">
+            <div class="flex items-center gap-2 shrink-0 pt-0.5">
               {#if isBusy}
                 <Loader2 class="size-3.5 animate-spin text-muted-foreground" />
               {/if}
@@ -268,9 +255,9 @@
                 onCheckedChange={(v) => toggleBlocklist(b, v)}
               />
             </div>
-          </div>
+          </ListRow>
         {/each}
-      </Card>
+      </ListCard>
     {/if}
   {/each}
 
