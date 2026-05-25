@@ -76,6 +76,13 @@ pub struct IsoBuildRequest {
     pub input_iso: String,
     pub output_iso: String,
     pub autounattend_xml: String,
+    /// Optional setupcomplete.cmd body. When non-empty we drop it into
+    /// `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` inside the work dir before
+    /// repacking — Windows Setup auto-copies that to
+    /// `C:\Windows\Setup\Scripts\` during install and runs it as SYSTEM after
+    /// oobeSystem (the safe place for AppX removals).
+    #[serde(default)]
+    pub setupcomplete_cmd: Option<String>,
 }
 
 /// Validate that a path is absolute, has no quotes/newlines, and lives on a
@@ -138,6 +145,21 @@ pub async fn iso_build(
             .map_err(|e| format!("write unattend temp file failed: {e}"))?;
     }
 
+    // setupcomplete.cmd: same story — temp file written here, the PS pipeline
+    // copies it into the work dir under $OEM$\$$\Setup\Scripts\ before repack.
+    let setupcomplete_tmp = match req.setupcomplete_cmd.as_deref() {
+        Some(body) if !body.is_empty() => {
+            let p =
+                std::env::temp_dir().join(format!("reclaim-setupcomplete-{}.cmd", rand_suffix()));
+            let mut f = std::fs::File::create(&p)
+                .map_err(|e| format!("create setupcomplete temp file failed: {e}"))?;
+            f.write_all(body.as_bytes())
+                .map_err(|e| format!("write setupcomplete temp file failed: {e}"))?;
+            p.to_string_lossy().to_string()
+        }
+        _ => String::new(),
+    };
+
     // Working dir for ISO extraction. Use a unique subdir so concurrent
     // builds don't collide and so we can always wipe ours without touching
     // user data.
@@ -147,6 +169,7 @@ pub async fn iso_build(
         input.to_string_lossy().as_ref(),
         output.to_string_lossy().as_ref(),
         unattend_tmp.to_string_lossy().as_ref(),
+        &setupcomplete_tmp,
         work_dir.to_string_lossy().as_ref(),
         &oscdimg,
     );
@@ -289,6 +312,7 @@ fn build_pipeline_script(
     input_iso: &str,
     output_iso: &str,
     unattend_xml: &str,
+    setupcomplete_cmd: &str,
     work_dir: &str,
     oscdimg_path: &str,
 ) -> String {
@@ -300,6 +324,7 @@ $ErrorActionPreference = 'Stop'
 $srcIso = '{input_iso}'
 $dstIso = '{output_iso}'
 $xml    = '{unattend_xml}'
+$setup  = '{setupcomplete_cmd}'
 $work   = '{work_dir}'
 $oscdimg = '{oscdimg_path}'
 
@@ -336,6 +361,14 @@ try {{
     }}
     Write-Host '    injected'
 
+    if ($setup -and (Test-Path -LiteralPath $setup)) {{
+        Write-Step 'Injecting $OEM$\$$\Setup\Scripts\setupcomplete.cmd'
+        $oemScripts = Join-Path $work '$OEM$\$$\Setup\Scripts'
+        New-Item -ItemType Directory -Path $oemScripts -Force | Out-Null
+        Copy-Item -LiteralPath $setup -Destination (Join-Path $oemScripts 'setupcomplete.cmd') -Force
+        Write-Host '    setupcomplete.cmd in place'
+    }}
+
     Write-Step ('Dismounting ' + $srcIso)
     Dismount-DiskImage -ImagePath $srcIso | Out-Null
 
@@ -365,6 +398,9 @@ try {{
     }}
     if (Test-Path $xml) {{
         Remove-Item $xml -Force -ErrorAction SilentlyContinue
+    }}
+    if ($setup -and (Test-Path -LiteralPath $setup)) {{
+        Remove-Item -LiteralPath $setup -Force -ErrorAction SilentlyContinue
     }}
 }}
 "#

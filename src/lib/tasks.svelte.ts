@@ -385,6 +385,7 @@ export async function runIsoBuildTask(
   inputIso: string,
   outputIso: string,
   autounattendXml: string,
+  setupcompleteCmd: string | null,
 ): Promise<Task> {
   const label = `Build ISO: ${outputIso.split(/[\\/]/).pop() ?? outputIso}`;
   const task = tasks.start({ label, kind: "maintenance", opId: "iso-build" });
@@ -406,6 +407,7 @@ export async function runIsoBuildTask(
       inputIso,
       outputIso,
       autounattendXml,
+      setupcompleteCmd,
       cols,
       rows,
       onEvent,
@@ -423,6 +425,7 @@ export async function runUsbFlashTask(
   diskNumber: number,
   driveLabel: string,
   autounattendXml: string | null,
+  setupcompleteCmd: string | null,
 ): Promise<Task> {
   const label = `Flash USB: ${driveLabel} (disk ${diskNumber})`;
   const task = tasks.start({ label, kind: "maintenance", opId: "usb-flash" });
@@ -444,6 +447,7 @@ export async function runUsbFlashTask(
       isoPath,
       diskNumber,
       autounattendXml,
+      setupcompleteCmd,
       cols,
       rows,
       onEvent,

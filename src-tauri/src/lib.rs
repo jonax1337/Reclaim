@@ -222,6 +222,7 @@ pub fn run() {
             activation::get_activation_status,
             activation::launch_activation_script,
             unattend::generate_autounattend_xml,
+            unattend::generate_setupcomplete_cmd,
             unattend::save_autounattend_xml,
             unattend::list_win11_editions,
             iso_builder::iso_check_tools,

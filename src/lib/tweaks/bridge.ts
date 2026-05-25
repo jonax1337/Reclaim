@@ -1019,6 +1019,14 @@ export async function generateAutounattendXml(config: UnattendConfig): Promise<s
   return invoke<string>("generate_autounattend_xml", { config });
 }
 
+/** Generate the setupcomplete.cmd body that goes alongside autounattend.xml
+ * under \$OEM$\$$\Setup\Scripts\ on the install medium. Returns an empty
+ * string if the config has no debloat patterns (in which case the caller
+ * should skip writing the file). */
+export async function generateSetupCompleteCmd(config: UnattendConfig): Promise<string> {
+  return invoke<string>("generate_setupcomplete_cmd", { config });
+}
+
 export async function saveAutounattendXml(path: string, xml: string): Promise<void> {
   await invoke("save_autounattend_xml", { path, xml });
 }
@@ -1064,6 +1072,7 @@ export async function isoBuild(
   inputIso: string,
   outputIso: string,
   autounattendXml: string,
+  setupcompleteCmd: string | null,
   cols: number,
   rows: number,
   onEvent: (e: StreamEvent) => void,
@@ -1076,6 +1085,7 @@ export async function isoBuild(
       input_iso: inputIso,
       output_iso: outputIso,
       autounattend_xml: autounattendXml,
+      setupcomplete_cmd: setupcompleteCmd,
     },
     cols,
     rows,
@@ -1132,6 +1142,7 @@ export async function usbFlashIso(
   isoPath: string,
   diskNumber: number,
   autounattendXml: string | null,
+  setupcompleteCmd: string | null,
   cols: number,
   rows: number,
   onEvent: (e: StreamEvent) => void,
@@ -1144,6 +1155,7 @@ export async function usbFlashIso(
       iso_path: isoPath,
       disk_number: diskNumber,
       autounattend_xml: autounattendXml,
+      setupcomplete_cmd: setupcompleteCmd,
     },
     cols,
     rows,

@@ -38,6 +38,7 @@
   import {
     isTauri,
     generateAutounattendXml,
+    generateSetupCompleteCmd,
     saveAutounattendXml,
     listWin11Editions,
     isoCheckTools,
@@ -89,7 +90,11 @@
   let computerName = $state("RECLAIM-PC");
   let organization = $state("Reclaim");
 
-  let selectedEditionKey = $state<string>("VK7JG-NPHTM-C97JM-9MPGT-3V66T");
+  // Default to the canonical Windows 11 Pro KMS client setup key. The old
+  // VK7JG-NPHTM-… retail-generic key still works for edition selection but
+  // doesn't match any entry in the typed editions list, so the picker would
+  // show "Pick an edition" until the user touched it.
+  let selectedEditionKey = $state<string>("W269N-WFGWX-YVC9B-4J6C9-T83GX");
   let customProductKey = $state("");
   let useCustomKey = $state(false);
 
@@ -336,9 +341,11 @@
     if (!isoTools?.ready) { toast.error("oscdimg missing", "Install the Windows ADK Deployment Tools first."); return; }
     buildBusy = true;
     try {
-      const xml = await generateAutounattendXml(buildConfig());
+      const cfg = buildConfig();
+      const xml = await generateAutounattendXml(cfg);
+      const setupcomplete = await generateSetupCompleteCmd(cfg);
       tasks.panelOpen = true;
-      await runIsoBuildTask(inputIsoPath, outputIsoPath, xml);
+      await runIsoBuildTask(inputIsoPath, outputIsoPath, xml, setupcomplete || null);
       log.success("iso.unattend.save", "Install media", `Built ${outputIsoPath} from ${inputIsoPath}`);
       lastBuiltIso = outputIsoPath;
       // Auto-fill the flasher's source so the natural next step is one click.
@@ -412,10 +419,14 @@
     flashConfirmOpen = false;
     flashStarting = true;
     try {
-      const xml = includeUnattendOnFlash ? await generateAutounattendXml(buildConfig()) : null;
+      const cfg = buildConfig();
+      const xml = includeUnattendOnFlash ? await generateAutounattendXml(cfg) : null;
+      const setupcomplete = includeUnattendOnFlash
+        ? (await generateSetupCompleteCmd(cfg)) || null
+        : null;
       tasks.panelOpen = true;
       const label = `${drive.friendlyName || drive.model || "USB"} · ${formatBytes(drive.sizeBytes)}`;
-      await runUsbFlashTask(flashIsoPath, drive.diskNumber, label, xml);
+      await runUsbFlashTask(flashIsoPath, drive.diskNumber, label, xml, setupcomplete);
       log.success(
         "iso.usb.flash",
         "Install media",

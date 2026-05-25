@@ -130,6 +130,12 @@ pub struct UsbFlashRequest {
     /// Optional autounattend.xml content. Dropped at the root of the FAT32
     /// partition so Windows Setup picks it up automatically.
     pub autounattend_xml: Option<String>,
+    /// Optional setupcomplete.cmd body. Written to
+    /// `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` on the stick — Windows
+    /// Setup auto-copies it to `C:\Windows\Setup\Scripts\` during install
+    /// and runs it as SYSTEM after oobeSystem. Safe place for AppX removals.
+    #[serde(default)]
+    pub setupcomplete_cmd: Option<String>,
 }
 
 fn validate_iso_path(p: &str) -> Result<PathBuf, String> {
@@ -184,10 +190,24 @@ pub async fn usb_flash_iso(
         String::new()
     };
 
+    let setupcomplete_path = match req.setupcomplete_cmd.as_deref() {
+        Some(body) if !body.is_empty() => {
+            let tmp = std::env::temp_dir()
+                .join(format!("reclaim-usb-setupcomplete-{}.cmd", rand_suffix()));
+            let mut f = std::fs::File::create(&tmp)
+                .map_err(|e| format!("create setupcomplete temp file failed: {e}"))?;
+            f.write_all(body.as_bytes())
+                .map_err(|e| format!("write setupcomplete temp file failed: {e}"))?;
+            tmp.to_string_lossy().to_string()
+        }
+        _ => String::new(),
+    };
+
     let script = build_flash_script(
         iso.to_string_lossy().as_ref(),
         req.disk_number,
         &unattend_path,
+        &setupcomplete_path,
     );
 
     run_pty_script(task_id, script, cols, rows, on_event).await
@@ -205,11 +225,21 @@ fn rand_suffix() -> String {
 /// Single-FAT32 layout with on-the-fly install.wim split. PS variable
 /// interpolation handles paths; the iso path is already shell-safe (no `'`,
 /// `"`, newlines, UNC).
-fn build_flash_script(iso: &str, disk_number: u32, unattend_path: &str) -> String {
+fn build_flash_script(
+    iso: &str,
+    disk_number: u32,
+    unattend_path: &str,
+    setupcomplete_path: &str,
+) -> String {
     let unattend_block = if unattend_path.is_empty() {
         String::from("$unattend = ''")
     } else {
         format!("$unattend = '{unattend_path}'")
+    };
+    let setupcomplete_block = if setupcomplete_path.is_empty() {
+        String::from("$setupcomplete = ''")
+    } else {
+        format!("$setupcomplete = '{setupcomplete_path}'")
     };
     format!(
         r#"
@@ -221,6 +251,7 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $srcIso  = '{iso}'
 $diskNo  = {disk_number}
 {unattend_block}
+{setupcomplete_block}
 
 # FAT32 file-size limit is 4 GiB (4,294,967,295 bytes). MS recommends splitting
 # install.wim into <4 GiB chunks via Dism /Split-Image; 3800 MB gives a safe
@@ -362,6 +393,20 @@ try {{
         Write-Note 'no autounattend.xml — vanilla install media'
     }}
 
+    # ─── Inject $OEM$\$$\Setup\Scripts\setupcomplete.cmd (optional) ─────────
+    # Win Setup copies the $OEM$\$$\ tree into %WINDIR%\ during install when
+    # UseConfigurationSet=true is set in the unattend (autounattend.xml above
+    # already does that). So our setupcomplete.cmd lands at
+    # C:\Windows\Setup\Scripts\setupcomplete.cmd and Setup runs it as SYSTEM
+    # after oobeSystem completes.
+    if ($setupcomplete -and (Test-Path -LiteralPath $setupcomplete)) {{
+        Write-Step 'Injecting $OEM$\$$\Setup\Scripts\setupcomplete.cmd'
+        $oemScripts = Join-Path $usbRoot '$OEM$\$$\Setup\Scripts'
+        New-Item -ItemType Directory -Path $oemScripts -Force | Out-Null
+        Copy-Item -LiteralPath $setupcomplete -Destination (Join-Path $oemScripts 'setupcomplete.cmd') -Force
+        Write-Ok 'setupcomplete.cmd in place'
+    }}
+
     # ─── Sanity check: UEFI bootloader present ─────────────────────────────
     $bootx64 = Join-Path $usbRoot 'efi\boot\bootx64.efi'
     if (Test-Path -LiteralPath $bootx64) {{
@@ -383,6 +428,9 @@ try {{
     }}
     if ($unattend -and (Test-Path -LiteralPath $unattend)) {{
         Remove-Item -LiteralPath $unattend -Force -ErrorAction SilentlyContinue
+    }}
+    if ($setupcomplete -and (Test-Path -LiteralPath $setupcomplete)) {{
+        Remove-Item -LiteralPath $setupcomplete -Force -ErrorAction SilentlyContinue
     }}
 }}
 "#

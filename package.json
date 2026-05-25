@@ -1,6 +1,6 @@
 {
   "name": "reclaim",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "description": "Reclaim Your Windows — Win11 debloat & privacy tool",
   "type": "module",
   "scripts": {

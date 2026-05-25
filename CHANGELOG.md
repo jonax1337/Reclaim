@@ -2,6 +2,21 @@
 
 All notable changes to Reclaim. Format loosely based on [Keep a Changelog](https://keepachangelog.com/).
 
+## v0.18.2
+
+Second hotfix on the v0.18.x install-media line: v0.18.1 still crashed Setup mid-install with "Der Computer wurde unerwartet neu gestartet" on profiles with more than a handful of AppX patterns (Privacy Maximum hit it every time). Root cause: the workaround I shipped — base64-encoding the entire setupcomplete.cmd into a single `RunSynchronousCommand` `<Path>` in the specialize pass — produces a ~50 KB `cmd /c …` invocation. Windows Setup uses `CreateProcess` for those, which has an 8 KB command-line limit, so Setup blew up with `ERROR_FILENAME_EXCED_RANGE`, rebooted, and reported the unexpected-restart error on the next boot.
+
+### Fixed
+
+- **AppX-Removals now travel via `$OEM$\$$\Setup\Scripts\setupcomplete.cmd` as a separate file on the boot medium** instead of being embedded base64-inline in the unattend XML. The ISO builder writes the file into `\sources\$OEM$\$$\Setup\Scripts\` of the work dir before oscdimg repack; the USB flasher writes it to `\$OEM$\$$\Setup\Scripts\` of the FAT32 partition after the install image is in place. Windows Setup auto-copies `$OEM$\$$\` to `%WINDIR%\` during install and runs the resulting `C:\Windows\Setup\Scripts\setupcomplete.cmd` as SYSTEM after `oobeSystem`. No more 50 KB command lines. The autounattend.xml now emits `<UseConfigurationSet>true</UseConfigurationSet>` in the windowsPE Setup component to tell Setup to look for `$OEM$`.
+- **Default `selectedEditionKey` was the old retail-generic key** (`VK7JG-NPHTM-…`) which doesn't match any entry in the v0.18.0-rewritten edition list, so the picker silently showed "Pick an edition" until the user touched it and `<ImageInstall>` got omitted from the XML. Default is now `W269N-WFGWX-…` (Windows 11 Pro KMS client setup key) which exists in the list, and the edition selector actually resolves on first paint.
+
+### Internal
+
+- New Tauri command `generate_setupcomplete_cmd(config: UnattendConfig) -> String` exposed via bridge `generateSetupCompleteCmd()`. Returns the script body; empty string when the config has no AppX patterns.
+- `IsoBuildRequest` + `UsbFlashRequest` both gained an optional `setupcomplete_cmd` field; the corresponding PowerShell scripts copy the temp file into the right $OEM$ subtree.
+- The base64 encoder I shipped in v0.18.1 (~30 LoC inline in `unattend.rs`) is gone — wasn't needed since the script no longer travels through the XML.
+
 ## v0.18.1
 
 Hotfix on top of v0.18.0: the unattended Win11 install crashed at the end with "Der Computer wurde unerwartet neu gestartet" / "Windows konnte die Installation nicht abschließen" between the `specialize` and `oobeSystem` passes. Two root causes — both fixed — plus a unified design-system pass across every route and an OneDrive sidebar-icon trim.
