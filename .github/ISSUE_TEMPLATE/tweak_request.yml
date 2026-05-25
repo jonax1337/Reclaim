@@ -1,0 +1,106 @@
+name: Tweak request
+description: Suggest a new Windows tweak for the catalog
+title: "[Tweak]: "
+labels: ["tweak-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reclaim's tweak catalog is data, not code — see `CLAUDE.md` § "How to add a tweak". The more of the fields below you fill in, the faster this can ship.
+
+  - type: input
+    id: title
+    attributes:
+      label: Tweak title
+      description: Short, imperative. E.g. "Disable Telemetry", "Show file extensions".
+      placeholder: "Disable Foo"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-why
+    attributes:
+      label: What does it do and why?
+      description: One or two sentences. What setting changes, and what's the user benefit?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - privacy
+        - ai
+        - search
+        - explorer
+        - taskbar
+        - notifications
+        - performance
+        - updates
+        - browser
+        - security
+        - memory
+        - gaming
+        - "new category (specify in description)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: apply-ops
+    attributes:
+      label: Apply operations
+      description: |
+        Registry path + name + type + value, or a static PowerShell snippet. Example:
+
+        ```
+        HKCU\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo  Enabled  DWORD  0
+        default: 1
+        ```
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: revert-ops
+    attributes:
+      label: Revert operations (or Windows default)
+      description: |
+        For reg ops: the Windows default value (so `defaultValue` can auto-revert).
+        For shell ops: the explicit revert script — shell tweaks **must** ship an explicit revert.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: check
+    attributes:
+      label: How to detect current state
+      description: |
+        Usually the same reg key + value as `apply`. If state isn't reg-observable (e.g. `Disable-MMAgent`), describe the shell check that returns 0/1.
+      render: text
+
+  - type: dropdown
+    id: restart
+    attributes:
+      label: Requires restart?
+      options:
+        - "no"
+        - "explorer"
+        - "logon"
+        - "system"
+    validations:
+      required: true
+
+  - type: input
+    id: caveats
+    attributes:
+      label: Warnings / caveats
+      description: Anything that could break? (e.g. "breaks Windows Search if Cortana is also off")
+
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources / references
+      description: |
+        Links to MS docs, Sophia Script / Win11Debloat / WPD, blog posts, etc. The more authoritative, the better.

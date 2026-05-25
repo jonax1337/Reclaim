@@ -1,0 +1,60 @@
+name: Feature request
+description: Suggest a new feature, route, or capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea? Great. A few rules of thumb before filing:
+
+        - **Adding a single Windows tweak?** Use the [Tweak request](?template=tweak_request.yml) template instead — it's much faster.
+        - **Asking how to do something?** Try [Discussions](https://github.com/jonax1337/reclaim/discussions) first.
+        - **Localization / i18n?** See `CLAUDE.md` — English-only is the shipping stance, not a v1.0 blocker that's open.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the pain point first, not the solution. "I want X because Y."
+      placeholder: |
+        I run Reclaim on 30+ machines in a small office. Today I have to apply my profile manually on each one because…
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you like Reclaim to behave? A rough sketch is fine — UI flow, CLI flags, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other tools that do this, other approaches you've thought about, why they don't fit.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Rough scope
+      description: Your best guess — helps with triage.
+      options:
+        - New tweak category / route
+        - New Rust command / system integration
+        - UI polish / quality-of-life
+        - CLI / automation
+        - Install Media / unattend
+        - Other
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Are you willing to help implement this?
+      options:
+        - label: I'd be willing to open a PR with guidance
+        - label: I can test on my setup once it's built

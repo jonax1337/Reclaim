@@ -1,0 +1,89 @@
+name: Bug report
+description: Something in Reclaim is broken or misbehaving
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in as much detail as you can — Windows versions vary wildly and missing info usually means we can't reproduce the issue.
+
+        **Before submitting:** search existing issues to make sure this hasn't been reported already.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. What did you expect, and what did Reclaim do instead?
+      placeholder: |
+        I clicked "Apply" on the Telemetry-off tweak. The switch flipped on, but rechecking shows it as off.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps. Include any profile / tweak ids if relevant.
+      placeholder: |
+        1. Open `/privacy`
+        2. Toggle "Disable Telemetry"
+        3. Reload the route
+        4. Switch shows off
+    validations:
+      required: true
+
+  - type: input
+    id: reclaim-version
+    attributes:
+      label: Reclaim version
+      description: Visible in Settings → About, or in the titlebar tooltip.
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-type
+    attributes:
+      label: Install type
+      options:
+        - Installer (NSIS / MSI)
+        - Portable (single-exe)
+        - Built from source
+        - CLI (reclaim.exe --apply-… etc.)
+    validations:
+      required: true
+
+  - type: input
+    id: windows-version
+    attributes:
+      label: Windows version + build
+      description: "Run `winver` — copy the version line (e.g. 25H2, OS Build 26200.1234)."
+      placeholder: "Windows 11 Pro 25H2, OS Build 26200.1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: elevation
+    attributes:
+      label: Was Reclaim running elevated (admin)?
+      options:
+        - "Yes — UAC accepted at launch"
+        - "No — running as standard user"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: activity-log
+    attributes:
+      label: Relevant activity log entries
+      description: |
+        Open `/logs` in Reclaim, filter for the failing action, and paste the rows. Or attach `%APPDATA%\Reclaim\activity.log` (portable build: the log is in the Webview2 user data folder under the binary).
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?
+      description: Screenshots, other Win-tweaking tools you've used (WPD, O&O ShutUp10, Win11Debloat, …), antivirus interference, anything unusual.
