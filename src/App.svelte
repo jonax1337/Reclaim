@@ -17,6 +17,7 @@
   import Performance from "./routes/Performance.svelte";
   import Memory from "./routes/Memory.svelte";
   import Gaming from "./routes/Gaming.svelte";
+  import GamingSession from "./routes/GamingSession.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -68,6 +69,7 @@
     ["/performance", Performance],
     ["/memory", Memory],
     ["/gaming", Gaming],
+    ["/gaming-session", GamingSession],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],

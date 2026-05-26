@@ -10,6 +10,7 @@ mod driver_search;
 mod driver_update;
 mod files;
 mod firewall;
+mod gaming_session;
 mod icons;
 mod iso_builder;
 mod maintenance;
@@ -245,6 +246,13 @@ pub fn run() {
             dev_features::set_optional_feature_stream,
             dev_features::list_wsl_distros,
             dev_features::dev_drive_info,
+            gaming_session::session_snapshot,
+            gaming_session::session_kill_processes,
+            gaming_session::session_set_power_plan,
+            gaming_session::session_set_defender_realtime,
+            gaming_session::session_stop_services,
+            gaming_session::session_restore_services,
+            gaming_session::session_whitelist,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

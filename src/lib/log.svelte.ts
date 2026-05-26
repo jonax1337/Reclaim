@@ -49,7 +49,9 @@ export type LogAction =
   | "notification.sent"
   | "winupdate.found"
   | "driver.update.found"
-  | "dev-feature";
+  | "dev-feature"
+  | "gaming-session.start"
+  | "gaming-session.end";
 
 export type LogEntry = {
   id: number;
@@ -181,4 +183,6 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "winupdate.found": "Windows updates available",
   "driver.update.found": "Driver update available",
   "dev-feature": "Windows feature toggled",
+  "gaming-session.start": "Gaming session started",
+  "gaming-session.end": "Gaming session ended",
 };

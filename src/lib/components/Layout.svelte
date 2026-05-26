@@ -33,6 +33,7 @@
     Disc3,
     MemoryStick,
     Gamepad2,
+    Zap,
     Code2,
     LifeBuoy,
   } from "@lucide/svelte";
@@ -155,6 +156,7 @@
         { href: "/performance", label: "Performance", icon: Gauge },
         { href: "/memory", label: "Memory & caching", icon: MemoryStick, adminOnly: true },
         { href: "/gaming", label: "Gaming", icon: Gamepad2, adminOnly: true },
+        { href: "/gaming-session", label: "Gaming Session", icon: Zap, adminOnly: true },
       ],
     },
     {

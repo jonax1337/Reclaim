@@ -1380,3 +1380,100 @@ export async function installWindowsUpdatesStream(
   };
   return invoke<number>("install_windows_updates_stream", { ids, onEvent: channel });
 }
+
+/* ─────────────────────────  Gaming session  ──────────────────────────── */
+
+export type ProcessSnapshot = {
+  name: string;
+  running: boolean;
+  commandLine: string | null;
+};
+
+export type ServiceSnapshot = {
+  name: string;
+  startType: string;
+  status: string;
+};
+
+export type SessionSnapshot = {
+  powerPlanGuid: string;
+  defenderRealtime: boolean;
+  processes: ProcessSnapshot[];
+  services: ServiceSnapshot[];
+};
+
+export type SessionKillResult = {
+  name: string;
+  success: boolean;
+  stderr: string;
+};
+
+export type SessionServiceResult = {
+  name: string;
+  success: boolean;
+  stderr: string;
+};
+
+export type SessionWhitelist = {
+  processes: string[];
+  services: string[];
+};
+
+type RawProcessSnapshot = { name: string; running: boolean; command_line: string | null };
+type RawServiceSnapshot = { name: string; start_type: string; status: string };
+type RawSessionSnapshot = {
+  power_plan_guid: string;
+  defender_realtime: boolean;
+  processes: RawProcessSnapshot[];
+  services: RawServiceSnapshot[];
+};
+
+export async function sessionSnapshot(): Promise<SessionSnapshot> {
+  const raw = await invoke<RawSessionSnapshot>("session_snapshot");
+  return {
+    powerPlanGuid: raw.power_plan_guid,
+    defenderRealtime: raw.defender_realtime,
+    processes: raw.processes.map((p) => ({
+      name: p.name,
+      running: p.running,
+      commandLine: p.command_line,
+    })),
+    services: raw.services.map((s) => ({
+      name: s.name,
+      startType: s.start_type,
+      status: s.status,
+    })),
+  };
+}
+
+export async function sessionKillProcesses(names: string[]): Promise<SessionKillResult[]> {
+  return invoke<SessionKillResult[]>("session_kill_processes", { names });
+}
+
+export async function sessionSetPowerPlan(guid: string): Promise<void> {
+  await invoke("session_set_power_plan", { guid });
+}
+
+export async function sessionSetDefenderRealtime(enabled: boolean): Promise<void> {
+  await invoke("session_set_defender_realtime", { enabled });
+}
+
+export async function sessionStopServices(names: string[]): Promise<SessionServiceResult[]> {
+  return invoke<SessionServiceResult[]>("session_stop_services", { names });
+}
+
+export async function sessionRestoreServices(
+  items: ServiceSnapshot[],
+): Promise<SessionServiceResult[]> {
+  // Rust expects snake_case fields on the snapshot wire type.
+  const wire = items.map((s) => ({
+    name: s.name,
+    start_type: s.startType,
+    status: s.status,
+  }));
+  return invoke<SessionServiceResult[]>("session_restore_services", { items: wire });
+}
+
+export async function sessionWhitelist(): Promise<SessionWhitelist> {
+  return invoke<SessionWhitelist>("session_whitelist");
+}
