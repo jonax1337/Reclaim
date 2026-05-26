@@ -291,7 +291,8 @@ base64 = "0.22"
 
 ## Further reading
 
-- `CHANGELOG.md` — per-version diff from v0.1.0 to v1.0.0.
+- `CHANGELOG.md` — per-version diff from v0.1.0 through v1.1.0.
+- `ROADMAP.md` — shipped / dropped / open from the GOATED gaming-toolbox plan; v1.2+ candidates live here.
 - `docs/ARCHITECTURE.md` — deeper dive on the tweak engine + bridge layer.
 - `docs/DESIGN_SYSTEM.md` — UI tokens, surfaces, and the Mica/glass layering rules.
 - `.github/CONTRIBUTING.md` — workflow for contributors.

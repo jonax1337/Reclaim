@@ -226,32 +226,59 @@ That's it. 13 lines for an entire route.
 
 ### 3.3 Dashboard
 
+The v1.1 dashboard is intentionally permanent: KPI tiles + activity feed + per-category coverage. Profile cards and category shortcuts were removed because they duplicated the dedicated Profiles tab and the sidebar respectively.
+
 ```svelte
 <HeroBanner withDots>
-  …eyebrow, title, actions…
+  …eyebrow, title, "Apply all recommended" + "Create restore point" actions…
 </HeroBanner>
 
 <AdminBanner … />
 
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 stagger">
+<!-- KPIs: 4 tiles -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger">
   <StatTile label="Active tweaks" icon={Shield} value={n} total={N} {loading}>
     {#snippet footer()}<MetricBar value={progress} class="mt-3" />{/snippet}
   </StatTile>
-  …
+  <StatTile label="Recommended pending" icon={Sparkles} … />
+  <StatTile label="Bloatware patterns" icon={Package} … />
+  <StatTile label="Profiles available" icon={Wand} … />
 </div>
 
-<SectionHeading title="Profiles" hint="one-click setups" />
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8 stagger">
-  {#each PROFILES as p}<ProfileCard profile={p} … />{/each}
-</div>
+<!-- Last 6 user-visible log entries; filters out NOISE_ACTIONS -->
+<SectionHeading title="Recent activity">
+  {#snippet actions()}<a use:link href="/logs">Open log →</a>{/snippet}
+</SectionHeading>
+<Card class="card-inset mb-8">
+  <CardContent>
+    <ul class="divide-y divide-hairline">
+      {#each recentEntries as e}<li>…icon, target, action label, relative time…</li>{/each}
+    </ul>
+  </CardContent>
+</Card>
 
-<SectionHeading title="Categories" hint="click to open" />
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger">
-  {#each categories as c}<CategoryCard {...c} />{/each}
-</div>
+<!-- Permanent per-category snapshot: applied/total + mini progress bar -->
+<SectionHeading title="Catalog coverage" hint="applied tweaks per category" />
+<Card class="card-inset">
+  <CardContent>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+      {#each categoryStats as c}
+        <div>
+          <div class="flex items-baseline justify-between">
+            <span class="text-xs font-medium">{c.label}</span>
+            <span class="text-[10px] tabular-nums">{c.applied}/{c.total}</span>
+          </div>
+          <div class="mt-1 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+            <div class="h-full bg-primary" style:width={`${c.pct}%`}></div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </CardContent>
+</Card>
 ```
 
-Dashboard went from ~400 LOC to ~180 LOC.
+Dashboard is ~330 LOC in v1.1 (was ~180 after the initial v1.0 redesign). Most of the new weight is the activity-feed render + the 12-category stats grid.
 
 ### 3.4 Settings / form page
 

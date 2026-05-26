@@ -290,6 +290,10 @@ Grouped in the sidebar as: Top · Clean up · Install · Customize · Network ·
 | PTY | `portable-pty` (ConPTY on Windows) |
 | Auto-updater | `tauri-plugin-updater` (Ed25519-signed `latest.json` from GH Releases) |
 
+## Roadmap
+
+The [`ROADMAP.md`](ROADMAP.md) tracks what shipped in v1.1.0 (28 new gaming tweaks, 6 new routes, gaming-esports profile, Win10 best-effort tier), what was dropped during execution and why, and what's open for a future v1.2+ (Process-Lasso-lite route, NIC tuning vendor presets, MessageNumberLimit slider in `/msi-mode`, DPC-latency probe in `/latency-monitor`, driver search expansion to Wi-Fi/LAN/audio, per-game watchdog, …).
+
 ## Inspirations
 
 - [Win11Debloat](https://github.com/Raphire/Win11Debloat) — feature scope reference

@@ -77,6 +77,13 @@ Lite-mode signal: items with `adminOnly: true` get a `ShieldAlert` indicator.
 | `unattend.rs` | `autounattend.xml` generator + `setupcomplete.cmd` body generator. Wire format = `UnattendConfig`. Routes `custom_commands` to the right Setup hook (`windowsPE` / `specialize` → RunSynchronous in correct component; `oobeSystem` / `firstlogon` → FirstLogonCommand; `setupcomplete` → appended to script). Conditional emission: `<DiskConfiguration>` only when `disk_auto_setup: Some(_)`, `<UserAccounts>` only with non-empty password, `<ImageInstall>` only when `edition` or `disk_auto_setup` set. Pre-OOBE sponsored-apps blocker (HKLM CloudContent + HKU\.DEFAULT ContentDeliveryManager writes) emitted in specialize whenever AppX patterns are present |
 | `iso_builder.rs` | ADK `oscdimg.exe` ISO repack. Mounts source ISO, robocopy contents to work dir, drops `autounattend.xml` at root + `\$OEM$\$$\Setup\Scripts\setupcomplete.cmd` in the work dir, oscdimg-rebuilds as hybrid bootable ISO |
 | `usb_flash.rs` | USB flasher. `list_usb_drives` enumerates `Get-Disk` USB entries, extracts a stable hardware ID from `.UniqueId` (vs the often-garbage iSerialNumber descriptor). `usb_flash_iso` runs the diskpart + DISM /Split-Image pipeline in a PTY (ConPTY): clean disk, init GPT, single FAT32 partition (cap 32 GiB), robocopy ISO contents, split install.wim > 4 GB into install*.swm chunks, optionally drop autounattend.xml + setupcomplete.cmd onto the stick |
+| `gaming_session.rs` (v1.1) | `/gaming-session` backend. `session_snapshot` captures active power-plan GUID + Defender realtime state + Running/Stopped status of a hardcoded whitelist of toggleable services. `session_kill_processes` taskkills entries from a separate hardcoded whitelist of background apps. `session_set_power_plan` / `session_set_defender_realtime` / `session_stop_services` / `session_restore_services` are the per-step actions. Nothing user-controlled lands in a `taskkill` or `Set-Service` call — whitelist guards or strict GUID format checks gate every entry |
+| `anticheat.rs` (v1.1) | `/anti-cheat-compat` backend. `ac_get_state` returns Secure Boot (via `Confirm-SecureBootUEFI`), TPM 2.0 (via WMI `Win32_Tpm`), VBS + HVCI (via WMI `Win32_DeviceGuard`), and testsigning / kernel debug (via locale-independent regex on `bcdedit /enum {current}` token names). `ac_disable_test_mode` + `ac_disable_kernel_debug` wrap the corresponding bcdedit flips |
+| `nic.rs` (v1.1) | `/nic-tuning` backend. `nic_list_adapters` returns the user-visible NICs. `nic_list_properties` enumerates `Get-NetAdapterAdvancedProperty` with `ValidRegistryValues` / `ValidDisplayValues` arrays as parallel strings for the driver-published value picker. `nic_set_property` validates every input through a strict character whitelist before any PowerShell interpolation, then tries numeric `[int64]::TryParse` first and falls back to a string form. `nic_restart` cycles the adapter for properties that need it |
+| `msi.rs` (v1.1) | `/msi-mode` backend. `msi_list_devices` enumerates `Get-PnpDevice -PresentOnly` filtered to Display / SCSIAdapter / MEDIA / Net / HIDClass / System / USB classes, with a `Win32_PnPEntity` fallback for SKUs without the Get-PnpDevice cmdlet. `msi_set_supported` writes `MSISupported=1` (or removes the value); device IDs are regex-validated. `HKLM\SYSTEM\…\Enum` is SYSTEM-owned with Administrators read-only ACL — direct writes get `ACCESS_DENIED`. Falls back to a one-shot SYSTEM scheduled task (`schtasks /create /ru SYSTEM /rl HIGHEST` → `reg.exe add` / `reg.exe delete` → `/delete`) and verifies the value landed by reading it back |
+| `latency.rs` (v1.1) | `/latency-monitor` backend. `latency_ping_hosts` calls `System.Net.NetworkInformation.Ping.Send(host, 1500)` sequentially for up to 32 strict-validated DNS-safe hosts. Identical schema across PowerShell 5.1 and 7+. Read-only |
+
+All modules emit JSON arrays via `ConvertTo-Json -InputObject @($out)` — the `-AsArray` parameter is PowerShell 7.0+ only and silently breaks on PS 5.1 (the default `powershell.exe`).
 
 `run_ps` is shared (`pub(crate)`). All other modules' shell ops go through it.
 
@@ -203,16 +210,23 @@ Persisted to localStorage as JSON array. Max 500 entries, newest first.
 
 | Path | Route | Owner |
 |---|---|---|
-| `Dashboard.svelte` | `/` | Banner + 3 KPI cards + 4 ProfileCards + 7 category cards |
+| `Dashboard.svelte` | `/` | HeroBanner + 4 KPI tiles (Active tweaks / Recommended pending / Bloatware patterns / Profiles available) + Recent activity feed (last 6 user-visible log entries) + permanent per-category Catalog coverage breakdown |
 | `Bloatware.svelte` | `/bloatware` | AppX scan + group filter + BulkActionBar |
 | `Privacy.svelte` … `Updates.svelte` | `/privacy` etc. | Thin wrapper around `TweakSection` with the right category list |
+| `Gaming.svelte` | `/gaming` | The 35 gaming tweaks (was 7 pre-v1.1) — MMCSS, latency, HAGS, fullscreen-opt, …  |
+| `GamingSession.svelte` (v1.1) | `/gaming-session` | Snapshot-based background suspend with auto-revert on End |
+| `PerGameProfiles.svelte` (v1.1) | `/per-game-profiles` | Per-EXE GPU preference + AppCompat Layers via HKCU (no admin) |
+| `MsiModeManager.svelte` (v1.1) | `/msi-mode` | Per-PCI MSI/MSI-X toggle, grouped by device class, sticky boot-risk warning + restore-point shortcut |
+| `NicTuning.svelte` (v1.1) | `/nic-tuning` | Live `Get-NetAdapterAdvancedProperty` editor with 16 curated properties + Show-all |
+| `LatencyMonitor.svelte` (v1.1) | `/latency-monitor` | Live ping with sparklines (8 presets + custom targets, 2/5/10 s cadence) |
+| `AntiCheatCompat.svelte` (v1.1) | `/anti-cheat-compat` | Vanguard / EAC / BattlEye / VAC compat matrix with one-click fixes |
 | `WindowsUpdate.svelte` | `/windows-update` | WU scan + filter chips + install via COM |
 | `Drivers.svelte` | `/drivers` | GPU detect + Auto-Search webview + WU shortcut |
 | `Specs.svelte` | `/specs` | CPU/GPU/RAM/Storage/MB/BIOS cards |
 | `Startup.svelte` | `/startup` | Startup entries with per-row switch |
 | `Services.svelte` | `/services` | Notable services + full list + confirm dialog |
 | `Logs.svelte` | `/logs` | Activity log with filter chips |
-| `Settings.svelte` | `/settings` | Theme + system actions + about |
+| `Settings.svelte` | `/settings` | Theme + system actions + about (Win10 banner when build < 22000) |
 
 ## Bridge layer
 
