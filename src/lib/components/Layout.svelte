@@ -21,6 +21,7 @@
     MonitorSmartphone,
     ShieldOff,
     Network as NetworkIcon,
+    Cable,
     Download,
     BellRing,
     Wrench,
@@ -168,6 +169,7 @@
       items: [
         { href: "/hosts", label: "Hosts & blocklists", icon: ShieldOff, adminOnly: true },
         { href: "/network", label: "DNS & DoH", icon: NetworkIcon, adminOnly: true },
+        { href: "/nic-tuning", label: "NIC tuning", icon: Cable, adminOnly: true },
         { href: "/firewall", label: "Firewall", icon: Flame, adminOnly: true },
       ],
     },

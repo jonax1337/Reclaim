@@ -12,6 +12,7 @@ mod driver_update;
 mod files;
 mod firewall;
 mod gaming_session;
+mod nic;
 mod icons;
 mod iso_builder;
 mod maintenance;
@@ -257,6 +258,11 @@ pub fn run() {
             anticheat::ac_get_state,
             anticheat::ac_disable_test_mode,
             anticheat::ac_disable_kernel_debug,
+            nic::nic_list_adapters,
+            nic::nic_list_properties,
+            nic::nic_set_property,
+            nic::nic_reset_property,
+            nic::nic_restart,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

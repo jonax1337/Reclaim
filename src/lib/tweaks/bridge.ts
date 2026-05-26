@@ -1529,3 +1529,84 @@ export async function acDisableTestMode(): Promise<void> {
 export async function acDisableKernelDebug(): Promise<void> {
   await invoke("ac_disable_kernel_debug");
 }
+
+/* ─────────────────────────  NIC tuning  ──────────────────────────────── */
+
+export type NicAdapter = {
+  name: string;
+  interfaceDescription: string;
+  status: string;
+  linkSpeed: string;
+  macAddress: string;
+  mediaType: string;
+};
+
+export type NicProperty = {
+  registryKeyword: string;
+  displayName: string;
+  registryValue: string;
+  displayValue: string | null;
+  defaultValue: string | null;
+  validValues: string[];
+  validDisplayValues: string[];
+};
+
+type RawNicAdapter = {
+  name: string;
+  interface_description: string;
+  status: string;
+  link_speed: string;
+  mac_address: string;
+  media_type: string;
+};
+
+type RawNicProperty = {
+  registry_keyword: string;
+  display_name: string;
+  registry_value: string;
+  display_value: string | null;
+  default_value: string | null;
+  valid_values: string[];
+  valid_display_values: string[];
+};
+
+export async function nicListAdapters(): Promise<NicAdapter[]> {
+  const raw = await invoke<RawNicAdapter[]>("nic_list_adapters");
+  return raw.map((a) => ({
+    name: a.name,
+    interfaceDescription: a.interface_description,
+    status: a.status,
+    linkSpeed: a.link_speed,
+    macAddress: a.mac_address,
+    mediaType: a.media_type,
+  }));
+}
+
+export async function nicListProperties(adapterName: string): Promise<NicProperty[]> {
+  const raw = await invoke<RawNicProperty[]>("nic_list_properties", { adapterName });
+  return raw.map((p) => ({
+    registryKeyword: p.registry_keyword,
+    displayName: p.display_name,
+    registryValue: p.registry_value,
+    displayValue: p.display_value,
+    defaultValue: p.default_value,
+    validValues: p.valid_values,
+    validDisplayValues: p.valid_display_values,
+  }));
+}
+
+export async function nicSetProperty(
+  adapterName: string,
+  registryKeyword: string,
+  registryValue: string,
+): Promise<void> {
+  await invoke("nic_set_property", { adapterName, registryKeyword, registryValue });
+}
+
+export async function nicResetProperty(adapterName: string, registryKeyword: string): Promise<void> {
+  await invoke("nic_reset_property", { adapterName, registryKeyword });
+}
+
+export async function nicRestart(adapterName: string): Promise<void> {
+  await invoke("nic_restart", { adapterName });
+}
