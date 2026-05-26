@@ -1477,3 +1477,55 @@ export async function sessionRestoreServices(
 export async function sessionWhitelist(): Promise<SessionWhitelist> {
   return invoke<SessionWhitelist>("session_whitelist");
 }
+
+/* ─────────────────────────  Anti-cheat compat  ───────────────────────── */
+
+export type AntiCheatState = {
+  secureBoot: boolean | null;
+  tpmPresent: boolean | null;
+  tpmReady: boolean | null;
+  tpmSpecVersion: string | null;
+  vbsRunning: boolean;
+  hvciRunning: boolean;
+  testMode: boolean;
+  kernelDebug: boolean;
+  is64bit: boolean;
+  buildNumber: number;
+};
+
+type RawAntiCheatState = {
+  secure_boot: boolean | null;
+  tpm_present: boolean | null;
+  tpm_ready: boolean | null;
+  tpm_spec_version: string | null;
+  vbs_running: boolean;
+  hvci_running: boolean;
+  test_mode: boolean;
+  kernel_debug: boolean;
+  is_64bit: boolean;
+  build_number: number;
+};
+
+export async function acGetState(): Promise<AntiCheatState> {
+  const raw = await invoke<RawAntiCheatState>("ac_get_state");
+  return {
+    secureBoot: raw.secure_boot,
+    tpmPresent: raw.tpm_present,
+    tpmReady: raw.tpm_ready,
+    tpmSpecVersion: raw.tpm_spec_version,
+    vbsRunning: raw.vbs_running,
+    hvciRunning: raw.hvci_running,
+    testMode: raw.test_mode,
+    kernelDebug: raw.kernel_debug,
+    is64bit: raw.is_64bit,
+    buildNumber: raw.build_number,
+  };
+}
+
+export async function acDisableTestMode(): Promise<void> {
+  await invoke("ac_disable_test_mode");
+}
+
+export async function acDisableKernelDebug(): Promise<void> {
+  await invoke("ac_disable_kernel_debug");
+}

@@ -1,4 +1,5 @@
 mod activation;
+mod anticheat;
 mod app_info;
 #[cfg(windows)]
 pub mod cli;
@@ -253,6 +254,9 @@ pub fn run() {
             gaming_session::session_stop_services,
             gaming_session::session_restore_services,
             gaming_session::session_whitelist,
+            anticheat::ac_get_state,
+            anticheat::ac_disable_test_mode,
+            anticheat::ac_disable_kernel_debug,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

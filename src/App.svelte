@@ -19,6 +19,7 @@
   import Gaming from "./routes/Gaming.svelte";
   import GamingSession from "./routes/GamingSession.svelte";
   import PerGameProfiles from "./routes/PerGameProfiles.svelte";
+  import AntiCheatCompat from "./routes/AntiCheatCompat.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -72,6 +73,7 @@
     ["/gaming", Gaming],
     ["/gaming-session", GamingSession],
     ["/per-game-profiles", PerGameProfiles],
+    ["/anti-cheat-compat", AntiCheatCompat],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],

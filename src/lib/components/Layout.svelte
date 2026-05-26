@@ -35,6 +35,7 @@
     Gamepad2,
     Zap,
     Crosshair,
+    Swords,
     Code2,
     LifeBuoy,
   } from "@lucide/svelte";
@@ -159,6 +160,7 @@
         { href: "/gaming", label: "Gaming", icon: Gamepad2, adminOnly: true },
         { href: "/gaming-session", label: "Gaming Session", icon: Zap, adminOnly: true },
         { href: "/per-game-profiles", label: "Per-game profiles", icon: Crosshair },
+        { href: "/anti-cheat-compat", label: "Anti-cheat compat", icon: Swords },
       ],
     },
     {
