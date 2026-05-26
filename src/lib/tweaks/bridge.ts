@@ -1380,3 +1380,301 @@ export async function installWindowsUpdatesStream(
   };
   return invoke<number>("install_windows_updates_stream", { ids, onEvent: channel });
 }
+
+/* ─────────────────────────  Gaming session  ──────────────────────────── */
+
+export type ProcessSnapshot = {
+  name: string;
+  running: boolean;
+  commandLine: string | null;
+};
+
+export type ServiceSnapshot = {
+  name: string;
+  startType: string;
+  status: string;
+};
+
+export type SessionSnapshot = {
+  powerPlanGuid: string;
+  defenderRealtime: boolean;
+  processes: ProcessSnapshot[];
+  services: ServiceSnapshot[];
+};
+
+export type SessionKillResult = {
+  name: string;
+  success: boolean;
+  stderr: string;
+};
+
+export type SessionServiceResult = {
+  name: string;
+  success: boolean;
+  stderr: string;
+};
+
+export type SessionWhitelist = {
+  processes: string[];
+  services: string[];
+};
+
+type RawProcessSnapshot = { name: string; running: boolean; command_line: string | null };
+type RawServiceSnapshot = { name: string; start_type: string; status: string };
+type RawSessionSnapshot = {
+  power_plan_guid: string;
+  defender_realtime: boolean;
+  processes: RawProcessSnapshot[];
+  services: RawServiceSnapshot[];
+};
+
+export async function sessionSnapshot(): Promise<SessionSnapshot> {
+  const raw = await invoke<RawSessionSnapshot>("session_snapshot");
+  return {
+    powerPlanGuid: raw.power_plan_guid,
+    defenderRealtime: raw.defender_realtime,
+    processes: raw.processes.map((p) => ({
+      name: p.name,
+      running: p.running,
+      commandLine: p.command_line,
+    })),
+    services: raw.services.map((s) => ({
+      name: s.name,
+      startType: s.start_type,
+      status: s.status,
+    })),
+  };
+}
+
+export async function sessionKillProcesses(names: string[]): Promise<SessionKillResult[]> {
+  return invoke<SessionKillResult[]>("session_kill_processes", { names });
+}
+
+export async function sessionSetPowerPlan(guid: string): Promise<void> {
+  await invoke("session_set_power_plan", { guid });
+}
+
+export async function sessionSetDefenderRealtime(enabled: boolean): Promise<void> {
+  await invoke("session_set_defender_realtime", { enabled });
+}
+
+export async function sessionStopServices(names: string[]): Promise<SessionServiceResult[]> {
+  return invoke<SessionServiceResult[]>("session_stop_services", { names });
+}
+
+export async function sessionRestoreServices(
+  items: ServiceSnapshot[],
+): Promise<SessionServiceResult[]> {
+  // Rust expects snake_case fields on the snapshot wire type.
+  const wire = items.map((s) => ({
+    name: s.name,
+    start_type: s.startType,
+    status: s.status,
+  }));
+  return invoke<SessionServiceResult[]>("session_restore_services", { items: wire });
+}
+
+export async function sessionWhitelist(): Promise<SessionWhitelist> {
+  return invoke<SessionWhitelist>("session_whitelist");
+}
+
+/* ─────────────────────────  Anti-cheat compat  ───────────────────────── */
+
+export type AntiCheatState = {
+  secureBoot: boolean | null;
+  tpmPresent: boolean | null;
+  tpmReady: boolean | null;
+  tpmSpecVersion: string | null;
+  vbsRunning: boolean;
+  hvciRunning: boolean;
+  testMode: boolean;
+  kernelDebug: boolean;
+  is64bit: boolean;
+  buildNumber: number;
+};
+
+type RawAntiCheatState = {
+  secure_boot: boolean | null;
+  tpm_present: boolean | null;
+  tpm_ready: boolean | null;
+  tpm_spec_version: string | null;
+  vbs_running: boolean;
+  hvci_running: boolean;
+  test_mode: boolean;
+  kernel_debug: boolean;
+  is_64bit: boolean;
+  build_number: number;
+};
+
+export async function acGetState(): Promise<AntiCheatState> {
+  const raw = await invoke<RawAntiCheatState>("ac_get_state");
+  return {
+    secureBoot: raw.secure_boot,
+    tpmPresent: raw.tpm_present,
+    tpmReady: raw.tpm_ready,
+    tpmSpecVersion: raw.tpm_spec_version,
+    vbsRunning: raw.vbs_running,
+    hvciRunning: raw.hvci_running,
+    testMode: raw.test_mode,
+    kernelDebug: raw.kernel_debug,
+    is64bit: raw.is_64bit,
+    buildNumber: raw.build_number,
+  };
+}
+
+export async function acDisableTestMode(): Promise<void> {
+  await invoke("ac_disable_test_mode");
+}
+
+export async function acDisableKernelDebug(): Promise<void> {
+  await invoke("ac_disable_kernel_debug");
+}
+
+/* ─────────────────────────  NIC tuning  ──────────────────────────────── */
+
+export type NicAdapter = {
+  name: string;
+  interfaceDescription: string;
+  status: string;
+  linkSpeed: string;
+  macAddress: string;
+  mediaType: string;
+};
+
+export type NicProperty = {
+  registryKeyword: string;
+  displayName: string;
+  registryValue: string;
+  displayValue: string | null;
+  defaultValue: string | null;
+  validValues: string[];
+  validDisplayValues: string[];
+};
+
+type RawNicAdapter = {
+  name: string;
+  interface_description: string;
+  status: string;
+  link_speed: string;
+  mac_address: string;
+  media_type: string;
+};
+
+type RawNicProperty = {
+  registry_keyword: string;
+  display_name: string;
+  registry_value: string;
+  display_value: string | null;
+  default_value: string | null;
+  valid_values: string[];
+  valid_display_values: string[];
+};
+
+export async function nicListAdapters(): Promise<NicAdapter[]> {
+  const raw = await invoke<RawNicAdapter[]>("nic_list_adapters");
+  return raw.map((a) => ({
+    name: a.name,
+    interfaceDescription: a.interface_description,
+    status: a.status,
+    linkSpeed: a.link_speed,
+    macAddress: a.mac_address,
+    mediaType: a.media_type,
+  }));
+}
+
+export async function nicListProperties(adapterName: string): Promise<NicProperty[]> {
+  const raw = await invoke<RawNicProperty[]>("nic_list_properties", { adapterName });
+  return raw.map((p) => ({
+    registryKeyword: p.registry_keyword,
+    displayName: p.display_name,
+    registryValue: p.registry_value,
+    displayValue: p.display_value,
+    defaultValue: p.default_value,
+    validValues: p.valid_values,
+    validDisplayValues: p.valid_display_values,
+  }));
+}
+
+export async function nicSetProperty(
+  adapterName: string,
+  registryKeyword: string,
+  registryValue: string,
+): Promise<void> {
+  await invoke("nic_set_property", { adapterName, registryKeyword, registryValue });
+}
+
+export async function nicResetProperty(adapterName: string, registryKeyword: string): Promise<void> {
+  await invoke("nic_reset_property", { adapterName, registryKeyword });
+}
+
+export async function nicRestart(adapterName: string): Promise<void> {
+  await invoke("nic_restart", { adapterName });
+}
+
+/* ─────────────────────────  MSI mode manager  ───────────────────────── */
+
+export type MsiDevice = {
+  instanceId: string;
+  friendlyName: string;
+  class: string;
+  manufacturer: string;
+  status: string;
+  present: boolean;
+  msiSupported: number | null;
+  messageNumberLimit: number | null;
+  hasInterruptProps: boolean;
+};
+
+type RawMsiDevice = {
+  instance_id: string;
+  friendly_name: string;
+  class: string;
+  manufacturer: string;
+  status: string;
+  present: boolean;
+  msi_supported: number | null;
+  message_number_limit: number | null;
+  has_interrupt_props: boolean;
+};
+
+export async function msiListDevices(): Promise<MsiDevice[]> {
+  const raw = await invoke<RawMsiDevice[]>("msi_list_devices");
+  return raw.map((d) => ({
+    instanceId: d.instance_id,
+    friendlyName: d.friendly_name,
+    class: d.class,
+    manufacturer: d.manufacturer,
+    status: d.status,
+    present: d.present,
+    msiSupported: d.msi_supported,
+    messageNumberLimit: d.message_number_limit,
+    hasInterruptProps: d.has_interrupt_props,
+  }));
+}
+
+export async function msiSetSupported(instanceId: string, enabled: boolean): Promise<void> {
+  await invoke("msi_set_supported", { instanceId, enabled });
+}
+
+export async function msiSetMessageLimit(instanceId: string, limit: number | null): Promise<void> {
+  await invoke("msi_set_message_limit", { instanceId, limit });
+}
+
+/* ─────────────────────────  Latency monitor  ────────────────────────── */
+
+export type PingResult = {
+  host: string;
+  rttMs: number | null;
+  address: string | null;
+};
+
+type RawPingResult = {
+  host: string;
+  rtt_ms: number | null;
+  address: string | null;
+};
+
+export async function latencyPingHosts(hosts: string[]): Promise<PingResult[]> {
+  const raw = await invoke<RawPingResult[]>("latency_ping_hosts", { hosts });
+  return raw.map((r) => ({ host: r.host, rttMs: r.rtt_ms, address: r.address }));
+}

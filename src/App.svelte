@@ -17,6 +17,12 @@
   import Performance from "./routes/Performance.svelte";
   import Memory from "./routes/Memory.svelte";
   import Gaming from "./routes/Gaming.svelte";
+  import GamingSession from "./routes/GamingSession.svelte";
+  import PerGameProfiles from "./routes/PerGameProfiles.svelte";
+  import AntiCheatCompat from "./routes/AntiCheatCompat.svelte";
+  import NicTuning from "./routes/NicTuning.svelte";
+  import MsiModeManager from "./routes/MsiModeManager.svelte";
+  import LatencyMonitor from "./routes/LatencyMonitor.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -41,7 +47,6 @@
   import NotFound from "./routes/NotFound.svelte";
   import { onMount } from "svelte";
   import { push as routerPush } from "svelte-spa-router";
-  import { log } from "$lib/log.svelte";
   import { isTauri } from "$lib/tweaks/bridge";
   import { admin } from "$lib/admin.svelte";
   import { kickoffStartupPreloads } from "$lib/startup-preload.svelte";
@@ -68,6 +73,12 @@
     ["/performance", Performance],
     ["/memory", Memory],
     ["/gaming", Gaming],
+    ["/gaming-session", GamingSession],
+    ["/per-game-profiles", PerGameProfiles],
+    ["/anti-cheat-compat", AntiCheatCompat],
+    ["/nic-tuning", NicTuning],
+    ["/msi-mode", MsiModeManager],
+    ["/latency-monitor", LatencyMonitor],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],
@@ -109,7 +120,6 @@
 
   onMount(async () => {
     if (!isTauri()) return;
-    log.info("system.boot", "Reclaim", "Session started");
     await admin.refresh();
     kickoffStartupPreloads();
 
@@ -126,11 +136,8 @@
       } catch {}
     });
     service.onTick(async (source) => {
-      log.info(
-        "service.tick",
-        source === "manual" ? "Manual check" : "Scheduled check",
-        "Background check started",
-      );
+      // No log entry for the heartbeat tick itself — only the actions it
+      // discovers (drift re-applied, update available, …) are logged.
       try {
         await runPersistenceCheck();
       } catch {}

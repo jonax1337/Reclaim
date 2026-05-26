@@ -49,7 +49,9 @@ export type LogAction =
   | "notification.sent"
   | "winupdate.found"
   | "driver.update.found"
-  | "dev-feature";
+  | "dev-feature"
+  | "gaming-session.start"
+  | "gaming-session.end";
 
 export type LogEntry = {
   id: number;
@@ -65,6 +67,15 @@ const STORAGE_KEY = "reclaim.activity-log";
 const MAX_ENTRIES = 500;
 let nextId = 1;
 
+// Internal lifecycle events that used to be logged but bring no diagnostic
+// value. They're filtered out on every load and any new push silently drops
+// them, so existing localStorage / file-mirror history is cleaned the next
+// time Reclaim starts.
+const NOISE_ACTIONS: ReadonlySet<LogAction> = new Set([
+  "system.boot",
+  "service.tick",
+]);
+
 function load(): LogEntry[] {
   if (typeof localStorage === "undefined") return [];
   try {
@@ -72,8 +83,12 @@ function load(): LogEntry[] {
     if (!raw) return [];
     const arr = JSON.parse(raw) as LogEntry[];
     if (!Array.isArray(arr)) return [];
-    if (arr.length > 0) nextId = Math.max(...arr.map((e) => e.id)) + 1;
-    return arr;
+    const cleaned = arr.filter((e) => e && e.action && !NOISE_ACTIONS.has(e.action));
+    if (cleaned.length > 0) nextId = Math.max(...cleaned.map((e) => e.id)) + 1;
+    // Write back if we actually dropped anything, so the localStorage view of
+    // truth matches the in-memory store on next boot.
+    if (cleaned.length !== arr.length) persist(cleaned);
+    return cleaned;
   } catch {
     return [];
   }
@@ -90,6 +105,9 @@ class LogStore {
   entries = $state<LogEntry[]>(load());
 
   push(entry: Omit<LogEntry, "id" | "ts">) {
+    // Drop heartbeat / lifecycle noise — these were once useful for debugging
+    // but only clutter the visible activity log.
+    if (NOISE_ACTIONS.has(entry.action)) return;
     const full: LogEntry = {
       id: nextId++,
       ts: Date.now(),
@@ -181,4 +199,6 @@ export const ACTION_LABELS: Record<LogAction, string> = {
   "winupdate.found": "Windows updates available",
   "driver.update.found": "Driver update available",
   "dev-feature": "Windows feature toggled",
+  "gaming-session.start": "Gaming session started",
+  "gaming-session.end": "Gaming session ended",
 };

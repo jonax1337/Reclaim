@@ -1,4 +1,5 @@
 mod activation;
+mod anticheat;
 mod app_info;
 #[cfg(windows)]
 pub mod cli;
@@ -10,6 +11,10 @@ mod driver_search;
 mod driver_update;
 mod files;
 mod firewall;
+mod gaming_session;
+mod latency;
+mod msi;
+mod nic;
 mod icons;
 mod iso_builder;
 mod maintenance;
@@ -245,6 +250,25 @@ pub fn run() {
             dev_features::set_optional_feature_stream,
             dev_features::list_wsl_distros,
             dev_features::dev_drive_info,
+            gaming_session::session_snapshot,
+            gaming_session::session_kill_processes,
+            gaming_session::session_set_power_plan,
+            gaming_session::session_set_defender_realtime,
+            gaming_session::session_stop_services,
+            gaming_session::session_restore_services,
+            gaming_session::session_whitelist,
+            anticheat::ac_get_state,
+            anticheat::ac_disable_test_mode,
+            anticheat::ac_disable_kernel_debug,
+            nic::nic_list_adapters,
+            nic::nic_list_properties,
+            nic::nic_set_property,
+            nic::nic_reset_property,
+            nic::nic_restart,
+            msi::msi_list_devices,
+            msi::msi_set_supported,
+            msi::msi_set_message_limit,
+            latency::latency_ping_hosts,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

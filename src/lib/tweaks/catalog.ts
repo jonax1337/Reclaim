@@ -3733,6 +3733,577 @@ export const GAMING_TWEAKS: Tweak[] = [
       },
     ],
   },
+  {
+    id: "mouse-hover-time-fast",
+    category: "gaming",
+    title: "Reduce mouse hover delay to 1 ms",
+    description:
+      "Tooltips and hover-driven events fire almost instantly instead of waiting the default 400 ms. Mainly noticeable in older apps and taskbar previews.",
+    requiresRestart: "logon",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Mouse", name: "MouseHoverTime", type: "SZ", value: "1", defaultValue: "400" },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Mouse", name: "MouseHoverTime", type: "SZ", value: "1" },
+    ],
+  },
+  {
+    id: "keyboard-delay-fast",
+    category: "gaming",
+    title: "Minimum keyboard repeat delay",
+    description:
+      "Sets the time before key-repeat kicks in to the shortest setting (0 ≈ 250 ms, default 1 ≈ 500 ms).",
+    requiresRestart: "logon",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Keyboard", name: "KeyboardDelay", type: "SZ", value: "0", defaultValue: "1" },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Keyboard", name: "KeyboardDelay", type: "SZ", value: "0" },
+    ],
+  },
+  {
+    id: "keyboard-speed-fast",
+    category: "gaming",
+    title: "Maximum keyboard repeat rate",
+    description:
+      "Sets the key-repeat rate to the maximum value (31 ≈ 30 characters per second). Default is usually around 20.",
+    requiresRestart: "logon",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Keyboard", name: "KeyboardSpeed", type: "SZ", value: "31", defaultValue: "31" },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Control Panel\\Keyboard", name: "KeyboardSpeed", type: "SZ", value: "31" },
+    ],
+  },
+  {
+    id: "usb-selective-suspend-off-global",
+    category: "gaming",
+    title: "Disable USB selective suspend (system-wide)",
+    description:
+      "Tells Windows to never power down USB ports to save energy. Fixes occasional mouse/keyboard disconnects under load or after standby.",
+    warning:
+      "Slightly higher idle power draw on laptops. Revert if you care about battery life.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\USB", name: "DisableSelectiveSuspend", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\USB", name: "DisableSelectiveSuspend", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "hid-power-management-off",
+    category: "gaming",
+    title: "Disable power-saving on HID input devices",
+    description:
+      "Turns off 'Allow the computer to turn off this device to save power' for every HID device (mice, keyboards, gamepads). Stops 1 kHz polling devices from being throttled when the system thinks they're idle.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { Set-ItemProperty -Path $dp -Name 'SelectiveSuspendEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue; Set-ItemProperty -Path $dp -Name 'EnhancedPowerManagementEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } } }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$bad = 0; $any = 0; Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { $any++; $v = (Get-ItemProperty -Path $dp -Name SelectiveSuspendEnabled -ErrorAction SilentlyContinue).SelectiveSuspendEnabled; if ($null -eq $v -or $v -ne 0) { $bad++ } } } }; if ($any -eq 0) { exit 1 } elseif ($bad -eq 0) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { Remove-ItemProperty -Path $dp -Name 'SelectiveSuspendEnabled' -ErrorAction SilentlyContinue; Remove-ItemProperty -Path $dp -Name 'EnhancedPowerManagementEnabled' -ErrorAction SilentlyContinue } } }",
+      },
+    ],
+  },
+  {
+    id: "tcp-delack-ticks-off",
+    category: "gaming",
+    title: "Zero out TCP delayed-ACK ticks on all interfaces",
+    description:
+      "Sets TcpDelAckTicks=0 on every TCP/IP interface. Complements the TcpAckFrequency tweak by killing the second ACK-delay timer Windows uses internally.",
+    warning:
+      "Slightly higher packet count under load. Revert if you see throughput regressions on large file transfers.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { New-ItemProperty -Path $_.PSPath -Name TcpDelAckTicks -PropertyType DWord -Value 0 -Force | Out-Null }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$ifaces = Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' -ErrorAction SilentlyContinue; if (-not $ifaces) { exit 1 }; foreach ($i in $ifaces) { $p = Get-ItemProperty -Path $i.PSPath -ErrorAction SilentlyContinue; if ($p.TcpDelAckTicks -ne 0) { exit 1 } }; exit 0",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-ChildItem -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces' | ForEach-Object { Remove-ItemProperty -Path $_.PSPath -Name TcpDelAckTicks -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "qos-reserved-bandwidth-off",
+    category: "gaming",
+    title: "Disable QoS reserved bandwidth",
+    description:
+      "Removes the 20 % bandwidth reservation Windows holds back for QoS-marked traffic. Applies even if no QoS-aware app is running.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Psched", name: "NonBestEffortLimit", type: "DWORD", value: 0, defaultValue: 20 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "Software\\Policies\\Microsoft\\Windows\\Psched", name: "NonBestEffortLimit", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "nic-energy-efficient-ethernet-off",
+    category: "gaming",
+    title: "Disable Energy-Efficient Ethernet on all NICs",
+    description:
+      "Turns off IEEE 802.3az (EEE) on every NIC that exposes it. EEE adds ~100–200 µs of wake-up latency on idle links — bad for low-ping gaming, savings irrelevant on a desktop.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*EEE' -ErrorAction SilentlyContinue | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*EEE' -RegistryValue 0 -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$p = Get-NetAdapterAdvancedProperty -RegistryKeyword '*EEE' -ErrorAction SilentlyContinue; if (-not $p) { exit 0 }; foreach ($x in $p) { if ($x.RegistryValue -ne 0) { exit 1 } }; exit 0",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*EEE' -ErrorAction SilentlyContinue | ForEach-Object { Reset-NetAdapterAdvancedProperty -Name $_.Name -DisplayName $_.DisplayName -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "nic-flow-control-off",
+    category: "gaming",
+    title: "Disable NIC flow control",
+    description:
+      "Turns off Ethernet PAUSE frames on every NIC. Flow control can introduce bursty latency under contention; modern switches handle backpressure better anyway.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*FlowControl' -ErrorAction SilentlyContinue | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*FlowControl' -RegistryValue 0 -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$p = Get-NetAdapterAdvancedProperty -RegistryKeyword '*FlowControl' -ErrorAction SilentlyContinue; if (-not $p) { exit 0 }; foreach ($x in $p) { if ($x.RegistryValue -ne 0) { exit 1 } }; exit 0",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*FlowControl' -ErrorAction SilentlyContinue | ForEach-Object { Reset-NetAdapterAdvancedProperty -Name $_.Name -DisplayName $_.DisplayName -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "nic-interrupt-moderation-off",
+    category: "gaming",
+    title: "Disable NIC interrupt moderation",
+    description:
+      "Forces the NIC to interrupt the CPU on every packet instead of batching. Lower per-packet latency, higher CPU load.",
+    warning:
+      "Noticeably higher CPU usage under heavy network load. Revert if your CPU is the bottleneck or you see system-wide stutter during big downloads.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*InterruptModeration' -ErrorAction SilentlyContinue | ForEach-Object { Set-NetAdapterAdvancedProperty -Name $_.Name -RegistryKeyword '*InterruptModeration' -RegistryValue 0 -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$p = Get-NetAdapterAdvancedProperty -RegistryKeyword '*InterruptModeration' -ErrorAction SilentlyContinue; if (-not $p) { exit 0 }; foreach ($x in $p) { if ($x.RegistryValue -ne 0) { exit 1 } }; exit 0",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-NetAdapterAdvancedProperty -RegistryKeyword '*InterruptModeration' -ErrorAction SilentlyContinue | ForEach-Object { Reset-NetAdapterAdvancedProperty -Name $_.Name -DisplayName $_.DisplayName -NoRestart -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "afd-receive-window-tune",
+    category: "gaming",
+    title: "AFD: enlarge socket receive/send windows",
+    description:
+      "Raises the default per-socket buffer (DefaultReceiveWindow / DefaultSendWindow) to 64 KiB. Helps low-latency game sockets avoid stalls under bursty inbound traffic.",
+    requiresRestart: "system",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\AFD\\Parameters", name: "DefaultReceiveWindow", type: "DWORD", value: 65536, defaultValue: 8192 },
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\AFD\\Parameters", name: "DefaultSendWindow", type: "DWORD", value: 65536, defaultValue: 8192 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Services\\AFD\\Parameters", name: "DefaultReceiveWindow", type: "DWORD", value: 65536 },
+    ],
+  },
+  {
+    id: "hags-on",
+    category: "gaming",
+    title: "Enable Hardware-Accelerated GPU Scheduling (HAGS)",
+    description:
+      "Moves GPU scheduling onto the GPU's own processor instead of the CPU. Reduces CPU overhead and unlocks features like NVIDIA Reflex and DirectStorage. Requires a recent driver (NVIDIA Pascal+, AMD RDNA+).",
+    recommended: true,
+    requiresRestart: "system",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", name: "HwSchMode", type: "DWORD", value: 2, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", name: "HwSchMode", type: "DWORD", value: 2 },
+    ],
+  },
+  {
+    id: "gpu-tdr-delay-extend",
+    category: "gaming",
+    title: "Extend GPU timeout (TDR) for heavy shader compilation",
+    description:
+      "Raises TdrDelay/TdrDdiDelay from the 2 s default to 10 s. Prevents 'Display driver stopped responding' crashes during shader-compile spikes in modern games.",
+    requiresRestart: "system",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", name: "TdrDelay", type: "DWORD", value: 10, defaultValue: 2 },
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", name: "TdrDdiDelay", type: "DWORD", value: 10, defaultValue: 5 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\GraphicsDrivers", name: "TdrDelay", type: "DWORD", value: 10 },
+    ],
+  },
+  {
+    id: "nvidia-telemetry-services-off",
+    category: "gaming",
+    title: "Disable NVIDIA telemetry services & tasks",
+    description:
+      "Stops the NvTelemetryContainer service and the 'NVIDIA Telemetry' scheduled tasks. No-op on non-NVIDIA systems.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "if (Get-Service NvTelemetryContainer -ErrorAction SilentlyContinue) { Stop-Service NvTelemetryContainer -Force -ErrorAction SilentlyContinue; Set-Service NvTelemetryContainer -StartupType Disabled -ErrorAction SilentlyContinue }; Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*NVIDIA*' -and ($_.TaskName -like '*Telemetry*' -or $_.TaskName -like '*Report*') } | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service NvTelemetryContainer -ErrorAction SilentlyContinue; if ($svc -and $svc.StartType -ne 'Disabled') { exit 1 }; $bad = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*NVIDIA*' -and ($_.TaskName -like '*Telemetry*' -or $_.TaskName -like '*Report*') -and $_.State -ne 'Disabled' }; if ($bad) { exit 1 } else { exit 0 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "if (Get-Service NvTelemetryContainer -ErrorAction SilentlyContinue) { Set-Service NvTelemetryContainer -StartupType Automatic -ErrorAction SilentlyContinue }; Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*NVIDIA*' -and ($_.TaskName -like '*Telemetry*' -or $_.TaskName -like '*Report*') } | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+  },
+  {
+    id: "amd-ueip-off",
+    category: "gaming",
+    title: "Disable AMD User Experience Program",
+    description:
+      "Opts out of AMD's User Experience Improvement Program (anonymous telemetry from Adrenalin). No-op on non-AMD systems.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SOFTWARE\\AMD\\CN", name: "UserExperienceProgram", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SOFTWARE\\AMD\\CN", name: "UserExperienceProgram", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "power-throttling-off-policy",
+    category: "gaming",
+    title: "Disable per-process Power Throttling",
+    description:
+      "Tells Windows to never throttle background processes via EcoQoS. Background apps (Discord, browsers, chat clients) keep full clock when they're not foreground — reduces stutter when alt-tabbing.",
+    warning:
+      "Higher background power draw. Mostly a concern on laptops.",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", name: "PowerThrottlingOff", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\Power\\PowerThrottling", name: "PowerThrottlingOff", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "bcdedit-tscsync-enhanced",
+    category: "gaming",
+    title: "Set TSC sync policy to Enhanced",
+    description:
+      "Pins Windows to the 'Enhanced' invariant TSC synchronisation policy across cores. Smoother high-resolution timing on multi-CCD Ryzen and big.LITTLE Intel parts.",
+    requiresRestart: "system",
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$o = bcdedit /enum '{current}' 2>&1 | Out-String; if ($o -match 'tscsyncpolicy\\s+Enhanced') { exit 0 } else { exit 1 }",
+      },
+    ],
+    apply: [
+      { kind: "shell", script: "bcdedit /set tscsyncpolicy Enhanced | Out-Null" },
+    ],
+    revert: [
+      { kind: "shell", script: "bcdedit /deletevalue tscsyncpolicy | Out-Null" },
+    ],
+  },
+  {
+    id: "core-parking-off-ac",
+    category: "gaming",
+    title: "Disable CPU core parking (on AC power)",
+    description:
+      "Forces 100 % of cores to stay un-parked while plugged in. Eliminates wake-up latency when a game thread bursts to a previously parked core.",
+    warning:
+      "Affects the currently active power plan only. Re-apply if you switch plans.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 0cc5b647-c1df-4637-891a-dec35c318583 100 | Out-Null; powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR ea062031-0e34-4ff1-9b6d-eb1059334028 100 | Out-Null; powercfg -setactive SCHEME_CURRENT | Out-Null",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$s = powercfg /getactivescheme 2>&1 | Out-String; if ($s -notmatch '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})') { exit 1 }; $scheme = $Matches[1]; $p = \"HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\$scheme\\54533251-82be-4824-96c1-47b60b740d00\\0cc5b647-c1df-4637-891a-dec35c318583\"; $v = (Get-ItemProperty -Path $p -Name ACSettingIndex -ErrorAction SilentlyContinue).ACSettingIndex; if ($v -eq 100) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR 0cc5b647-c1df-4637-891a-dec35c318583 0 | Out-Null; powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR ea062031-0e34-4ff1-9b6d-eb1059334028 100 | Out-Null; powercfg -setactive SCHEME_CURRENT | Out-Null",
+      },
+    ],
+  },
+  {
+    id: "processor-perf-boost-aggressive",
+    category: "gaming",
+    title: "Set CPU boost mode to Aggressive",
+    description:
+      "Tells the active power plan to use aggressive boost — the CPU climbs to its highest P-state as soon as any work appears, instead of waiting for sustained load.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR be337238-0d82-4146-a960-4f3749d470c7 2 | Out-Null; powercfg -setactive SCHEME_CURRENT | Out-Null",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$s = powercfg /getactivescheme 2>&1 | Out-String; if ($s -notmatch '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})') { exit 1 }; $scheme = $Matches[1]; $p = \"HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\$scheme\\54533251-82be-4824-96c1-47b60b740d00\\be337238-0d82-4146-a960-4f3749d470c7\"; $v = (Get-ItemProperty -Path $p -Name ACSettingIndex -ErrorAction SilentlyContinue).ACSettingIndex; if ($v -eq 2) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "powercfg -setacvalueindex SCHEME_CURRENT SUB_PROCESSOR be337238-0d82-4146-a960-4f3749d470c7 0 | Out-Null; powercfg -setactive SCHEME_CURRENT | Out-Null",
+      },
+    ],
+  },
+  {
+    id: "fullscreen-optimizations-off-global",
+    category: "gaming",
+    title: "Disable Fullscreen Optimizations globally",
+    description:
+      "Forces every game to use real exclusive fullscreen instead of Win10/11's borderless 'optimized' compositor. Tighter frame pacing, lower latency in DX11 titles, no DWM tearing.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "System\\GameConfigStore", name: "GameDVR_FSEBehavior", type: "DWORD", value: 2, defaultValue: 0 },
+      { kind: "reg", hive: "HKCU", path: "System\\GameConfigStore", name: "GameDVR_FSEBehaviorMode", type: "DWORD", value: 2, defaultValue: 2 },
+      { kind: "reg", hive: "HKCU", path: "System\\GameConfigStore", name: "GameDVR_HonorUserFSEBehaviorMode", type: "DWORD", value: 1, defaultValue: 0 },
+      { kind: "reg", hive: "HKCU", path: "System\\GameConfigStore", name: "GameDVR_DXGIHonorFSEWindowsCompatible", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "System\\GameConfigStore", name: "GameDVR_FSEBehavior", type: "DWORD", value: 2 },
+    ],
+  },
+  {
+    id: "game-bar-fully-off",
+    category: "gaming",
+    title: "Disable Game Bar UI completely",
+    description:
+      "Stronger than the existing Game DVR tweak — also kills the Game Bar overlay UI (Win+G) and its startup tip. Independent of GameDVR recording.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\GameBar", name: "UseNexusForGameBarEnabled", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\GameBar", name: "ShowStartupPanel", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "ShowStartupPanel", type: "DWORD", value: 0, defaultValue: 1 },
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\GameBar", name: "GamePanelStartupTipIndex", type: "DWORD", value: 3, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\GameBar", name: "UseNexusForGameBarEnabled", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "xbox-game-monitoring-off",
+    category: "gaming",
+    title: "Disable Xbox Game Monitoring service",
+    description:
+      "Stops the 'xbgm' service that watches for game launches to inject the Game Bar. Independent from the Xbox Live services bundle in the Performance category.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "if (Get-Service xbgm -ErrorAction SilentlyContinue) { Stop-Service xbgm -Force -ErrorAction SilentlyContinue; Set-Service xbgm -StartupType Disabled -ErrorAction SilentlyContinue }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$svc = Get-Service xbgm -ErrorAction SilentlyContinue; if (-not $svc -or $svc.StartType -eq 'Disabled') { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "if (Get-Service xbgm -ErrorAction SilentlyContinue) { Set-Service xbgm -StartupType Manual -ErrorAction SilentlyContinue }",
+      },
+    ],
+  },
+  {
+    id: "game-bar-presence-writer-off",
+    category: "gaming",
+    title: "Disable GamePresenceWriter task",
+    description:
+      "Stops the scheduled task that writes 'currently playing' state into the registry for Game Bar / Xbox app. Safe to disable on every system.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*GamePresenceWriter*' } | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$t = Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*GamePresenceWriter*' }; if (-not $t -or ($t | Where-Object State -ne 'Disabled' | Measure-Object).Count -eq 0) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "Get-ScheduledTask -ErrorAction SilentlyContinue | Where-Object { $_.TaskName -like '*GamePresenceWriter*' } | Enable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null",
+      },
+    ],
+  },
+  {
+    id: "ntfs-8dot3-off",
+    category: "gaming",
+    title: "Disable 8.3 short-name generation",
+    description:
+      "Stops NTFS from maintaining legacy 8.3 short filenames on every write. Small overhead reduction on folder-heavy workloads, irrelevant for modern apps.",
+    apply: [
+      { kind: "shell", script: "fsutil.exe behavior set disable8dot3 1 | Out-Null" },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$v = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name NtfsDisable8dot3NameCreation -ErrorAction SilentlyContinue).NtfsDisable8dot3NameCreation; if ($v -eq 1) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      { kind: "shell", script: "fsutil.exe behavior set disable8dot3 2 | Out-Null" },
+    ],
+  },
+  {
+    id: "ntfs-mft-zone-large",
+    category: "gaming",
+    title: "Enlarge NTFS MFT zone reservation",
+    description:
+      "Raises the MFT zone reservation from the default (12.5 % of volume) to 25 %. Helps drives with millions of small files (asset libraries, dev folders) keep the MFT contiguous.",
+    requiresRestart: "system",
+    apply: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem", name: "NtfsMftZoneReservation", type: "DWORD", value: 2, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKLM", path: "SYSTEM\\CurrentControlSet\\Control\\FileSystem", name: "NtfsMftZoneReservation", type: "DWORD", value: 2 },
+    ],
+  },
+  {
+    id: "transparency-effects-off",
+    category: "gaming",
+    title: "Disable transparency effects (Mica / Acrylic)",
+    description:
+      "Turns off Mica/Acrylic blur on Start, Taskbar and Action Center. Modest GPU/DWM win — visible on integrated graphics, marginal on a dedicated GPU.",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", name: "EnableTransparency", type: "DWORD", value: 0, defaultValue: 1 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", name: "EnableTransparency", type: "DWORD", value: 0 },
+    ],
+  },
+  {
+    id: "dwm-input-io-completion-on",
+    category: "gaming",
+    title: "DWM: use I/O completion ports for input",
+    description:
+      "Tells the Desktop Window Manager to route input via I/O completion ports (lower-overhead async queue) instead of a window-message pump. Small win for cursor/input latency under heavy compositor load.",
+    requiresRestart: "logon",
+    apply: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\Dwm", name: "InputUsesIoCompletionPort", type: "DWORD", value: 1, defaultValue: 0 },
+    ],
+    check: [
+      { kind: "reg", hive: "HKCU", path: "Software\\Microsoft\\Windows\\Dwm", name: "InputUsesIoCompletionPort", type: "DWORD", value: 1 },
+    ],
+  },
+  {
+    id: "audio-enhancements-off",
+    category: "gaming",
+    title: "Disable audio enhancements on all output devices",
+    description:
+      "Sets PKEY_AudioEndpoint_Disable_SysFx = 1 on every active render endpoint so the platform skips the SFX/MFX chain (Loudness Equalization, Bass Boost, Virtual Surround, …). Often shaves a few ms off audio latency and reduces phasing artefacts in games.",
+    apply: [
+      {
+        kind: "shell",
+        script:
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (-not (Test-Path $fx)) { New-Item -Path $fx -Force | Out-Null }; Set-ItemProperty -Path $fx -Name $prop -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue }",
+      },
+    ],
+    check: [
+      {
+        kind: "shell",
+        script:
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; $devs = Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue; if (-not $devs) { exit 1 }; $anyOff = $false; foreach ($d in $devs) { $fx = Join-Path $d.PSPath 'FxProperties'; if (-not (Test-Path $fx)) { continue }; $item = Get-ItemProperty -Path $fx -ErrorAction SilentlyContinue; if (-not $item) { continue }; $p = $item.PSObject.Properties | Where-Object Name -eq $prop; if ($p -and [int]$p.Value -eq 1) { $anyOff = $true } else { exit 1 } }; if ($anyOff) { exit 0 } else { exit 1 }",
+      },
+    ],
+    revert: [
+      {
+        kind: "shell",
+        script:
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (Test-Path $fx) { Remove-ItemProperty -Path $fx -Name $prop -ErrorAction SilentlyContinue } }",
+      },
+    ],
+  },
 ];
 
 export const ALL_TWEAKS: Tweak[] = [

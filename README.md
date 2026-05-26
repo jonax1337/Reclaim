@@ -6,13 +6,16 @@
 [![License](https://img.shields.io/github/license/jonax1337/reclaim?style=for-the-badge)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/jonax1337/reclaim?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jonax1337/reclaim/stargazers)
 
-![Windows 11](https://img.shields.io/badge/Windows-11-0078D6?style=for-the-badge&logo=windows11&logoColor=white)
+![Windows 11](https://img.shields.io/badge/Windows_11-Primary-0078D6?style=for-the-badge&logo=windows11&logoColor=white)
+![Windows 10](https://img.shields.io/badge/Windows_10-Best_effort-7AB1E8?style=for-the-badge&logo=windows10&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?style=for-the-badge&logo=tauri&logoColor=white)
 ![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-stable-000000?style=for-the-badge&logo=rust&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 
 A modern Windows 11 debloater and tweak suite — **live state detection**, **reversible by design**, **Mica UI**. No GeForce Experience, no Adrenalin, no DSA, no telemetry. Just the OS you paid for.
+
+> **Windows 10 compatibility.** Reclaim is Win11-first but runs on Win10 1809+ with graceful degradation: all registry/services/scheduled-task tweaks work, AI-related tweaks (Copilot, Recall, Click to Do) and Win11-only UI tweaks (Widgets, taskbar alignment, Mica) silently no-op where the underlying feature doesn't exist. The frosted-glass window effect falls back to a standard opaque window. No separate build needed — same binary, same catalog.
 
 > Inspired by [Win11Debloat](https://github.com/Raphire/Win11Debloat) and [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil), but built from scratch with a focus on transparency, reversibility, and modern UX.
 
@@ -52,20 +55,22 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 
 ## What it does
 
-**200 reversible tweaks** across 13 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
+**228 reversible tweaks** across 12 categories with **live status** showing what's already on, and per-tweak revert that restores the Windows default:
 
 | Category | Count | Highlights |
 | --- | ---: | --- |
-| Privacy | 54 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync, diagnostic log + crash dump limits |
+| Privacy | 50 | telemetry, advertising ID, activity history, location, inking/typing, app access (camera/contacts/calendar), SmartScreen, clipboard cloud sync, diagnostic log + crash dump limits |
 | AI & Copilot | 10 | Copilot, Recall, Click to Do, Edge AI, Notepad AI, Paint Cocreator, Photos generative erase |
 | Search | 9 | Bing in Start, Cortana, web suggestions, search highlights, SafeSearch, device search history |
-| Explorer | 19 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
-| Taskbar & Start | 18 | widgets, Chat, Task View, alignment, sponsored recs, lock screen ads, clock seconds, end-task right-click, small mode, hide tray People |
-| Notifications | 8 | toasts off, sounds off, lock-screen toasts, tips/tricks, welcome experience, finish-setup, Defender summary |
-| Performance | 20 | background apps, Game DVR, mouse accel, DiagTrack, Reserved Storage, NTFS last-access, scheduled defrag, IPv6 Teredo, NDU, High Performance plan, visual effects |
+| Explorer | 20 | classic Win10 context menu, file extensions, hidden files, long paths, full path in title, compact mode, drive letters first |
+| Taskbar & Start | 17 | widgets, Chat, Task View, alignment, sponsored recs, lock screen ads, clock seconds, end-task right-click, small mode, hide tray People |
+| Notifications | 10 | toasts off, sounds off, lock-screen toasts, tips/tricks, welcome experience, finish-setup, Defender summary |
+| Performance | 26 | background apps, Game DVR, mouse accel, DiagTrack, Reserved Storage, NTFS last-access, scheduled defrag, IPv6 Teredo, NDU, High Performance plan, visual effects |
 | Updates | 10 | defer features, no auto-restart, P2P Delivery Optimization, exclude drivers, extended active hours, block Insider |
 | Browser (Edge) | 13 | skip first-run, no Bing in URL bar, no background mode, no shopping/wallet/Discover, hide rewards, clean New Tab page, sign-in optional |
-| Security | 6 | LSA Protection (RunAsPPL), Controlled Folder Access, Defender Attack Surface Reduction rules, extra hardening |
+| Security | 21 | LSA Protection (RunAsPPL), Controlled Folder Access, 16 Defender ASR rules, SMB1 off, Remote Assistance / RDP off, NetBIOS off |
+| Memory | 6 | RAM compression, SysMain, Prefetch, page combining, clear pagefile at shutdown, paging executive |
+| Gaming | 35 | Game Mode, MMCSS scheduling, CPU foreground priority, HAGS, TDR delay, mouse/keyboard latency, HID power off, TCP ack/no-delay, QoS bandwidth, NIC EEE/flow-control/interrupt-moderation off, AFD buffers, HPET off, TSC enhanced, fullscreen-opt off, NVIDIA telemetry off, audio enhancements off |
 
 **Bloatware remover** — **158 curated AppX patterns** across 8 groups (consumer, office, gaming, communication, media, system, other, plus OEM bloat for HP / Lenovo / Dell). **121 are flagged `recommended:true` and form the standardized debloat list** every ISO build + Bloatware route applies; the remaining 37 (Calculator, Notepad, Sticky Notes, Quick Assist, Xbox-Identity-Provider, Family Safety, Mail & Calendar, vendor support utilities etc.) require explicit opt-in. v0.19.0 added explicit publisher-prefixed patterns for the Sponsored Apps that Microsoft Store auto-pushes after first network connect (WhatsApp / Spotify / Disney+ / Netflix / TikTok / Instagram / Facebook / LinkedIn). Lists only what's actually on your system. Bulk-uninstall via Remove-AppxPackage (including provisioned packages).
 
@@ -76,7 +81,7 @@ Same binary, same catalog, same activity-log mirror. No second .exe to ship.
 **Install media (Task Sequence editor)** — Produces a bootable Windows 11 install medium with your chosen tweaks + the standardized debloat list baked in, in two modes:
 
 - **Simple mode (default).** Pick a profile (built-in or custom from `/profiles`), set username/password/locale, toggle "Fully automated" if you want zero-clicks. Click **Build ISO** (repacks a Windows 11 ISO via Windows ADK `oscdimg.exe`) or **Flash USB** (writes directly to a USB stick — single FAT32 + DISM-split layout for install.wim > 4 GB, no Rufus needed). The generator emits both an `autounattend.xml` and a `setupcomplete.cmd` sidecar dropped into `\$OEM$\$$\Setup\Scripts\` so Windows Setup auto-copies the script into `%WINDIR%` during install.
-- **Advanced mode (Task Sequence).** Drag-and-droppable editor with 11 step types — locale & account, hardware-check bypasses, edition picker (KMS keys), OOBE skips, OOBE privacy defaults, auto disk wipe (opt-in for fully-automated), driver injection (folder picker → `\$OEM$\$1\Drivers\`), AppX debloat patterns (pre-filled with the recommended list — uncheck what you want to keep), registry tweaks (from the catalog), winget apps to install post-OOBE, and free-form custom commands attached to any of the 5 Setup hooks (`windowsPE`, `specialize`, `oobeSystem`, `setupcomplete`, `firstlogon`). Six templates: Privacy Maximum / Gaming Rig / Office Workstation / Bare Minimum / Blank Slate / **Fully Automated (zero clicks)**.
+- **Advanced mode (Task Sequence).** Drag-and-droppable editor with 11 step types — locale & account, hardware-check bypasses, edition picker (KMS keys), OOBE skips, OOBE privacy defaults, auto disk wipe (opt-in for fully-automated), driver injection (folder picker → `\$OEM$\$1\Drivers\`), AppX debloat patterns (pre-filled with the recommended list — uncheck what you want to keep), registry tweaks (from the catalog), winget apps to install post-OOBE, and free-form custom commands attached to any of the 5 Setup hooks (`windowsPE`, `specialize`, `oobeSystem`, `setupcomplete`, `firstlogon`). Seven templates: Privacy Maximum / Gaming Rig / **Esports Rig** / Office Workstation / Bare Minimum / Blank Slate / **Fully Automated (zero clicks)**.
 - **Headless from CI** — `reclaim.exe --gen-install-media <config.json> --out-dir <dir>` produces `autounattend.xml` + `setupcomplete.cmd` without ever opening the GUI. Pair with `scripts/gen-unattend-config.mjs` which builds the JSON from `--profile <id>`, `--locale <de-de|en-us|…>`, `--fully-automated`, `--username`, `--password`, `--target-disk` against the same exported catalog the rest of the CLI uses.
 
 **Debloat is decoupled from profiles.** Profiles control **which Windows settings to flip** (tweaks). Every ISO build's AppX debloat is the same standardized list — the 121 `recommended:true` patterns from the bloatware catalog, applied uniformly across all profiles. Customizing the debloat happens in Advanced mode, never in profile data. Cleaner mental model, one catalog to curate.
@@ -99,14 +104,24 @@ Sponsored-apps blockers fire in the specialize pass (before first network connec
 - Reset: Windows Update components, print spooler, network stack (winsock + ip + flushdns + release/renew), firewall, Memory Diagnostic launcher
 - Power Plans: list + activate, "Unlock Ultimate Performance" duplicates the hidden GUID, delete custom plans
 
-**Profiles** — Four built-in presets:
+**Profiles** — Five built-in presets:
 
-- **Gaming** (12 tweaks) — kills Game DVR / background apps / mouse accel for max FPS
-- **Privacy Maximum** (41 tweaks) — full telemetry & tracking lockdown
-- **Performance** (17 tweaks) — free RAM and disk
+- **Gaming** (38 tweaks) — Game DVR / background apps off, MMCSS + HAGS + GPU TDR, mouse-hover + keyboard rate, USB selective-suspend off, TCP ack/no-delay, NVIDIA telemetry off, full Game Bar shutdown
+- **Gaming · Esports** (48 tweaks) — everything Gaming does + the aggressive latency add-ons (NIC interrupt-moderation/EEE/flow-control off, AFD buffers, core parking off, HPET off, TSC enhanced). Meant for plugged-in desktops where competitive ping matters
+- **Privacy Maximum** (52 tweaks) — full telemetry & tracking lockdown
+- **Performance** (23 tweaks) — free RAM and disk
 - **Reclaim Basics** — every recommended tweak
 
 …plus a full **profile builder** for custom profiles. Pick any subset of tweaks + bloatware patterns, save, export to a `.reclaim` file (JSON envelope with schema versioning), share, import. Validation drops unknown tweak ids with a warning.
+
+**Gaming toolbox** — six purpose-built routes beyond the tweak catalog:
+
+- **Gaming Session** — Snapshot the system state, suspend background noise (Discord/Spotify/Edge/OneDrive/launchers — hardcoded whitelist, never csrss.exe), switch to Ultimate Performance, optionally pause Defender real-time. Click End and every mutation is reversed from the snapshot. Crash-safe — snapshot lives in localStorage.
+- **Per-game profiles** — Per-EXE GPU preference (HKCU `UserGpuPreferences` — same key the Windows Settings → Graphics page writes), Fullscreen Optimizations off, HighDPIAware override, Run-as-admin via the per-user AppCompat `Layers` key. HKCU only — no admin needed.
+- **MSI mode manager** — Per-PCI-device MSI / MSI-X interrupt toggle for GPU, NVMe and audio. Strict instance-id validation, sticky "wrong values prevent boot" warning, one-click restore-point shortcut.
+- **NIC tuning** — Live editor for `Get-NetAdapterAdvancedProperty`. Curated list of 16 latency-relevant properties (EEE, flow control, interrupt moderation, RSS, jumbo packet, LSO, Realtek Green Ethernet, …) with explanations and recommended values; "Show all" expander dumps every remaining property.
+- **Latency monitor** — Live ping with sparklines. Eight preset endpoints (Steam, Riot, Epic, Battle.net, Discord, Cloudflare, Google DNS, GitHub) plus user-added custom targets. 2 / 5 / 10 s polling, rolling 60-sample stats (min/avg/max/loss%).
+- **Anti-cheat compatibility** — Probes Secure Boot, TPM 2.0, VBS, HVCI, Test Mode and kernel debugging, then renders a matrix for Riot Vanguard, Easy Anti-Cheat, BattlEye and VAC. One-click fixes for testsigning + kernel debug; "Open UEFI" shortcut for the rest.
 
 **System info** — CPU / GPU (driver version + date) / RAM (per-slot speed + manufacturer) / Storage (per-drive usage + physical drives) / Motherboard / BIOS.
 
