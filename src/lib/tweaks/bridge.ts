@@ -1610,3 +1610,52 @@ export async function nicResetProperty(adapterName: string, registryKeyword: str
 export async function nicRestart(adapterName: string): Promise<void> {
   await invoke("nic_restart", { adapterName });
 }
+
+/* ─────────────────────────  MSI mode manager  ───────────────────────── */
+
+export type MsiDevice = {
+  instanceId: string;
+  friendlyName: string;
+  class: string;
+  manufacturer: string;
+  status: string;
+  present: boolean;
+  msiSupported: number | null;
+  messageNumberLimit: number | null;
+  hasInterruptProps: boolean;
+};
+
+type RawMsiDevice = {
+  instance_id: string;
+  friendly_name: string;
+  class: string;
+  manufacturer: string;
+  status: string;
+  present: boolean;
+  msi_supported: number | null;
+  message_number_limit: number | null;
+  has_interrupt_props: boolean;
+};
+
+export async function msiListDevices(): Promise<MsiDevice[]> {
+  const raw = await invoke<RawMsiDevice[]>("msi_list_devices");
+  return raw.map((d) => ({
+    instanceId: d.instance_id,
+    friendlyName: d.friendly_name,
+    class: d.class,
+    manufacturer: d.manufacturer,
+    status: d.status,
+    present: d.present,
+    msiSupported: d.msi_supported,
+    messageNumberLimit: d.message_number_limit,
+    hasInterruptProps: d.has_interrupt_props,
+  }));
+}
+
+export async function msiSetSupported(instanceId: string, enabled: boolean): Promise<void> {
+  await invoke("msi_set_supported", { instanceId, enabled });
+}
+
+export async function msiSetMessageLimit(instanceId: string, limit: number | null): Promise<void> {
+  await invoke("msi_set_message_limit", { instanceId, limit });
+}

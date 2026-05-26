@@ -12,6 +12,7 @@ mod driver_update;
 mod files;
 mod firewall;
 mod gaming_session;
+mod msi;
 mod nic;
 mod icons;
 mod iso_builder;
@@ -263,6 +264,9 @@ pub fn run() {
             nic::nic_set_property,
             nic::nic_reset_property,
             nic::nic_restart,
+            msi::msi_list_devices,
+            msi::msi_set_supported,
+            msi::msi_set_message_limit,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

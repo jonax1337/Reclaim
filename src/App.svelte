@@ -21,6 +21,7 @@
   import PerGameProfiles from "./routes/PerGameProfiles.svelte";
   import AntiCheatCompat from "./routes/AntiCheatCompat.svelte";
   import NicTuning from "./routes/NicTuning.svelte";
+  import MsiModeManager from "./routes/MsiModeManager.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -76,6 +77,7 @@
     ["/per-game-profiles", PerGameProfiles],
     ["/anti-cheat-compat", AntiCheatCompat],
     ["/nic-tuning", NicTuning],
+    ["/msi-mode", MsiModeManager],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],

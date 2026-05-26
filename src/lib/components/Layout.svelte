@@ -37,6 +37,7 @@
     Zap,
     Crosshair,
     Swords,
+    CircuitBoard,
     Code2,
     LifeBuoy,
   } from "@lucide/svelte";
@@ -162,6 +163,7 @@
         { href: "/gaming-session", label: "Gaming Session", icon: Zap, adminOnly: true },
         { href: "/per-game-profiles", label: "Per-game profiles", icon: Crosshair },
         { href: "/anti-cheat-compat", label: "Anti-cheat compat", icon: Swords },
+        { href: "/msi-mode", label: "MSI mode manager", icon: CircuitBoard, adminOnly: true },
       ],
     },
     {
