@@ -18,6 +18,7 @@
   import Memory from "./routes/Memory.svelte";
   import Gaming from "./routes/Gaming.svelte";
   import GamingSession from "./routes/GamingSession.svelte";
+  import PerGameProfiles from "./routes/PerGameProfiles.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -70,6 +71,7 @@
     ["/memory", Memory],
     ["/gaming", Gaming],
     ["/gaming-session", GamingSession],
+    ["/per-game-profiles", PerGameProfiles],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],

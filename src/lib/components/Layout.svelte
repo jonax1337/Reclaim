@@ -34,6 +34,7 @@
     MemoryStick,
     Gamepad2,
     Zap,
+    Crosshair,
     Code2,
     LifeBuoy,
   } from "@lucide/svelte";
@@ -157,6 +158,7 @@
         { href: "/memory", label: "Memory & caching", icon: MemoryStick, adminOnly: true },
         { href: "/gaming", label: "Gaming", icon: Gamepad2, adminOnly: true },
         { href: "/gaming-session", label: "Gaming Session", icon: Zap, adminOnly: true },
+        { href: "/per-game-profiles", label: "Per-game profiles", icon: Crosshair },
       ],
     },
     {
