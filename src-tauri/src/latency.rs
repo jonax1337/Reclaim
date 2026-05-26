@@ -50,45 +50,31 @@ pub async fn latency_ping_hosts(hosts: Vec<String>) -> Result<Vec<PingResult>, S
         .collect::<Vec<_>>()
         .join(",");
 
-    // Test-Connection -AsJob would parallelize naturally but the post-processing
-    // is fiddly. Pwsh 7 has -Parallel for ForEach-Object; Pwsh 5 doesn't.
-    // We run ping in parallel via Start-Job + Wait-Job — works on both.
+    // Sequential System.Net.NetworkInformation.Ping.Send() — same .NET API
+    // across PS 5.1 / PS 7, no Task / WaitAll fragility. At a 1.5 s timeout
+    // and 8 default targets the wall clock stays under 250 ms for healthy
+    // links; worst case (all timeout) is bounded at hosts * timeout.
     let script = format!(
         r#"
 $ErrorActionPreference = 'SilentlyContinue'
-$hosts = @({hosts})
-$jobs = @()
-foreach ($h in $hosts) {{
-    $jobs += Start-Job -ScriptBlock {{
-        param($target)
-        $r = $null
-        try {{
-            # -Quiet returns just a bool; we want timing — so use the normal form
-            # and grab the first reply. ResponseTime is in ms (0 on Win11 when
-            # request is sub-millisecond).
-            $r = Test-Connection -ComputerName $target -Count 1 -ErrorAction Stop |
-                 Select-Object -First 1
-        }} catch {{ $r = $null }}
-        if ($null -eq $r) {{
-            [pscustomobject]@{{ host = $target; rtt_ms = $null; address = $null }}
-        }} else {{
-            $rt = $null
-            if ($null -ne $r.ResponseTime) {{ $rt = [uint32]$r.ResponseTime }}
-            elseif ($null -ne $r.Latency) {{ $rt = [uint32]$r.Latency }}
-            $addr = $null
-            if ($r.PSObject.Properties.Match('IPV4Address').Count -gt 0 -and $r.IPV4Address) {{
-                $addr = "$($r.IPV4Address)"
-            }} elseif ($r.PSObject.Properties.Match('Address').Count -gt 0 -and $r.Address) {{
-                $addr = "$($r.Address)"
-            }}
-            [pscustomobject]@{{ host = $target; rtt_ms = $rt; address = $addr }}
+$targets = @({hosts})
+$timeout = 1500
+$out = @()
+$pinger = New-Object System.Net.NetworkInformation.Ping
+foreach ($t in $targets) {{
+    $rtt = $null
+    $addr = $null
+    try {{
+        $r = $pinger.Send($t, $timeout)
+        if ($r -and $r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {{
+            $rtt = [uint32]$r.RoundtripTime
+            if ($r.Address) {{ $addr = "$($r.Address)" }}
         }}
-    }} -ArgumentList $h
+    }} catch {{}}
+    $out += [pscustomobject]@{{ host = $t; rtt_ms = $rtt; address = $addr }}
 }}
-$results = $jobs | Wait-Job -Timeout 4 | Receive-Job
-$jobs | Remove-Job -Force | Out-Null
-if (-not $results) {{ '[]'; return }}
-@($results) | ConvertTo-Json -Depth 3 -AsArray -Compress
+try {{ $pinger.Dispose() }} catch {{}}
+ConvertTo-Json -InputObject @($out) -Depth 3 -Compress
 "#,
         hosts = host_array
     );

@@ -52,8 +52,12 @@ fn safe_value(s: &str) -> bool {
 
 const LIST_ADAPTERS_SCRIPT: &str = r#"
 $ErrorActionPreference = 'SilentlyContinue'
-$adapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
-if (-not $adapters) { '[]'; return }
+# Get-NetAdapter without -Physical returns everything the Network Connections
+# panel shows. We do no further filtering: virtual / tunnel / loopback adapters
+# are kept so the user always sees their NIC even if a Killer / Realtek driver
+# reports weird metadata. The advanced-property listing per adapter handles the
+# "this NIC has no tunable properties" case naturally.
+$adapters = @(Get-NetAdapter -ErrorAction SilentlyContinue)
 $out = @()
 foreach ($a in $adapters) {
     $out += [pscustomobject]@{
@@ -65,7 +69,7 @@ foreach ($a in $adapters) {
         media_type            = "$($a.MediaType)"
     }
 }
-$out | ConvertTo-Json -Depth 3 -AsArray -Compress
+ConvertTo-Json -InputObject @($out) -Depth 3 -Compress
 "#;
 
 #[tauri::command]
@@ -111,7 +115,7 @@ foreach ($p in $props) {{
         valid_display_values = $validDisp
     }}
 }}
-$out | ConvertTo-Json -Depth 4 -AsArray -Compress
+ConvertTo-Json -InputObject @($out) -Depth 4 -Compress
 "#,
         name = adapter_name
     );
@@ -142,8 +146,34 @@ pub async fn nic_set_property(
     if !safe_value(&registry_value) {
         return Err(format!("Rejected registry value: {registry_value}"));
     }
+    // Set-NetAdapterAdvancedProperty wants a typed -RegistryValue: numeric
+    // properties (RegistryDataType REG_DWORD / REG_SZ-of-int) only accept
+    // integers, not quoted strings. We hand PowerShell a try/fallback so the
+    // numeric path runs first; if the driver actually wants a string, the
+    // catch retries with the quoted form.
     let script = format!(
-        "Set-NetAdapterAdvancedProperty -Name '{name}' -RegistryKeyword '{kw}' -RegistryValue '{val}' -NoRestart -ErrorAction Stop",
+        r#"
+$name = '{name}'
+$kw   = '{kw}'
+$val  = '{val}'
+$num  = 0
+$isNum = [int64]::TryParse($val, [ref]$num)
+try {{
+    if ($isNum) {{
+        Set-NetAdapterAdvancedProperty -Name $name -RegistryKeyword $kw -RegistryValue $num -NoRestart -ErrorAction Stop
+    }} else {{
+        Set-NetAdapterAdvancedProperty -Name $name -RegistryKeyword $kw -RegistryValue $val -NoRestart -ErrorAction Stop
+    }}
+}} catch {{
+    # Numeric path rejected (RegistryDataType REG_SZ on a hex-encoded value, etc.)
+    # Retry with the string form before bubbling the error.
+    if ($isNum) {{
+        Set-NetAdapterAdvancedProperty -Name $name -RegistryKeyword $kw -RegistryValue $val -NoRestart -ErrorAction Stop
+    }} else {{
+        throw
+    }}
+}}
+"#,
         name = adapter_name,
         kw = registry_keyword,
         val = registry_value

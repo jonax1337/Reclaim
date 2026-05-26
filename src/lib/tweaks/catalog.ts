@@ -3800,21 +3800,21 @@ export const GAMING_TWEAKS: Tweak[] = [
       {
         kind: "shell",
         script:
-          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -Recurse -ErrorAction SilentlyContinue | Where-Object PSChildName -eq 'Device Parameters' | ForEach-Object { Set-ItemProperty -Path $_.PSPath -Name 'SelectiveSuspendEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue; Set-ItemProperty -Path $_.PSPath -Name 'EnhancedPowerManagementEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue }",
+          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { Set-ItemProperty -Path $dp -Name 'SelectiveSuspendEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue; Set-ItemProperty -Path $dp -Name 'EnhancedPowerManagementEnabled' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } } }",
       },
     ],
     check: [
       {
         kind: "shell",
         script:
-          "$bad = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -Recurse -ErrorAction SilentlyContinue | Where-Object PSChildName -eq 'Device Parameters' | ForEach-Object { $v = (Get-ItemProperty -Path $_.PSPath -Name SelectiveSuspendEnabled -ErrorAction SilentlyContinue).SelectiveSuspendEnabled; if ($null -ne $v -and $v -ne 0) { 1 } } ; if (($bad | Measure-Object).Count -gt 0) { exit 1 } else { exit 0 }",
+          "$bad = 0; $any = 0; Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { $any++; $v = (Get-ItemProperty -Path $dp -Name SelectiveSuspendEnabled -ErrorAction SilentlyContinue).SelectiveSuspendEnabled; if ($null -eq $v -or $v -ne 0) { $bad++ } } } }; if ($any -eq 0) { exit 1 } elseif ($bad -eq 0) { exit 0 } else { exit 1 }",
       },
     ],
     revert: [
       {
         kind: "shell",
         script:
-          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -Recurse -ErrorAction SilentlyContinue | Where-Object PSChildName -eq 'Device Parameters' | ForEach-Object { Remove-ItemProperty -Path $_.PSPath -Name 'SelectiveSuspendEnabled' -ErrorAction SilentlyContinue; Remove-ItemProperty -Path $_.PSPath -Name 'EnhancedPowerManagementEnabled' -ErrorAction SilentlyContinue }",
+          "Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Enum\\HID' -ErrorAction SilentlyContinue | ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue | ForEach-Object { $dp = Join-Path $_.PSPath 'Device Parameters'; if (Test-Path $dp) { Remove-ItemProperty -Path $dp -Name 'SelectiveSuspendEnabled' -ErrorAction SilentlyContinue; Remove-ItemProperty -Path $dp -Name 'EnhancedPowerManagementEnabled' -ErrorAction SilentlyContinue } } }",
       },
     ],
   },
@@ -4088,7 +4088,7 @@ export const GAMING_TWEAKS: Tweak[] = [
       {
         kind: "shell",
         script:
-          "$o = powercfg /query SCHEME_CURRENT SUB_PROCESSOR 0cc5b647-c1df-4637-891a-dec35c318583 2>&1 | Out-String; if ($o -match '(?i)current ac power setting index:\\s*0x00000064') { exit 0 } else { exit 1 }",
+          "$s = powercfg /getactivescheme 2>&1 | Out-String; if ($s -notmatch '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})') { exit 1 }; $scheme = $Matches[1]; $p = \"HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\$scheme\\54533251-82be-4824-96c1-47b60b740d00\\0cc5b647-c1df-4637-891a-dec35c318583\"; $v = (Get-ItemProperty -Path $p -Name ACSettingIndex -ErrorAction SilentlyContinue).ACSettingIndex; if ($v -eq 100) { exit 0 } else { exit 1 }",
       },
     ],
     revert: [
@@ -4116,7 +4116,7 @@ export const GAMING_TWEAKS: Tweak[] = [
       {
         kind: "shell",
         script:
-          "$o = powercfg /query SCHEME_CURRENT SUB_PROCESSOR be337238-0d82-4146-a960-4f3749d470c7 2>&1 | Out-String; if ($o -match '(?i)current ac power setting index:\\s*0x00000002') { exit 0 } else { exit 1 }",
+          "$s = powercfg /getactivescheme 2>&1 | Out-String; if ($s -notmatch '([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})') { exit 1 }; $scheme = $Matches[1]; $p = \"HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Power\\User\\PowerSchemes\\$scheme\\54533251-82be-4824-96c1-47b60b740d00\\be337238-0d82-4146-a960-4f3749d470c7\"; $v = (Get-ItemProperty -Path $p -Name ACSettingIndex -ErrorAction SilentlyContinue).ACSettingIndex; if ($v -eq 2) { exit 0 } else { exit 1 }",
       },
     ],
     revert: [
@@ -4228,7 +4228,7 @@ export const GAMING_TWEAKS: Tweak[] = [
       {
         kind: "shell",
         script:
-          "$o = fsutil.exe behavior query disable8dot3 2>&1 | Out-String; if ($o -match 'disable8dot3\\s+=\\s+1') { exit 0 } else { exit 1 }",
+          "$v = (Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name NtfsDisable8dot3NameCreation -ErrorAction SilentlyContinue).NtfsDisable8dot3NameCreation; if ($v -eq 1) { exit 0 } else { exit 1 }",
       },
     ],
     revert: [
@@ -4281,26 +4281,26 @@ export const GAMING_TWEAKS: Tweak[] = [
     category: "gaming",
     title: "Disable audio enhancements on all output devices",
     description:
-      "Turns off the 'Audio enhancements' DSP chain (Loudness Equalization, Bass Boost, Virtual Surround, etc.) on every render endpoint. Often introduces audible latency and is rarely useful for games.",
+      "Sets PKEY_AudioEndpoint_Disable_SysFx = 1 on every active render endpoint so the platform skips the SFX/MFX chain (Loudness Equalization, Bass Boost, Virtual Surround, …). Often shaves a few ms off audio latency and reduces phasing artefacts in games.",
     apply: [
       {
         kind: "shell",
         script:
-          "Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (Test-Path $fx) { Set-ItemProperty -Path $fx -Name '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5' -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue } }",
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (-not (Test-Path $fx)) { New-Item -Path $fx -Force | Out-Null }; Set-ItemProperty -Path $fx -Name $prop -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue }",
       },
     ],
     check: [
       {
         kind: "shell",
         script:
-          "$bad = Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (Test-Path $fx) { $v = (Get-ItemProperty -Path $fx -Name '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5' -ErrorAction SilentlyContinue).'{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; if ($null -ne $v -and $v -ne 0) { 1 } } }; if (($bad | Measure-Object).Count -gt 0) { exit 1 } else { exit 0 }",
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; $devs = Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue; if (-not $devs) { exit 1 }; $anyOff = $false; foreach ($d in $devs) { $fx = Join-Path $d.PSPath 'FxProperties'; if (-not (Test-Path $fx)) { continue }; $item = Get-ItemProperty -Path $fx -ErrorAction SilentlyContinue; if (-not $item) { continue }; $p = $item.PSObject.Properties | Where-Object Name -eq $prop; if ($p -and [int]$p.Value -eq 1) { $anyOff = $true } else { exit 1 } }; if ($anyOff) { exit 0 } else { exit 1 }",
       },
     ],
     revert: [
       {
         kind: "shell",
         script:
-          "Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (Test-Path $fx) { Remove-ItemProperty -Path $fx -Name '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5' -ErrorAction SilentlyContinue } }",
+          "$prop = '{1da5d803-d492-4edd-8c23-e0c0ffee7f0e},5'; Get-ChildItem 'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render' -ErrorAction SilentlyContinue | ForEach-Object { $fx = Join-Path $_.PSPath 'FxProperties'; if (Test-Path $fx) { Remove-ItemProperty -Path $fx -Name $prop -ErrorAction SilentlyContinue } }",
       },
     ],
   },

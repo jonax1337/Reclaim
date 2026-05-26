@@ -160,7 +160,12 @@
         { href: "/notifications", label: "Notifications", icon: BellRing },
         { href: "/performance", label: "Performance", icon: Gauge },
         { href: "/memory", label: "Memory & caching", icon: MemoryStick, adminOnly: true },
-        { href: "/gaming", label: "Gaming", icon: Gamepad2, adminOnly: true },
+      ],
+    },
+    {
+      label: "Gaming",
+      items: [
+        { href: "/gaming", label: "Gaming tweaks", icon: Gamepad2, adminOnly: true },
         { href: "/gaming-session", label: "Gaming Session", icon: Zap, adminOnly: true },
         { href: "/per-game-profiles", label: "Per-game profiles", icon: Crosshair },
         { href: "/anti-cheat-compat", label: "Anti-cheat compat", icon: Swords },
@@ -186,18 +191,13 @@
       ],
     },
     {
-      label: "Developer",
-      items: [
-        { href: "/developer", label: "Windows features", icon: Code2, adminOnly: true },
-      ],
-    },
-    {
       label: "System info",
       items: [
         { href: "/specs", label: "Specs", icon: Cpu },
         { href: "/startup", label: "Startup apps", icon: Rocket },
         { href: "/services", label: "Services", icon: Cog, adminOnly: true },
         { href: "/scheduled-tasks", label: "Scheduled tasks", icon: Clock, adminOnly: true },
+        { href: "/developer", label: "Windows features", icon: Code2, adminOnly: true },
         { href: "/maintenance", label: "Maintenance", icon: Wrench, adminOnly: true },
         { href: "/recovery", label: "Recovery", icon: LifeBuoy, adminOnly: true },
       ],

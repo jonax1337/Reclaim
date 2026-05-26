@@ -125,6 +125,15 @@
 <PageHeader title="Settings" description="Appearance, system actions and info." />
 
 <div class="flex flex-col gap-6">
+  {#if info && parseInt(info.build, 10) > 0 && parseInt(info.build, 10) < 22000}
+    <InfoBanner tone="info">
+      <strong>Running on Windows 10 (build {info.build}).</strong> Reclaim is Win11-first — all
+      registry, service and scheduled-task tweaks work the same on Win10, but Win11-only features
+      (Recall, Click&nbsp;to&nbsp;Do, Widgets, Mica window blur) silently no-op because the
+      underlying capabilities don't exist. No separate build is needed.
+    </InfoBanner>
+  {/if}
+
   <Card>
     <CardHeader>
       <CardTitle>Appearance</CardTitle>

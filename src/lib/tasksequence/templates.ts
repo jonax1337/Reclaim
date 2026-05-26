@@ -101,6 +101,53 @@ export const TEMPLATES: TaskSequence[] = [
   ),
 
   sequenceFromSteps(
+    "esports",
+    "Esports Rig",
+    "Aggressive latency profile (NIC interrupt-moderation off, core parking off, HPET off, TSC enhanced). Pre-installs Steam, Discord, NVIDIA-cleaned drivers stack.",
+    [
+      ...basePreamble(),
+      makeStep("debloat-appx", {
+        // Same minimal-keep set as Gaming Rig — Xbox + GameBar stay, only the
+        // worst preinstalled noise goes.
+        config: {
+          patterns: [
+            "Microsoft.BingNews",
+            "Microsoft.BingWeather",
+            "Microsoft.GetHelp",
+            "Microsoft.Getstarted",
+            "Microsoft.MicrosoftOfficeHub",
+            "Microsoft.MicrosoftSolitaireCollection",
+            "Microsoft.WindowsFeedbackHub",
+            "MicrosoftTeams",
+            "MSTeams",
+            "Microsoft.YourPhone",
+            "*WhatsApp*",
+            "*Spotify*",
+            "*TikTok*",
+            "*Netflix*",
+            "*Disney*",
+            "*Facebook*",
+            "*Instagram*",
+          ],
+        },
+      }),
+      makeStep("reg-tweaks", {
+        config: { tweakIds: profileRegTweakIds("gaming-esports") },
+      }),
+      makeStep("apps-install", {
+        config: {
+          wingetIds: [
+            "Valve.Steam",
+            "Discord.Discord",
+            "EpicGames.EpicGamesLauncher",
+            "Mozilla.Firefox",
+          ],
+        },
+      }),
+    ],
+  ),
+
+  sequenceFromSteps(
     "office",
     "Office Workstation",
     "Minimal debloat. Pre-installs Office 365, Firefox, PDF tools.",
