@@ -12,6 +12,7 @@ mod driver_update;
 mod files;
 mod firewall;
 mod gaming_session;
+mod latency;
 mod msi;
 mod nic;
 mod icons;
@@ -267,6 +268,7 @@ pub fn run() {
             msi::msi_list_devices,
             msi::msi_set_supported,
             msi::msi_set_message_limit,
+            latency::latency_ping_hosts,
         ])
         .on_window_event(|window, event| {
             // Only the Builder-global `on_window_event` handler's `prevent_close`

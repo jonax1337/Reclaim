@@ -22,6 +22,7 @@
   import AntiCheatCompat from "./routes/AntiCheatCompat.svelte";
   import NicTuning from "./routes/NicTuning.svelte";
   import MsiModeManager from "./routes/MsiModeManager.svelte";
+  import LatencyMonitor from "./routes/LatencyMonitor.svelte";
   import Developer from "./routes/Developer.svelte";
   import Hosts from "./routes/Hosts.svelte";
   import Network from "./routes/Network.svelte";
@@ -78,6 +79,7 @@
     ["/anti-cheat-compat", AntiCheatCompat],
     ["/nic-tuning", NicTuning],
     ["/msi-mode", MsiModeManager],
+    ["/latency-monitor", LatencyMonitor],
     ["/developer", Developer],
     ["/hosts", Hosts],
     ["/network", Network],

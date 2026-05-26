@@ -1659,3 +1659,22 @@ export async function msiSetSupported(instanceId: string, enabled: boolean): Pro
 export async function msiSetMessageLimit(instanceId: string, limit: number | null): Promise<void> {
   await invoke("msi_set_message_limit", { instanceId, limit });
 }
+
+/* ─────────────────────────  Latency monitor  ────────────────────────── */
+
+export type PingResult = {
+  host: string;
+  rttMs: number | null;
+  address: string | null;
+};
+
+type RawPingResult = {
+  host: string;
+  rtt_ms: number | null;
+  address: string | null;
+};
+
+export async function latencyPingHosts(hosts: string[]): Promise<PingResult[]> {
+  const raw = await invoke<RawPingResult[]>("latency_ping_hosts", { hosts });
+  return raw.map((r) => ({ host: r.host, rttMs: r.rtt_ms, address: r.address }));
+}
