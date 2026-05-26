@@ -6,13 +6,16 @@
 [![License](https://img.shields.io/github/license/jonax1337/reclaim?style=for-the-badge)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/jonax1337/reclaim?style=for-the-badge&logo=github&logoColor=white)](https://github.com/jonax1337/reclaim/stargazers)
 
-![Windows 11](https://img.shields.io/badge/Windows-11-0078D6?style=for-the-badge&logo=windows11&logoColor=white)
+![Windows 11](https://img.shields.io/badge/Windows_11-Primary-0078D6?style=for-the-badge&logo=windows11&logoColor=white)
+![Windows 10](https://img.shields.io/badge/Windows_10-Best_effort-7AB1E8?style=for-the-badge&logo=windows10&logoColor=white)
 ![Tauri 2](https://img.shields.io/badge/Tauri-2-FFC131?style=for-the-badge&logo=tauri&logoColor=white)
 ![Svelte 5](https://img.shields.io/badge/Svelte-5-FF3E00?style=for-the-badge&logo=svelte&logoColor=white)
 ![Rust](https://img.shields.io/badge/Rust-stable-000000?style=for-the-badge&logo=rust&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 
 A modern Windows 11 debloater and tweak suite — **live state detection**, **reversible by design**, **Mica UI**. No GeForce Experience, no Adrenalin, no DSA, no telemetry. Just the OS you paid for.
+
+> **Windows 10 compatibility.** Reclaim is Win11-first but runs on Win10 1809+ with graceful degradation: all registry/services/scheduled-task tweaks work, AI-related tweaks (Copilot, Recall, Click to Do) and Win11-only UI tweaks (Widgets, taskbar alignment, Mica) silently no-op where the underlying feature doesn't exist. The frosted-glass window effect falls back to a standard opaque window. No separate build needed — same binary, same catalog.
 
 > Inspired by [Win11Debloat](https://github.com/Raphire/Win11Debloat) and [ChrisTitusTech/winutil](https://github.com/ChrisTitusTech/winutil), but built from scratch with a focus on transparency, reversibility, and modern UX.
 
